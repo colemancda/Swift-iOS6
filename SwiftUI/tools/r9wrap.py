@@ -14,7 +14,9 @@ functions and the UIKit backend's sui_* functions), this writes a trampoline
 `_r9$name` that saves r9, calls `name` and restores r9, and copies each
 bare-metal object and archive with its references renamed to the trampoline.
 
-usage: r9wrap.py OUT_DIR BACKEND_HEADER OBJECT_OR_ARCHIVE...
+usage: r9wrap.py OUT_DIR HEADER[,HEADER...] OBJECT_OR_ARCHIVE...
+HEADER declares the iOS-side functions Swift calls (SwiftUIBackend.h, and an
+app's own C API), so trampolines know which take stack arguments.
 Writes OUT_DIR/trampolines.s and OUT_DIR/<basename> for each input.
 """
 
@@ -32,13 +34,13 @@ DATA = {
 }
 
 
-def stack_args(header):
-    """Words each sui_* function takes on the stack, beyond r0-r3. Every
-    backend argument is a pointer or a long. The libSystem functions the
-    runtime calls all take at most four words."""
-    text = open(header).read()
+def stack_args(headers):
+    """Words each function declared in `headers` takes on the stack, beyond
+    r0-r3. Their arguments must all be pointers or longs. The libSystem
+    functions the runtime calls all take at most four words."""
+    text = "".join(open(header).read() for header in headers)
     counts = {}
-    for name, params in re.findall(r"\b(sui_\w+)\(([^)]*)\);", text):
+    for name, params in re.findall(r"\b(\w+)\(([^()]*)\);", text):
         params = params.strip()
         count = 0 if params in ("", "void") else params.count(",") + 1
         counts["_" + name] = max(0, count - 4)
@@ -80,7 +82,7 @@ def trampoline(name, stack):
 
 def main():
     out_dir, header, inputs = sys.argv[1], sys.argv[2], sys.argv[3:]
-    stack = stack_args(header)
+    stack = stack_args([h for h in header.split(",") if h])
     os.makedirs(out_dir, exist_ok=True)
 
     defined = symbols(inputs, "-g", "-U", "-j")

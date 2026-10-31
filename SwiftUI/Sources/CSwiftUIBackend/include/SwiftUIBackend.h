@@ -59,6 +59,9 @@ SUIViewRef sui_button_create(const char *title_utf8, SUICallback action, void *c
 void sui_button_set_font(SUIViewRef button, long size, long weight);
 void sui_button_set_color(SUIViewRef button, unsigned long rgba);
 
+/// A UISwitch that starts `on` and calls `changed` with 1 or 0 when flipped.
+SUIViewRef sui_switch_create(long on, SUIIndexCallback changed, void *context);
+
 /// A control that shows `content` and calls `action` when tapped.
 SUIViewRef sui_tappable_create(SUIViewRef content, SUICallback action, void *context);
 

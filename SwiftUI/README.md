@@ -62,9 +62,19 @@ The SDK, SSH config and app launcher come from the parent directory (see
 
 The same as SwiftUI-iOS9 (`Text`, `Button`, stacks, `Spacer`, `ForEach`,
 `List`, `NavigationView`, `NavigationLink`, `@State`, `ObservableObject`,
-`@EnvironmentObject`, `task`, `async`/`await` and more), plus `NavigationStack`.
-`NavigationStack` renders like `NavigationView` and has no `path` binding or
-`navigationDestination`.
+`@EnvironmentObject`, `task`, `async`/`await` and more), plus `NavigationStack`
+and `Toggle`. `NavigationStack` renders like `NavigationView` and has no `path`
+binding or `navigationDestination`. `Toggle` is a `UISwitch`.
+
+## Apps in other folders
+
+An app outside `Examples/` (like [../WiFiScanner](../WiFiScanner/README.md))
+builds with this Makefile by setting `APP`, `APP_DIR` and `BUILD`. `APP_DIR`
+holds the app's Swift sources and `Info.plist`, and optionally:
+
+- C or Objective-C sources, built for iOS like the backend.
+- An `include/` folder with a Clang module, which Swift imports.
+- An `Entitlements.plist` that `ldid` signs the app with.
 
 ## How the UI is wrapped
 
@@ -83,21 +93,31 @@ App code (Embedded Swift)
   touched and shows a chevron.
 - Each render installs a screen's content in a new host view inside that
   screen's view controller.
+- Renders don't push or pop while a navigation transition is animating. A
+  change requested during one is applied when it ends, and a pop is reported
+  to Swift when it starts. Otherwise a render landing during a back animation
+  pushed the screen again, which corrupts iOS 6's navigation bar.
 
 ## What changed from SwiftUI-iOS9
 
 The Swift code is the same apart from `NavigationStack` and the `Image` glyphs.
 The changes are in the backend and the build:
 
-- **Layout:** iOS 6 has Auto Layout, but not layout anchors, `activateConstraints:`
-  or `UIStackView`. The backend uses `constraintWithItem:…` and installs each
-  constraint on its views' nearest common ancestor. Stacks are `SUIStackView`,
-  a small constraint-based stack with the same fill and alignment behavior.
-- **Content host views:** iOS 6 checks constraints on a view outside a window
-  only when the view joins a window, such as when a screen is pushed. By then,
-  constraints left over from replaced content point at views that are gone,
-  and UIKit throws (this crashed the second push). Content now goes in a fresh
-  host view each render, so its constraints are discarded along with it.
+- **Layout with frames, not Auto Layout:** iOS 6 has no `UIStackView` or
+  layout anchors. A first port used the original Auto Layout API, but every
+  render rebuilds the views on screen. On the iPod's A4, adding, removing and
+  solving about a thousand constraints took 1.5–2.5 seconds per render. That
+  was slow enough for iOS's watchdog to kill the Wi-Fi scanner. iOS 6 Auto
+  Layout also threw when a pushed screen still had constraints left over from
+  replaced content.
+  - Each view now reports its natural size for a proposed size.
+  - `SUIStackView` places its children along an axis and gives leftover space
+    to flexible children (`Spacer`, `List`, `Color`). It narrows a child that
+    doesn't fit, so its text wraps.
+  - Padding, background, list rows and screen hosts lay out their content in
+    `layoutSubviews`.
+
+  A render takes about 0.2 seconds for a 17-row list.
 - **iOS 7–8 APIs:** fonts are regular or bold (no `UIFontWeight`). Buttons
   are custom buttons tinted blue (no `UIButtonTypeSystem` or `tintColor`).
   Layout guides aren't needed, because iOS 6 places views below the bars.

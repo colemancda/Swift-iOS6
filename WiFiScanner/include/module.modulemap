@@ -1,0 +1,4 @@
+module CWiFi {
+    header "WiFi.h"
+    export *
+}
