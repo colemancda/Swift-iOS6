@@ -2,6 +2,9 @@
 
 Embedded Swift running on iOS 6, built with Xcode 27 and Swift 6.4.
 
+[SwiftUI/](SwiftUI/README.md) is a SwiftUI-compatible UI library for iOS 6,
+with example apps that use `NavigationStack`, `List` and `async`/`await`.
+
 A minimal UIKit app and a command-line tool for a jailbroken iPod touch (4th gen,
 iPod4,1, armv7, iOS 6.1.6). Adapted from
 [iPhone4S-HelloWorld](https://github.com/colemancda/iPhone4S-HelloWorld), which
@@ -44,6 +47,7 @@ Hello from Swift 6.4, iPod touch!
 make          # build build/HelloWorld.app
 make install  # copy to the iPod and refresh the home screen
 make run      # launch the installed app (the iPod must be unlocked)
+make screenshot  # save the iPod's screen to build/screenshot.png
 make ipa      # package build/HelloWorld.ipa
 make cli      # build the Swift command-line tool, build/hello-swift
 make run-cli  # copy it to the iPod and run it there
@@ -66,4 +70,5 @@ algorithms enabled there. Override with `make install SSH_CONF=...`.
 - Code is ARM, not Thumb (`-marm`).
 - Embedded Swift only: no Foundation, `@objc`, reflection or `Codable`.
 - Xcode 27 has no iOS 6 developer disk image, so `idevicescreenshot` and the
-  debugger don't work. Check the screen on the device itself.
+  debugger don't work. `make screenshot` uses UIKit's private
+  `UIGetScreenImage()` over SSH instead.

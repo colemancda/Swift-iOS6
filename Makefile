@@ -39,7 +39,7 @@ OBJS := $(patsubst src/%.m,build/obj/%.o,$(SRCS)) build/obj/swift.o
 # Preserved, unmodified copy of the SDK (sha256 in the .sha256 file next to it)
 SDK_ARCHIVE ?= /Volumes/4TB/Downloads/iPhoneOS9.3.sdk.tar.xz
 
-.PHONY: all clean ipa install run sdk cli run-cli
+.PHONY: all clean ipa install run screenshot sdk cli run-cli
 .DEFAULT_GOAL := all
 
 # Unpacks the SDK and drops i386/x86_64 from its .tbd stubs: Xcode 27's linker
@@ -109,6 +109,17 @@ build/launch: tools/launch.c tools/launch.plist
 
 run: build/launch
 	ssh -F $(SSH_CONF) $(SSH_HOST) 'cat > /var/root/launch && chmod 755 /var/root/launch && /var/root/launch $(BUNDLE_ID)' < build/launch
+
+# Saves the iPod's screen to build/screenshot.png.
+build/screenshot: tools/screenshot.m
+	@mkdir -p build
+	$(CC) $(LDBASE) -marm -O2 -Wall -framework UIKit -framework Foundation -framework CoreGraphics $< -o $@.tmp
+	ldid -S $@.tmp
+	mv $@.tmp $@
+
+screenshot: build/screenshot
+	ssh -F $(SSH_CONF) $(SSH_HOST) 'cat > /var/root/screenshot && chmod 755 /var/root/screenshot' < build/screenshot
+	ssh -F $(SSH_CONF) $(SSH_HOST) /var/root/screenshot > build/screenshot.png
 
 clean:
 	rm -rf build
