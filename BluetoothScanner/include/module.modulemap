@@ -1,0 +1,4 @@
+module CBluetooth {
+    header "Bluetooth.h"
+    export *
+}

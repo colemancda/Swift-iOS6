@@ -5,7 +5,9 @@ Embedded Swift running on iOS 6, built with Xcode 27 and Swift 6.4.
 [SwiftUI/](SwiftUI/README.md) is a SwiftUI-compatible UI library for iOS 6,
 with example apps that use `NavigationStack`, `List` and `async`/`await`.
 [WiFiScanner/](WiFiScanner/README.md) is a SwiftUI app that scans for Wi-Fi
-networks with iOS 6's private MobileWiFi framework.
+networks with iOS 6's private MobileWiFi framework, and
+[BluetoothScanner/](BluetoothScanner/README.md) one that finds Bluetooth
+Classic devices with the private BluetoothManager framework.
 
 A minimal UIKit app and a command-line tool for a jailbroken iPod touch (4th gen,
 iPod4,1, armv7, iOS 6.1.6). Adapted from
