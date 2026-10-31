@@ -2,9 +2,9 @@ import CSystemInfo
 import SwiftUI
 
 // System and hardware information for iOS 6, in the spirit of AIDA64: device,
-// operating system, CPU, memory, storage, battery, display, features and
-// processes, from sysctl, Mach, MobileGestalt and IOKit. Live values refresh
-// every two seconds.
+// operating system, CPU, memory, storage, battery, display, features,
+// processes and installed apps, from sysctl, Mach, MobileGestalt, IOKit and
+// MobileInstallation. Live values refresh every two seconds.
 
 @main
 struct SystemInfoApp: App {
@@ -47,6 +47,17 @@ struct Process: Identifiable, Equatable {
         default: return "uid \(uid)"
         }
     }
+}
+
+struct InstalledApp: Identifiable, Equatable {
+    let id: String
+    let name: String
+    let version: String
+    let build: String
+    let type: String
+    let path: String
+
+    var displayName: String { name.isEmpty ? id : name }
 }
 
 /// What the hardware is, by product type, where iOS doesn't say.
@@ -153,11 +164,31 @@ func yesNo(_ value: String?) -> String? {
 final class SystemStore: ObservableObject {
     @Published var categories: [Category] = []
     @Published var processes: [Process] = []
+    /// Read once at launch, sorted by name.
+    let apps: [InstalledApp]
+    /// Set while only static information is on screen (the app list), so
+    /// refreshes don't rebuild it for nothing.
+    var isPaused = false
 
     private var previousTicks: SICPUTicks?
     private var cpuUsage: (user: Int, system: Int, idle: Int)?
 
     init() {
+        var found: [InstalledApp] = []
+        let context = withUnsafeMutablePointer(to: &found) { UnsafeMutableRawPointer($0) }
+        si_apps({ context, bundleID, name, version, build, type, path in
+            let list = context!.assumingMemoryBound(to: [InstalledApp].self)
+            list.pointee.append(InstalledApp(
+                id: String(cString: bundleID!),
+                name: String(cString: name!),
+                version: String(cString: version!),
+                build: String(cString: build!),
+                type: String(cString: type!),
+                path: String(cString: path!)
+            ))
+        }, context)
+        found.sort { $0.displayName < $1.displayName }
+        apps = found
         refresh()
     }
 
@@ -374,6 +405,9 @@ struct CategoryList: View {
             NavigationLink(destination: ProcessList()) {
                 SummaryRow(title: "Processes", summary: "\(store.processes.count) running")
             }
+            NavigationLink(destination: AppList()) {
+                SummaryRow(title: "Apps", summary: appSummary)
+            }
         }
         .navigationTitle("System Info")
         .task {
@@ -383,9 +417,17 @@ struct CategoryList: View {
                 } catch {
                     return
                 }
-                store.refresh()
+                if !store.isPaused { store.refresh() }
             }
         }
+    }
+}
+
+extension CategoryList {
+    var appSummary: String {
+        var user = 0
+        for app in store.apps where app.type == "User" { user += 1 }
+        return "\(store.apps.count) installed · \(user) from the App Store"
     }
 }
 
@@ -468,5 +510,46 @@ struct ProcessDetail: View {
             InfoRowView(row: InfoRow(id: "Running for", value: duration(si_now() - process.startTime)))
         }
         .navigationTitle(process.name)
+    }
+}
+
+struct AppList: View {
+    @EnvironmentObject var store: SystemStore
+
+    var body: some View {
+        List {
+            ForEach(store.apps) { app in
+                NavigationLink(destination: AppDetail(app: app)) {
+                    SummaryRow(title: app.displayName, summary: app.version.isEmpty ? app.id : "\(app.version) · \(app.id)")
+                }
+            }
+        }
+        .navigationTitle("Apps")
+        // Nothing here changes; the app details pushed from here stay
+        // paused too, since this list stays rendered under them.
+        .onAppear { store.isPaused = true }
+        .onDisappear { store.isPaused = false }
+    }
+}
+
+struct AppDetail: View {
+    let app: InstalledApp
+
+    var body: some View {
+        List {
+            InfoRowView(row: InfoRow(id: "Name", value: app.displayName))
+            InfoRowView(row: InfoRow(id: "Bundle ID", value: app.id))
+            if !app.version.isEmpty {
+                InfoRowView(row: InfoRow(id: "Version", value: app.version))
+            }
+            if !app.build.isEmpty {
+                InfoRowView(row: InfoRow(id: "Build", value: app.build))
+            }
+            InfoRowView(row: InfoRow(id: "Type", value: app.type == "User" ? "App Store" : app.type))
+            if !app.path.isEmpty {
+                InfoRowView(row: InfoRow(id: "Path", value: app.path))
+            }
+        }
+        .navigationTitle(app.displayName)
     }
 }

@@ -15,9 +15,11 @@ on a jailbroken iPod touch (4th gen).
 | Display | Resolution, scale, pixel density, size |
 | Features | Wi-Fi, Bluetooth, cellular, GPS, motion sensors, cameras, microphone |
 | Processes | Every running process: PID, parent, user, running time |
+| Apps | Every installed app: name, bundle ID, version, build, type (built in or App Store), path |
 
 Each category's summary is on the first screen, such as "Apple A4 · 37% busy"
-or "91% · Charging". Live values refresh every 2 seconds.
+or "91% · Charging". Live values refresh every 2 seconds. Refreshing pauses
+while the app list is open, since nothing there changes.
 
 ```bash
 make           # build build/SystemInfo.app
@@ -45,6 +47,10 @@ are in KB or MB. Formatting happens in Swift.
   - Hardware platform, color, serial number, UDID, Wi-Fi and Bluetooth addresses.
   - Screen size, scale and pitch, and capability keys (`gyroscope`,
     `front-facing-camera`, `gps`…).
+- **MobileInstallation** (private, looked up with `dlsym`):
+  `MobileInstallationLookup` with `ApplicationType` set to `Any` returns every
+  installed app's Info.plist values, type and path. It needs no entitlement.
+  The list is read once at launch.
 - **IOKit** (looked up with `dlsym`; the SDK has no IOKit headers): the
   `IOPMPowerSource` service's properties. Its keys include `CurrentCapacity`,
   `MaxCapacity`, `DesignCapacity`, `CycleCount`, `Voltage`, `Amperage`,

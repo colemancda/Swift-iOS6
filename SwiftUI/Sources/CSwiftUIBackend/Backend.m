@@ -24,6 +24,8 @@ extern char ***_NSGetArgv(void);
 static SUICallback SUILaunch;
 static SUICallback SUIRender;
 static BOOL SUIRenderScheduled;
+/// A render was asked for while a list was scrolling; it runs when scrolling stops.
+static BOOL SUIRenderDeferred;
 static NSMutableArray *SUIPendingViews;
 static UIViewController *SUIRootController;
 /// Lists created in the current pass, and the last scroll offset of each list key.
@@ -399,12 +401,37 @@ void sui_run(SUICallback launch, SUICallback render) {
     }
 }
 
+/// Whether the user is dragging a list on screen, or it is still decelerating.
+static BOOL SUIScrolling(void) {
+    for (NSNumber *key in SUILiveLists) {
+        UIScrollView *list = [SUILiveLists objectForKey:key];
+        if (list.window && (list.tracking || list.dragging || list.decelerating)) return YES;
+    }
+    return NO;
+}
+
 void sui_schedule_render(void) {
     if (SUIRenderScheduled) return;
     SUIRenderScheduled = YES;
     dispatch_async(dispatch_get_main_queue(), ^{
         SUIRenderScheduled = NO;
+        // A render replaces the list being scrolled, which ends the gesture
+        // and stalls the scroll. Wait until it settles.
+        if (SUIScrolling()) {
+            SUIRenderDeferred = YES;
+            return;
+        }
         if (SUIRender) SUIRender(NULL);
+    });
+}
+
+/// Runs a render that waited for scrolling to stop. Checked on the next run
+/// loop turn, once the scroll view has updated its dragging state.
+static void SUIScrollingEnded(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (!SUIRenderDeferred || SUIScrolling()) return;
+        SUIRenderDeferred = NO;
+        sui_schedule_render();
     });
 }
 
@@ -668,8 +695,9 @@ static const CGFloat SUIRowInset = 16;
 
 @end
 
-/// A vertically scrolling list of rows.
-@interface SUIListView : UIScrollView
+/// A vertically scrolling list of rows. It is its own delegate, to run
+/// renders that waited for scrolling to stop.
+@interface SUIListView : UIScrollView <UIScrollViewDelegate>
 @property (nonatomic, strong) SUIStackView *rows;
 @property (nonatomic) CGFloat laidOutWidth;
 @end
@@ -687,10 +715,19 @@ static const CGFloat SUIRowInset = 16;
     self.contentSize = CGSizeMake(width, height);
 }
 
+- (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate {
+    if (!decelerate) SUIScrollingEnded();
+}
+
+- (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
+    SUIScrollingEnded();
+}
+
 @end
 
 SUIViewRef sui_list_create(unsigned long key) {
     SUIListView *list = [[SUIListView alloc] init];
+    list.delegate = list;
     list.alwaysBounceVertical = YES;
     list.backgroundColor = [UIColor whiteColor];
     SUIMakeFlexible(list);

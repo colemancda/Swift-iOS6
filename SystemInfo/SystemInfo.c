@@ -1,7 +1,7 @@
 // Implementation of SystemInfo.h.
 //
-// libMobileGestalt and IOKit have no headers or stubs in the iOS SDK, so
-// their functions are looked up with dlsym.
+// libMobileGestalt, IOKit and MobileInstallation have no headers or stubs in
+// the iOS SDK, so their functions are looked up with dlsym.
 
 #include <CoreFoundation/CoreFoundation.h>
 #include <dlfcn.h>
@@ -208,4 +208,59 @@ long si_processes(SIProcessCallback callback, void *context) {
     }
     free(processes);
     return count;
+}
+
+#pragma mark - Apps
+
+/// A string value from an app's info, as UTF-8 in `buffer` ("" if missing).
+static const char *SIAppString(CFDictionaryRef info, const char *key, char *buffer, size_t size) {
+    CFStringRef keyString = CFStringCreateWithCString(kCFAllocatorDefault, key, kCFStringEncodingUTF8);
+    CFTypeRef value = CFDictionaryGetValue(info, keyString);
+    CFRelease(keyString);
+    buffer[0] = 0;
+    if (value && CFGetTypeID(value) == CFStringGetTypeID()) {
+        CFStringGetCString(value, buffer, size, kCFStringEncodingUTF8);
+    }
+    return buffer;
+}
+
+static void SIReportApp(CFStringRef bundleID, CFDictionaryRef info, SIAppCallback callback, void *context) {
+    if (CFGetTypeID(info) != CFDictionaryGetTypeID()) return;
+    char identifier[256], name[256], version[64], build[64], type[32], path[512];
+    if (!CFStringGetCString(bundleID, identifier, sizeof identifier, kCFStringEncodingUTF8)) return;
+    SIAppString(info, "CFBundleDisplayName", name, sizeof name);
+    if (!name[0]) SIAppString(info, "CFBundleName", name, sizeof name);
+    SIAppString(info, "CFBundleShortVersionString", version, sizeof version);
+    SIAppString(info, "CFBundleVersion", build, sizeof build);
+    SIAppString(info, "ApplicationType", type, sizeof type);
+    SIAppString(info, "Path", path, sizeof path);
+    callback(context, identifier, name, version, build, type, path);
+}
+
+long si_apps(SIAppCallback callback, void *context) {
+    static CFDictionaryRef (*MobileInstallationLookup)(CFDictionaryRef options);
+    if (!MobileInstallationLookup) {
+        void *handle = dlopen("/System/Library/PrivateFrameworks/MobileInstallation.framework/MobileInstallation", RTLD_LAZY);
+        if (handle) *(void **)&MobileInstallationLookup = dlsym(handle, "MobileInstallationLookup");
+        if (!MobileInstallationLookup) return -1;
+    }
+    const void *keys[] = {CFSTR("ApplicationType")};
+    const void *values[] = {CFSTR("Any")};
+    CFDictionaryRef options = CFDictionaryCreate(kCFAllocatorDefault, keys, values, 1,
+                                                 &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    CFDictionaryRef apps = MobileInstallationLookup(options);
+    CFRelease(options);
+    if (!apps) return -1;
+
+    CFIndex count = CFDictionaryGetCount(apps);
+    const void **bundleIDs = malloc(sizeof(void *) * (count ? count : 1));
+    const void **infos = malloc(sizeof(void *) * (count ? count : 1));
+    CFDictionaryGetKeysAndValues(apps, bundleIDs, infos);
+    for (CFIndex i = 0; i < count; i++) {
+        SIReportApp(bundleIDs[i], infos[i], callback, context);
+    }
+    free(bundleIDs);
+    free(infos);
+    CFRelease(apps);
+    return (long)count;
 }

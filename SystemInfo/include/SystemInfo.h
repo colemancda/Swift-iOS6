@@ -82,4 +82,14 @@ typedef void (*SIProcessCallback)(void *context, long pid, long parentPID, long 
 /// Calls `callback` for each running process. Returns how many there were.
 long si_processes(SIProcessCallback callback, void *context);
 
+/// One installed app. The strings are only valid during the callback; ones
+/// iOS doesn't report are empty. `type` is "System" (built in, or installed
+/// in /Applications) or "User" (from the App Store or iTunes).
+typedef void (*SIAppCallback)(void *context, const char *bundleID, const char *name, const char *version,
+                              const char *build, const char *type, const char *path);
+
+/// Calls `callback` for each installed app, from MobileInstallation. Returns
+/// how many there were, or -1 if they couldn't be listed.
+long si_apps(SIAppCallback callback, void *context);
+
 #endif

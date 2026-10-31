@@ -93,6 +93,9 @@ App code (Embedded Swift)
   touched and shows a chevron.
 - Each render installs a screen's content in a new host view inside that
   screen's view controller.
+- Renders wait while a list is being dragged or is still decelerating, and
+  run once it stops. A render replaces the list's scroll view, which would end
+  the scroll gesture and make scrolling stutter.
 - Renders don't push or pop while a navigation transition is animating. A
   change requested during one is applied when it ends, and a pop is reported
   to Swift when it starts. Otherwise a render landing during a back animation
