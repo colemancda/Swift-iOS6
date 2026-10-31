@@ -1,9 +1,17 @@
 // UIKit implementation of SwiftUIBackend.h for iOS 6.
 //
-// iOS 6 has Auto Layout, but not layout anchors, `activateConstraints:`,
-// UIStackView or layout guides. Constraints are made with
-// `constraintWithItem:...` and installed on the items' nearest common
-// ancestor, and stacks are SUIStackView, a small constraint-based stack.
+// Layout uses frames, not Auto Layout. Every render rebuilds the views on
+// screen, and iOS 6's Auto Layout took seconds per pass on an A4 to add,
+// remove and solve the constraints of a list. Instead each view is measured
+// with SUIMeasure (its natural size for a proposed size) and containers place
+// their children in -layoutSubviews:
+//
+// - SUIStackView: children along an axis, with spacing; leftover space goes
+//   to flexible children (a Spacer, a List, a color), and a child that
+//   doesn't fit is narrowed (text wraps).
+// - SUIContainerView: one child inset by padding, optionally on a color.
+// - SUIListView / SUIListRow: a scroll view of table-style rows.
+// - SUIHostView: a screen's content, filling or centered in each dimension.
 
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
@@ -27,6 +35,9 @@ static NSMutableDictionary *SUINavigationControllers;
 /// Associates a navigation controller with its state and its view.
 static const void *SUINavigationStateKey = &SUINavigationStateKey;
 
+/// A proposed length with no limit.
+static const CGFloat SUIUnbounded = 100000;
+
 #pragma mark - Helpers
 
 static UIColor *SUIColorFromRGBA(unsigned long rgba) {
@@ -49,7 +60,6 @@ static UIFont *SUIFontMake(long size, long weight) {
 
 /// Keeps `view` alive until the render pass is committed.
 static SUIViewRef SUIKeep(UIView *view) {
-    view.translatesAutoresizingMaskIntoConstraints = NO;
     [SUIPendingViews addObject:view];
     return (__bridge SUIViewRef)view;
 }
@@ -58,75 +68,120 @@ static UIView *SUIView(SUIViewRef ref) {
     return (__bridge UIView *)ref;
 }
 
-#pragma mark - Constraints
+#pragma mark - Measuring
 
-/// `item.attribute relation toItem.toAttribute + constant`. `toItem` may be nil.
-static NSLayoutConstraint *SUIConstraint(UIView *item, NSLayoutAttribute attribute, NSLayoutRelation relation,
-                                         UIView *toItem, NSLayoutAttribute toAttribute, CGFloat constant) {
-    return [NSLayoutConstraint constraintWithItem:item attribute:attribute relatedBy:relation
-                                           toItem:toItem attribute:toAttribute multiplier:1 constant:constant];
+/// Views that measure themselves and know whether they stretch.
+@protocol SUILayout
+/// The natural size within `proposal`.
+- (CGSize)sui_measure:(CGSize)proposal;
+/// Whether the view takes whatever space it's offered along an axis.
+- (BOOL)sui_flexible:(BOOL)vertical;
+@end
+
+static const void *SUIFixedSizeKey = &SUIFixedSizeKey;
+static const void *SUIFlexibleKey = &SUIFlexibleKey;
+
+/// The size from `frame(width:height:)`; -1 where none was set.
+static CGSize SUIFixedSize(UIView *view) {
+    NSValue *value = objc_getAssociatedObject(view, SUIFixedSizeKey);
+    return value ? value.CGSizeValue : CGSizeMake(-1, -1);
 }
 
-static NSLayoutConstraint *SUIEqual(UIView *item, NSLayoutAttribute attribute,
-                                    UIView *toItem, NSLayoutAttribute toAttribute, CGFloat constant) {
-    return SUIConstraint(item, attribute, NSLayoutRelationEqual, toItem, toAttribute, constant);
+/// Lets `view` take whatever space it is offered in both directions.
+static void SUIMakeFlexible(UIView *view) {
+    objc_setAssociatedObject(view, SUIFlexibleKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
-/// A width or height constraint against a constant.
-static NSLayoutConstraint *SUISize(UIView *item, NSLayoutAttribute attribute, NSLayoutRelation relation, CGFloat constant) {
-    return SUIConstraint(item, attribute, relation, nil, NSLayoutAttributeNotAnAttribute, constant);
+static BOOL SUIFlexible(UIView *view, BOOL vertical) {
+    CGSize fixed = SUIFixedSize(view);
+    if ((vertical ? fixed.height : fixed.width) >= 0) return NO;
+    if (objc_getAssociatedObject(view, SUIFlexibleKey)) return YES;
+    if ([view conformsToProtocol:@protocol(SUILayout)]) return [(id<SUILayout>)view sui_flexible:vertical];
+    return NO;
 }
 
-static NSLayoutConstraint *SUIWithPriority(NSLayoutConstraint *constraint, UILayoutPriority priority) {
-    constraint.priority = priority;
-    return constraint;
-}
+static CGSize SUIMeasure(UIView *view, CGSize proposal) {
+    CGSize fixed = SUIFixedSize(view);
+    if (fixed.width >= 0) proposal.width = fixed.width;
+    if (fixed.height >= 0) proposal.height = fixed.height;
 
-/// The view a constraint belongs on: the nearest common ancestor of its items.
-static UIView *SUIConstraintOwner(NSLayoutConstraint *constraint) {
-    UIView *first = constraint.firstItem;
-    UIView *second = constraint.secondItem;
-    if (!second) return first;
-    for (UIView *view = first; view; view = view.superview) {
-        if (second == view || [second isDescendantOfView:view]) return view;
+    CGSize size;
+    if ([view conformsToProtocol:@protocol(SUILayout)]) {
+        size = [(id<SUILayout>)view sui_measure:proposal];
+    } else if (objc_getAssociatedObject(view, SUIFlexibleKey)) {
+        size = CGSizeMake(0, 0);
+    } else {
+        // Labels wrap to the proposed width; controls have a natural size.
+        size = [view sizeThatFits:CGSizeMake(proposal.width, SUIUnbounded)];
+        size.width = MIN(size.width, proposal.width);
     }
-    return nil;
+    if (fixed.width >= 0) size.width = fixed.width;
+    if (fixed.height >= 0) size.height = fixed.height;
+    return CGSizeMake(ceilf(size.width), ceilf(size.height));
 }
 
-/// What iOS 8's `activateConstraints:` does.
-static void SUIActivate(NSArray *constraints) {
-    for (NSLayoutConstraint *constraint in constraints) {
-        [SUIConstraintOwner(constraint) addConstraint:constraint];
-    }
+#pragma mark - Containers
+
+/// One child, inset by padding, optionally on a background color.
+@interface SUIContainerView : UIView <SUILayout>
+@property (nonatomic, strong) UIView *content;
+@property (nonatomic) UIEdgeInsets insets;
+@end
+
+static CGSize SUIContainerMeasure(UIView *content, UIEdgeInsets insets, CGSize proposal) {
+    CGSize inner = CGSizeMake(MAX(0, proposal.width - insets.left - insets.right),
+                              MAX(0, proposal.height - insets.top - insets.bottom));
+    CGSize size = SUIMeasure(content, inner);
+    return CGSizeMake(size.width + insets.left + insets.right, size.height + insets.top + insets.bottom);
 }
 
-static void SUIDeactivate(NSLayoutConstraint *constraint) {
-    [SUIConstraintOwner(constraint) removeConstraint:constraint];
+@implementation SUIContainerView
+- (CGSize)sui_measure:(CGSize)proposal {
+    return SUIContainerMeasure(self.content, self.insets, proposal);
 }
 
-static void SUIPin(UIView *child, UIView *parent, long top, long leading, long bottom, long trailing) {
-    [parent addSubview:child];
-    SUIActivate(@[
-        SUIEqual(child, NSLayoutAttributeTop, parent, NSLayoutAttributeTop, top),
-        SUIEqual(child, NSLayoutAttributeLeading, parent, NSLayoutAttributeLeading, leading),
-        SUIEqual(parent, NSLayoutAttributeBottom, child, NSLayoutAttributeBottom, bottom),
-        SUIEqual(parent, NSLayoutAttributeTrailing, child, NSLayoutAttributeTrailing, trailing),
-    ]);
+- (BOOL)sui_flexible:(BOOL)vertical {
+    return SUIFlexible(self.content, vertical);
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    self.content.frame = UIEdgeInsetsInsetRect(self.bounds, self.insets);
+}
+@end
+
+static SUIContainerView *SUIContainerMake(UIView *content, UIEdgeInsets insets) {
+    SUIContainerView *container = [[SUIContainerView alloc] init];
+    container.content = content;
+    container.insets = insets;
+    [container addSubview:content];
+    return container;
 }
 
 #pragma mark - Stack
 
-/// A replacement for UIStackView's fill distribution. Children are chained
-/// along the axis with `spacing` between them, and the child with the lowest
-/// hugging priority (a Spacer) takes any extra space. Across the axis each
-/// child is aligned and the stack is as wide as its widest child.
-@interface SUIStackView : UIView
+/// A stack of views along an axis, like SwiftUI's VStack and HStack.
+@interface SUIStackView : UIView <SUILayout>
 @property (nonatomic) BOOL vertical;
 @property (nonatomic) CGFloat spacing;
 @property (nonatomic) long alignment;
 @property (nonatomic, strong) NSMutableArray *arrangedViews;
-/// Ties the last child to the stack's trailing (or bottom) edge.
-@property (nonatomic, strong) NSLayoutConstraint *endConstraint;
+/// Indexes of children that fill the stack across its axis.
+@property (nonatomic, strong) NSMutableIndexSet *stretched;
+@end
+
+@interface SUISpacerView : UIView <SUILayout>
+@property (nonatomic) CGFloat minLength;
+@end
+
+@implementation SUISpacerView
+- (CGSize)sui_measure:(CGSize)proposal {
+    return CGSizeMake(self.minLength, self.minLength);
+}
+
+- (BOOL)sui_flexible:(BOOL)vertical {
+    return YES;
+}
 @end
 
 @implementation SUIStackView
@@ -134,66 +189,138 @@ static void SUIPin(UIView *child, UIView *parent, long top, long leading, long b
 - (instancetype)init {
     if ((self = [super init])) {
         _arrangedViews = [NSMutableArray array];
+        _stretched = [NSMutableIndexSet indexSet];
     }
     return self;
 }
 
-/// An empty stack has no size.
-- (CGSize)intrinsicContentSize {
-    return self.arrangedViews.count ? CGSizeMake(UIViewNoIntrinsicMetric, UIViewNoIntrinsicMetric) : CGSizeMake(0, 0);
+- (void)addArrangedView:(UIView *)child stretch:(BOOL)stretch {
+    if (stretch) [self.stretched addIndex:self.arrangedViews.count];
+    [self.arrangedViews addObject:child];
+    [self addSubview:child];
+    [self setNeedsLayout];
 }
 
-- (void)addArrangedView:(UIView *)child stretch:(BOOL)stretch {
+static CGFloat SUIMain(CGSize size, BOOL vertical) { return vertical ? size.height : size.width; }
+static CGFloat SUICross(CGSize size, BOOL vertical) { return vertical ? size.width : size.height; }
+static CGSize SUISizeMake(CGFloat main, CGFloat cross, BOOL vertical) {
+    return vertical ? CGSizeMake(cross, main) : CGSizeMake(main, cross);
+}
+
+/// Lays the children out in `size`, writing their frames to `frames` if it
+/// isn't NULL. With `measuring`, flexible children get only their minimum
+/// and the result is the stack's natural size.
+- (CGSize)arrangeInSize:(CGSize)size frames:(CGRect *)frames measuring:(BOOL)measuring {
     BOOL vertical = self.vertical;
-    NSLayoutAttribute start = vertical ? NSLayoutAttributeTop : NSLayoutAttributeLeading;
-    NSLayoutAttribute end = vertical ? NSLayoutAttributeBottom : NSLayoutAttributeTrailing;
-    NSLayoutAttribute crossStart = vertical ? NSLayoutAttributeLeading : NSLayoutAttributeTop;
-    NSLayoutAttribute crossEnd = vertical ? NSLayoutAttributeTrailing : NSLayoutAttributeBottom;
-    NSLayoutAttribute crossCenter = vertical ? NSLayoutAttributeCenterX : NSLayoutAttributeCenterY;
-    NSLayoutAttribute crossSize = vertical ? NSLayoutAttributeWidth : NSLayoutAttributeHeight;
+    NSUInteger count = self.arrangedViews.count;
+    if (count == 0) return CGSizeMake(0, 0);
 
-    child.translatesAutoresizingMaskIntoConstraints = NO;
-    [self addSubview:child];
-    UIView *previous = self.arrangedViews.lastObject;
-    [self.arrangedViews addObject:child];
-    if (self.arrangedViews.count == 1) [self invalidateIntrinsicContentSize];
+    CGFloat available = SUIMain(size, vertical);
+    CGFloat crossAvailable = SUICross(size, vertical);
+    CGSize sizes[count];
+    BOOL flexible[count];
+    CGFloat used = self.spacing * (count - 1);
+    NSUInteger flexibleCount = 0;
 
-    NSMutableArray *constraints = [NSMutableArray array];
-    if (previous) {
-        SUIDeactivate(self.endConstraint);
-        [constraints addObject:SUIEqual(child, start, previous, end, self.spacing)];
-    } else {
-        [constraints addObject:SUIEqual(child, start, self, start, 0)];
+    // Fixed children first, at their natural size.
+    for (NSUInteger i = 0; i < count; i++) {
+        UIView *child = self.arrangedViews[i];
+        flexible[i] = SUIFlexible(child, vertical);
+        sizes[i] = SUIMeasure(child, SUISizeMake(available, crossAvailable, vertical));
+        used += SUIMain(sizes[i], vertical);
+        if (flexible[i]) flexibleCount++;
     }
-    self.endConstraint = SUIEqual(self, end, child, end, 0);
-    [constraints addObject:self.endConstraint];
 
-    if (stretch) {
-        [constraints addObject:SUIEqual(child, crossSize, self, crossSize, 0)];
-        [constraints addObject:SUIEqual(child, crossStart, self, crossStart, 0)];
-    } else {
-        // Stay inside the stack, and pull it in to fit (weaker than hugging,
-        // so the widest child decides).
-        [constraints addObject:SUIConstraint(child, crossStart, NSLayoutRelationGreaterThanOrEqual, self, crossStart, 0)];
-        [constraints addObject:SUIConstraint(self, crossEnd, NSLayoutRelationGreaterThanOrEqual, child, crossEnd, 0)];
-        switch (self.alignment) {
-            case SUIAlignmentLeading:
-                [constraints addObject:SUIEqual(child, crossStart, self, crossStart, 0)];
-                [constraints addObject:SUIWithPriority(SUIEqual(self, crossEnd, child, crossEnd, 0), 249)];
-                break;
-            case SUIAlignmentTrailing:
-                [constraints addObject:SUIEqual(self, crossEnd, child, crossEnd, 0)];
-                [constraints addObject:SUIWithPriority(SUIEqual(child, crossStart, self, crossStart, 0), 249)];
-                break;
-            default:
-                [constraints addObject:SUIEqual(child, crossCenter, self, crossCenter, 0)];
-                [constraints addObject:SUIWithPriority(SUIEqual(child, crossStart, self, crossStart, 0), 249)];
-                break;
+    // Too long: narrow the longest fixed child, so its text wraps.
+    if (used > available && available < SUIUnbounded) {
+        NSUInteger longest = NSNotFound;
+        for (NSUInteger i = 0; i < count; i++) {
+            if (flexible[i]) continue;
+            if (longest == NSNotFound || SUIMain(sizes[i], vertical) > SUIMain(sizes[longest], vertical)) longest = i;
+        }
+        if (longest != NSNotFound) {
+            CGFloat length = MAX(0, SUIMain(sizes[longest], vertical) - (used - available));
+            CGSize narrowed = SUIMeasure(self.arrangedViews[longest], SUISizeMake(length, crossAvailable, vertical));
+            used -= SUIMain(sizes[longest], vertical) - length;
+            sizes[longest] = SUISizeMake(length, SUICross(narrowed, vertical), vertical);
         }
     }
-    SUIActivate(constraints);
+
+    // Flexible children share what's left.
+    CGFloat extra = measuring || flexibleCount == 0 ? 0 : MAX(0, available - used) / flexibleCount;
+
+    CGFloat crossLength = 0;
+    for (NSUInteger i = 0; i < count; i++) {
+        if ([self.arrangedViews[i] isKindOfClass:[SUISpacerView class]]) continue;
+        crossLength = MAX(crossLength, SUICross(sizes[i], vertical));
+    }
+    if (!measuring) crossLength = crossAvailable;
+
+    CGFloat position = 0;
+    for (NSUInteger i = 0; i < count; i++) {
+        CGFloat main = SUIMain(sizes[i], vertical) + (flexible[i] ? extra : 0);
+        BOOL fills = [self.stretched containsIndex:i] || SUIFlexible(self.arrangedViews[i], !vertical);
+        CGFloat cross = fills ? crossLength : MIN(SUICross(sizes[i], vertical), crossLength);
+        CGFloat offset;
+        switch (self.alignment) {
+            case SUIAlignmentLeading: offset = 0; break;
+            case SUIAlignmentTrailing: offset = crossLength - cross; break;
+            default: offset = floorf((crossLength - cross) / 2); break;
+        }
+        if (frames) {
+            frames[i] = vertical ? CGRectMake(offset, position, cross, main)
+                                 : CGRectMake(position, offset, main, cross);
+        }
+        position += main + (i + 1 < count ? self.spacing : 0);
+    }
+    return SUISizeMake(position, crossLength, vertical);
 }
 
+- (CGSize)sui_measure:(CGSize)proposal {
+    return [self arrangeInSize:proposal frames:NULL measuring:YES];
+}
+
+- (BOOL)sui_flexible:(BOOL)vertical {
+    for (UIView *child in self.arrangedViews) {
+        // A Spacer stretches a stack along its axis only.
+        if (vertical != self.vertical && [child isKindOfClass:[SUISpacerView class]]) continue;
+        if (SUIFlexible(child, vertical)) return YES;
+    }
+    return NO;
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    NSUInteger count = self.arrangedViews.count;
+    if (count == 0) return;
+    CGRect frames[count];
+    [self arrangeInSize:self.bounds.size frames:frames measuring:NO];
+    for (NSUInteger i = 0; i < count; i++) {
+        ((UIView *)self.arrangedViews[i]).frame = frames[i];
+    }
+}
+
+@end
+
+#pragma mark - Host
+
+/// A screen's content: fills the screen in a dimension, or is centered in it.
+/// Resized with its controller's view by autoresizing.
+@interface SUIHostView : UIView
+@property (nonatomic, strong) UIView *content;
+@property (nonatomic) BOOL fillWidth;
+@property (nonatomic) BOOL fillHeight;
+@end
+
+@implementation SUIHostView
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    CGSize bounds = self.bounds.size;
+    CGSize size = SUIMeasure(self.content, bounds);
+    CGFloat width = self.fillWidth ? bounds.width : MIN(size.width, bounds.width);
+    CGFloat height = self.fillHeight ? bounds.height : MIN(size.height, bounds.height);
+    self.content.frame = CGRectMake(floorf((bounds.width - width) / 2), floorf((bounds.height - height) / 2), width, height);
+}
 @end
 
 #pragma mark - Actions
@@ -221,13 +348,27 @@ static void SUIAttachAction(UIControl *control, SUICallback action, void *contex
 }
 
 /// A control that dims its content while touched, like a SwiftUI plain button.
-@interface SUITappable : UIControl
+@interface SUITappable : UIControl <SUILayout>
+@property (nonatomic, strong) UIView *content;
 @end
 
 @implementation SUITappable
 - (void)setHighlighted:(BOOL)highlighted {
     [super setHighlighted:highlighted];
     self.alpha = highlighted ? 0.4 : 1.0;
+}
+
+- (CGSize)sui_measure:(CGSize)proposal {
+    return SUIMeasure(self.content, proposal);
+}
+
+- (BOOL)sui_flexible:(BOOL)vertical {
+    return SUIFlexible(self.content, vertical);
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    self.content.frame = self.bounds;
 }
 @end
 
@@ -292,49 +433,23 @@ void sui_render_begin(void) {
     }
 }
 
-/// Replaces `controller`'s content with `root`, filling or centered in each dimension.
-/// On iOS 6 a controller's view already starts below the status and navigation bars.
-///
-/// The content goes in a new host view that fills the controller's view by
-/// autoresizing, so no constraint is ever installed on the controller's view.
-/// iOS 6 checks constraints on a view outside a window only when it joins one
-/// (a pushed level), and by then constraints left over from replaced content
-/// would reference views that are gone, which throws.
+/// Replaces `controller`'s content with `root`, filling or centered in each
+/// dimension. On iOS 6 a controller's view already starts below the status
+/// and navigation bars.
 static void SUIInstall(UIViewController *controller, UIView *root, long fillWidth, long fillHeight) {
     UIView *view = controller.view;
+    // A navigation controller's view is the same in every pass; leave it be.
+    if (root.superview && root.superview.superview == view) return;
     for (UIView *subview in [view.subviews copy]) {
         [subview removeFromSuperview];
     }
-    UIView *container = [[UIView alloc] initWithFrame:view.bounds];
-    container.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    [view addSubview:container];
-
-    if (objc_getAssociatedObject(root, SUINavigationStateKey)) {
-        SUIPin(root, container, 0, 0, 0, 0);
-        return;
-    }
-    [container addSubview:root];
-    NSMutableArray *constraints = [NSMutableArray array];
-
-    if (fillWidth) {
-        [constraints addObject:SUIEqual(root, NSLayoutAttributeLeading, container, NSLayoutAttributeLeading, 0)];
-        [constraints addObject:SUIEqual(root, NSLayoutAttributeTrailing, container, NSLayoutAttributeTrailing, 0)];
-    } else {
-        [constraints addObject:SUIEqual(root, NSLayoutAttributeCenterX, container, NSLayoutAttributeCenterX, 0)];
-        [constraints addObject:SUIConstraint(root, NSLayoutAttributeLeading, NSLayoutRelationGreaterThanOrEqual, container, NSLayoutAttributeLeading, 0)];
-        [constraints addObject:SUIConstraint(root, NSLayoutAttributeTrailing, NSLayoutRelationLessThanOrEqual, container, NSLayoutAttributeTrailing, 0)];
-    }
-
-    if (fillHeight) {
-        [constraints addObject:SUIEqual(root, NSLayoutAttributeTop, container, NSLayoutAttributeTop, 0)];
-        [constraints addObject:SUIEqual(root, NSLayoutAttributeBottom, container, NSLayoutAttributeBottom, 0)];
-    } else {
-        [constraints addObject:SUIEqual(root, NSLayoutAttributeCenterY, container, NSLayoutAttributeCenterY, 0)];
-        [constraints addObject:SUIConstraint(root, NSLayoutAttributeTop, NSLayoutRelationGreaterThanOrEqual, container, NSLayoutAttributeTop, 0)];
-        [constraints addObject:SUIConstraint(root, NSLayoutAttributeBottom, NSLayoutRelationLessThanOrEqual, container, NSLayoutAttributeBottom, 0)];
-    }
-
-    SUIActivate(constraints);
+    SUIHostView *host = [[SUIHostView alloc] initWithFrame:view.bounds];
+    host.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    host.content = root;
+    host.fillWidth = fillWidth || SUIFlexible(root, NO);
+    host.fillHeight = fillHeight || SUIFlexible(root, YES);
+    [host addSubview:root];
+    [view addSubview:host];
 }
 
 /// Scrolls each list made in this pass back to where its predecessor was.
@@ -401,11 +516,35 @@ void sui_button_set_color(SUIViewRef button, unsigned long rgba) {
     SUIButtonSetColor((UIButton *)SUIView(button), SUIColorFromRGBA(rgba));
 }
 
+/// Reports a switch's new value to Swift.
+@interface SUISwitchTarget : NSObject
+@property (nonatomic) SUIIndexCallback changed;
+@property (nonatomic) void *context;
+@end
+
+@implementation SUISwitchTarget
+- (void)changed:(UISwitch *)sender {
+    if (self.changed) self.changed(self.context, sender.on ? 1 : 0);
+}
+@end
+
+SUIViewRef sui_switch_create(long on, SUIIndexCallback changed, void *context) {
+    UISwitch *control = [[UISwitch alloc] init];
+    control.on = on != 0;
+    SUISwitchTarget *target = [[SUISwitchTarget alloc] init];
+    target.changed = changed;
+    target.context = context;
+    [control addTarget:target action:@selector(changed:) forControlEvents:UIControlEventValueChanged];
+    objc_setAssociatedObject(control, SUIActionTargetKey, target, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    return SUIKeep(control);
+}
+
 SUIViewRef sui_tappable_create(SUIViewRef contentRef, SUICallback action, void *context) {
     SUITappable *control = [[SUITappable alloc] init];
     UIView *content = SUIView(contentRef);
     content.userInteractionEnabled = NO;
-    SUIPin(content, control, 0, 0, 0, 0);
+    control.content = content;
+    [control addSubview:content];
     SUIAttachAction(control, action, context);
     return SUIKeep(control);
 }
@@ -422,14 +561,6 @@ void sui_stack_add(SUIViewRef stackRef, SUIViewRef childRef, long stretchCrossAx
     [(SUIStackView *)SUIView(stackRef) addArrangedView:SUIView(childRef) stretch:stretchCrossAxis != 0];
 }
 
-/// Lets `view` grow and shrink freely in both directions.
-static void SUIMakeFlexible(UIView *view) {
-    for (NSNumber *axis in @[@(UILayoutConstraintAxisHorizontal), @(UILayoutConstraintAxisVertical)]) {
-        [view setContentHuggingPriority:1 forAxis:axis.integerValue];
-        [view setContentCompressionResistancePriority:1 forAxis:axis.integerValue];
-    }
-}
-
 SUIViewRef sui_color_view_create(unsigned long rgba) {
     UIView *view = [[UIView alloc] init];
     view.backgroundColor = SUIColorFromRGBA(rgba);
@@ -438,32 +569,24 @@ SUIViewRef sui_color_view_create(unsigned long rgba) {
 }
 
 SUIViewRef sui_spacer_create(long minLength) {
-    UIView *spacer = [[UIView alloc] init];
-    SUIMakeFlexible(spacer);
-    SUIActivate(@[
-        SUIWithPriority(SUISize(spacer, NSLayoutAttributeWidth, NSLayoutRelationGreaterThanOrEqual, minLength), 999),
-        SUIWithPriority(SUISize(spacer, NSLayoutAttributeHeight, NSLayoutRelationGreaterThanOrEqual, minLength), 999),
-    ]);
+    SUISpacerView *spacer = [[SUISpacerView alloc] init];
+    spacer.minLength = minLength;
     return SUIKeep(spacer);
 }
 
 SUIViewRef sui_padding_create(SUIViewRef child, long top, long leading, long bottom, long trailing) {
-    UIView *container = [[UIView alloc] init];
-    SUIPin(SUIView(child), container, top, leading, bottom, trailing);
-    return SUIKeep(container);
+    return SUIKeep(SUIContainerMake(SUIView(child), UIEdgeInsetsMake(top, leading, bottom, trailing)));
 }
 
 SUIViewRef sui_background_create(SUIViewRef child, unsigned long rgba) {
-    UIView *container = [[UIView alloc] init];
+    SUIContainerView *container = SUIContainerMake(SUIView(child), UIEdgeInsetsZero);
     container.backgroundColor = SUIColorFromRGBA(rgba);
-    SUIPin(SUIView(child), container, 0, 0, 0, 0);
     return SUIKeep(container);
 }
 
 void sui_view_set_size(SUIViewRef ref, long width, long height) {
-    UIView *view = SUIView(ref);
-    if (width >= 0) SUIActivate(@[SUISize(view, NSLayoutAttributeWidth, NSLayoutRelationEqual, width)]);
-    if (height >= 0) SUIActivate(@[SUISize(view, NSLayoutAttributeHeight, NSLayoutRelationEqual, height)]);
+    objc_setAssociatedObject(SUIView(ref), SUIFixedSizeKey, [NSValue valueWithCGSize:CGSizeMake(width, height)],
+                             OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
 #pragma mark - List
@@ -474,7 +597,7 @@ void sui_view_set_size(SUIViewRef ref, long width, long height) {
 
 @implementation SUIChevronView
 - (instancetype)init {
-    if ((self = [super init])) {
+    if ((self = [super initWithFrame:CGRectMake(0, 0, 8, 13)])) {
         self.opaque = NO;
         self.backgroundColor = [UIColor clearColor];
     }
@@ -494,28 +617,87 @@ void sui_view_set_size(SUIViewRef ref, long width, long height) {
 }
 @end
 
-/// A list row that turns gray while touched, like a selected table cell.
-@interface SUIListRow : UIControl
+/// A table-style row: content at the leading edge, at least 44 points tall,
+/// with a separator and an optional chevron. Rows with an action turn gray
+/// while touched.
+@interface SUIListRow : UIControl <SUILayout>
+@property (nonatomic, strong) UIView *content;
+@property (nonatomic, strong) UIView *chevron;
+@property (nonatomic, strong) UIView *separator;
+@property (nonatomic) BOOL highlights;
 @end
 
+static const CGFloat SUIRowInset = 16;
+
 @implementation SUIListRow
+
+- (CGFloat)contentWidthIn:(CGFloat)width {
+    return MAX(0, width - SUIRowInset - (self.chevron ? SUIRowInset + 8 + 12 : SUIRowInset));
+}
+
+- (CGSize)sui_measure:(CGSize)proposal {
+    CGSize content = SUIMeasure(self.content, CGSizeMake([self contentWidthIn:proposal.width], SUIUnbounded));
+    return CGSizeMake(proposal.width, MAX(44, content.height + 22));
+}
+
+- (BOOL)sui_flexible:(BOOL)vertical {
+    return !vertical;
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    CGSize bounds = self.bounds.size;
+    CGFloat available = [self contentWidthIn:bounds.width];
+    CGSize size = SUIMeasure(self.content, CGSizeMake(available, SUIUnbounded));
+    // Flexible content (a Spacer or Toggle) reaches the trailing edge.
+    CGFloat width = SUIFlexible(self.content, NO) ? available : MIN(size.width, available);
+    self.content.frame = CGRectMake(SUIRowInset, floorf((bounds.height - size.height) / 2), width, size.height);
+    if (self.chevron) {
+        self.chevron.frame = CGRectMake(bounds.width - SUIRowInset - 8, floorf((bounds.height - 13) / 2), 8, 13);
+    }
+    CGFloat line = 1.0 / [UIScreen mainScreen].scale;
+    self.separator.frame = CGRectMake(SUIRowInset, bounds.height - line, bounds.width - SUIRowInset, line);
+}
+
 - (void)setHighlighted:(BOOL)highlighted {
     [super setHighlighted:highlighted];
-    self.backgroundColor = highlighted ? [UIColor colorWithWhite:0.85 alpha:1] : [UIColor whiteColor];
+    if (self.highlights) {
+        self.backgroundColor = highlighted ? [UIColor colorWithWhite:0.85 alpha:1] : [UIColor whiteColor];
+    }
 }
+
+@end
+
+/// A vertically scrolling list of rows.
+@interface SUIListView : UIScrollView
+@property (nonatomic, strong) SUIStackView *rows;
+@property (nonatomic) CGFloat laidOutWidth;
+@end
+
+@implementation SUIListView
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    // Scrolling calls this every frame; only relayout rows for a new width.
+    CGFloat width = self.bounds.size.width;
+    if (width == self.laidOutWidth) return;
+    self.laidOutWidth = width;
+    CGFloat height = SUIMeasure(self.rows, CGSizeMake(width, SUIUnbounded)).height;
+    self.rows.frame = CGRectMake(0, 0, width, height);
+    self.contentSize = CGSizeMake(width, height);
+}
+
 @end
 
 SUIViewRef sui_list_create(unsigned long key) {
-    UIScrollView *list = [[UIScrollView alloc] init];
+    SUIListView *list = [[SUIListView alloc] init];
     list.alwaysBounceVertical = YES;
     list.backgroundColor = [UIColor whiteColor];
     SUIMakeFlexible(list);
 
-    SUIStackView *rows = [[SUIStackView alloc] init];
-    rows.vertical = YES;
-    rows.translatesAutoresizingMaskIntoConstraints = NO;
-    SUIPin(rows, list, 0, 0, 0, 0);
-    SUIActivate(@[SUIEqual(rows, NSLayoutAttributeWidth, list, NSLayoutAttributeWidth, 0)]);
+    list.rows = [[SUIStackView alloc] init];
+    list.rows.vertical = YES;
+    [list addSubview:list.rows];
 
     NSNumber *listKey = @(key);
     objc_setAssociatedObject(list, &SUIListOffsets, listKey, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -525,52 +707,28 @@ SUIViewRef sui_list_create(unsigned long key) {
 }
 
 void sui_list_add_row(SUIViewRef listRef, SUIViewRef contentRef, long disclosure, SUICallback action, void *context) {
-    SUIStackView *rows = (SUIStackView *)SUIView(listRef).subviews.firstObject;
+    SUIListView *list = (SUIListView *)SUIView(listRef);
     UIView *content = SUIView(contentRef);
 
-    UIControl *row = action ? [[SUIListRow alloc] init] : [[UIControl alloc] init];
-    row.translatesAutoresizingMaskIntoConstraints = NO;
+    SUIListRow *row = [[SUIListRow alloc] init];
     row.backgroundColor = [UIColor whiteColor];
+    row.highlights = action != NULL;
+    row.content = content;
     content.userInteractionEnabled = action == NULL;
     [row addSubview:content];
 
-    CGFloat trailing = 16;
     if (disclosure) {
-        SUIChevronView *chevron = [[SUIChevronView alloc] init];
-        chevron.translatesAutoresizingMaskIntoConstraints = NO;
-        [row addSubview:chevron];
-        SUIActivate(@[
-            SUISize(chevron, NSLayoutAttributeWidth, NSLayoutRelationEqual, 8),
-            SUISize(chevron, NSLayoutAttributeHeight, NSLayoutRelationEqual, 13),
-            SUIEqual(chevron, NSLayoutAttributeCenterY, row, NSLayoutAttributeCenterY, 0),
-            SUIEqual(row, NSLayoutAttributeTrailing, chevron, NSLayoutAttributeTrailing, 16),
-        ]);
-        trailing += 8 + 12;
+        row.chevron = [[SUIChevronView alloc] init];
+        [row addSubview:row.chevron];
     }
-
-    // Rows are at least as tall as a table cell; content hugs the leading edge.
-    SUIActivate(@[
-        SUISize(row, NSLayoutAttributeHeight, NSLayoutRelationGreaterThanOrEqual, 44),
-        SUIConstraint(row, NSLayoutAttributeTrailing, NSLayoutRelationGreaterThanOrEqual, content, NSLayoutAttributeTrailing, trailing),
-        SUIConstraint(content, NSLayoutAttributeTop, NSLayoutRelationGreaterThanOrEqual, row, NSLayoutAttributeTop, 11),
-        SUIConstraint(row, NSLayoutAttributeBottom, NSLayoutRelationGreaterThanOrEqual, content, NSLayoutAttributeBottom, 11),
-        SUIEqual(content, NSLayoutAttributeCenterY, row, NSLayoutAttributeCenterY, 0),
-        SUIEqual(content, NSLayoutAttributeLeading, row, NSLayoutAttributeLeading, 16),
-    ]);
-
-    UIView *separator = [[UIView alloc] init];
-    separator.translatesAutoresizingMaskIntoConstraints = NO;
-    separator.backgroundColor = [UIColor colorWithRed:0.78 green:0.78 blue:0.8 alpha:1];
-    [row addSubview:separator];
-    SUIActivate(@[
-        SUISize(separator, NSLayoutAttributeHeight, NSLayoutRelationEqual, 1.0 / [UIScreen mainScreen].scale),
-        SUIEqual(separator, NSLayoutAttributeLeading, row, NSLayoutAttributeLeading, 16),
-        SUIEqual(separator, NSLayoutAttributeTrailing, row, NSLayoutAttributeTrailing, 0),
-        SUIEqual(separator, NSLayoutAttributeBottom, row, NSLayoutAttributeBottom, 0),
-    ]);
+    row.separator = [[UIView alloc] init];
+    row.separator.backgroundColor = [UIColor colorWithRed:0.78 green:0.78 blue:0.8 alpha:1];
+    [row addSubview:row.separator];
 
     if (action) SUIAttachAction(row, action, context);
-    [rows addArrangedView:row stretch:YES];
+    [list.rows addArrangedView:row stretch:YES];
+    list.laidOutWidth = 0;
+    [list setNeedsLayout];
     [SUIPendingViews addObject:row];
 }
 
@@ -587,22 +745,40 @@ void sui_list_add_row(SUIViewRef listRef, SUIViewRef contentRef, long disclosure
 }
 @end
 
-/// Tells Swift when the user pops levels with the back button.
+/// Tells Swift when the user pops levels with the back button, and keeps
+/// renders from pushing or popping while a transition is animating: on iOS 6
+/// that corrupts the navigation bar.
 @interface SUINavigationState : NSObject <UINavigationControllerDelegate>
 @property (nonatomic, strong) NSMutableArray<SUILevelController *> *levels;
 @property (nonatomic) NSInteger count;
 @property (nonatomic) SUIIndexCallback didPop;
 @property (nonatomic) void *context;
+@property (nonatomic) BOOL transitioning;
+/// A render asked for a different stack during a transition.
+@property (nonatomic) BOOL needsCommit;
 @end
 
 @implementation SUINavigationState
 - (void)navigationController:(UINavigationController *)navigationController
-       didShowViewController:(UIViewController *)viewController
+      willShowViewController:(UIViewController *)viewController
                     animated:(BOOL)animated {
+    self.transitioning = YES;
+    // The back button has already removed the level; tell Swift now, not
+    // when the animation ends, so a render in between doesn't push it back.
     NSInteger count = navigationController.viewControllers.count;
     if (count < self.count) {
         self.count = count;
         if (self.didPop) self.didPop(self.context, count);
+    }
+}
+
+- (void)navigationController:(UINavigationController *)navigationController
+       didShowViewController:(UIViewController *)viewController
+                    animated:(BOOL)animated {
+    self.transitioning = NO;
+    if (self.needsCommit) {
+        self.needsCommit = NO;
+        sui_schedule_render();
     }
 }
 @end
@@ -650,8 +826,7 @@ void sui_navigation_set_level(SUIViewRef navigationRef, long index, SUIViewRef c
 
     if (trailingRef) {
         UIView *item = SUIView(trailingRef);
-        CGSize size = [item systemLayoutSizeFittingSize:UILayoutFittingCompressedSize];
-        item.translatesAutoresizingMaskIntoConstraints = YES;
+        CGSize size = SUIMeasure(item, CGSizeMake(160, 44));
         item.frame = CGRectMake(0, 0, size.width, size.height);
         level.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView:item];
     } else {
@@ -672,6 +847,10 @@ void sui_navigation_commit(SUIViewRef navigationRef, long count, SUIIndexCallbac
     NSArray *current = navigation.viewControllers;
     NSArray *desired = [state.levels copy];
     if ([current isEqualToArray:desired]) return;
+    if (state.transitioning) {
+        state.needsCommit = YES;
+        return;
+    }
 
     BOOL isPush = desired.count == current.count + 1
         && [[desired subarrayWithRange:NSMakeRange(0, current.count)] isEqualToArray:current];
