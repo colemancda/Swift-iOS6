@@ -12,9 +12,7 @@ Classic devices with the private BluetoothManager framework.
 (device, CPU, memory, storage, battery, processes, installed apps) like AIDA64.
 
 A minimal UIKit app and a command-line tool for a jailbroken iPod touch (4th gen,
-iPod4,1, armv7, iOS 6.1.6). Adapted from
-[iPhone4S-HelloWorld](https://github.com/colemancda/iPhone4S-HelloWorld), which
-does the same for iOS 9.
+iPod4,1, armv7, iOS 6.1.6).
 
 ```
 $ make run-cli
@@ -78,3 +76,11 @@ algorithms enabled there. Override with `make install SSH_CONF=...`.
 - Xcode 27 has no iOS 6 developer disk image, so `idevicescreenshot` and the
   debugger don't work. `make screenshot` uses UIKit's private
   `UIGetScreenImage()` over SSH instead.
+
+## Screenshots
+
+<img width="640" height="960" alt="image-1793421173953" src="https://github.com/user-attachments/assets/028456df-f8e9-46e3-aef5-098c3ba56205" />
+
+<img width="640" height="960" alt="image-1793421185171" src="https://github.com/user-attachments/assets/92d3bda6-0e00-4abe-a5c7-78be70d74df7" />
+
+
