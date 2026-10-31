@@ -1,0 +1,4 @@
+module CSystemInfo {
+    header "SystemInfo.h"
+    export *
+}
