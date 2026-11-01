@@ -19,6 +19,8 @@ BUILD    ?= build
 BUNDLE   := $(BUILD)/$(APP).app
 BUNDLE_ID = $(shell plutil -extract CFBundleIdentifier raw $(APP_DIR)/Info.plist)
 SDK      := ../sdk/iPhoneOS9.3.sdk
+# Objective-C messaging from Swift (`import ObjCInterop`), built into every app.
+OBJC     := ../ObjC
 MIN_IOS  := 6.0
 ARCH     := armv7
 
@@ -49,7 +51,8 @@ LLVM_OBJCOPY := $(SWIFT_TOOLCHAIN)/usr/bin/llvm-objcopy
 
 # Everything built for the bare-metal target. Its calls into iOS code go
 # through r9-preserving trampolines (see tools/r9wrap.py), written to $(BUILD)/r9.
-BAREMETAL := $(BUILD)/obj/$(APP).o $(BUILD)/obj/SwiftUI.o $(BUILD)/obj/Executor.o $(BUILD)/obj/Compat.o $(RUNTIME_LIBS)
+BAREMETAL := $(BUILD)/obj/$(APP).o $(BUILD)/obj/SwiftUI.o $(BUILD)/obj/ObjCInterop.o $(BUILD)/obj/Executor.o \
+             $(BUILD)/obj/Compat.o $(RUNTIME_LIBS)
 WRAPPED   := $(addprefix $(BUILD)/r9/$(APP)/,$(notdir $(BAREMETAL))) $(BUILD)/r9/$(APP)/trampolines.o
 
 # There's no Embedded stdlib for armv7-apple-ios, so Swift targets bare-metal
@@ -57,7 +60,7 @@ WRAPPED   := $(addprefix $(BUILD)/r9/$(APP)/,$(notdir $(BAREMETAL))) $(BUILD)/r9
 # clobber r9, but the bare-metal convention expects it preserved.
 SWIFTFLAGS := -target armv7-apple-none-macho -enable-experimental-feature Embedded \
               -wmo -Osize -Xcc -marm -Xcc -ffixed-r9 \
-              -ISources/CSwiftUIBackend/include -I$(BUILD)/modules -I$(APP_DIR)/include
+              -ISources/CSwiftUIBackend/include -I$(OBJC)/include -I$(BUILD)/modules -I$(APP_DIR)/include
 
 SWIFTUI_SRCS := $(wildcard Sources/SwiftUI/*.swift)
 APP_SRCS     := $(wildcard $(APP_DIR)/*.swift)
@@ -67,7 +70,7 @@ APP_HEADERS  := $(wildcard $(APP_DIR)/include/*.h)
 APP_OBJS     := $(patsubst %,$(BUILD)/obj/$(APP)-%.o,$(basename $(notdir $(APP_C_SRCS))))
 ENTITLEMENTS ?= $(wildcard $(APP_DIR)/Entitlements.plist)
 # Headers of the iOS-side functions Swift calls, for the trampolines' stack arguments.
-IOS_HEADERS  := Sources/CSwiftUIBackend/include/SwiftUIBackend.h $(APP_HEADERS)
+IOS_HEADERS  := Sources/CSwiftUIBackend/include/SwiftUIBackend.h $(OBJC)/include/ObjCRuntime.h $(APP_HEADERS)
 comma := ,
 empty :=
 space := $(empty) $(empty)
@@ -87,7 +90,18 @@ $(BUILD)/obj/SwiftUI.o: $(SWIFTUI_SRCS) Sources/CSwiftUIBackend/include/SwiftUIB
 	  -emit-module -emit-module-path $(BUILD)/modules/SwiftUI.swiftmodule \
 	  -c $(SWIFTUI_SRCS) -o $@
 
-$(BUILD)/obj/$(APP).o: $(APP_SRCS) $(APP_HEADERS) $(BUILD)/obj/SwiftUI.o
+# Also writes $(BUILD)/modules/ObjCInterop.swiftmodule.
+$(BUILD)/obj/ObjCInterop.o: $(OBJC)/Sources/ObjCInterop.swift $(OBJC)/include/ObjCRuntime.h
+	@mkdir -p $(BUILD)/modules $(BUILD)/obj
+	$(SWIFTC) $(SWIFTFLAGS) -parse-as-library -module-name ObjCInterop \
+	  -emit-module -emit-module-path $(BUILD)/modules/ObjCInterop.swiftmodule \
+	  -c $(OBJC)/Sources/ObjCInterop.swift -o $@
+
+$(BUILD)/obj/ObjCRuntime.o: $(OBJC)/ObjCRuntime.c $(OBJC)/include/ObjCRuntime.h
+	@mkdir -p $(BUILD)/obj
+	$(CC) $(CFLAGS) -I$(OBJC)/include -c $< -o $@
+
+$(BUILD)/obj/$(APP).o: $(APP_SRCS) $(APP_HEADERS) $(BUILD)/obj/SwiftUI.o $(BUILD)/obj/ObjCInterop.o
 	$(SWIFTC) $(SWIFTFLAGS) -parse-as-library -module-name $(APP) -c $(APP_SRCS) -o $@
 
 $(BUILD)/obj/Backend.o: Sources/CSwiftUIBackend/Backend.m Sources/CSwiftUIBackend/include/SwiftUIBackend.h
@@ -119,9 +133,9 @@ $(BUILD)/r9/$(APP)/trampolines.s: $(BAREMETAL) tools/r9wrap.py $(IOS_HEADERS)
 $(BUILD)/r9/$(APP)/trampolines.o: $(BUILD)/r9/$(APP)/trampolines.s
 	$(CC) -arch $(ARCH) -isysroot $(SDK) -miphoneos-version-min=$(MIN_IOS) -c $< -o $@
 
-$(BUNDLE)/$(APP): $(BUILD)/r9/$(APP)/trampolines.o $(BUILD)/obj/Backend.o $(APP_OBJS) $(APP_DIR)/Info.plist $(ENTITLEMENTS)
+$(BUNDLE)/$(APP): $(BUILD)/r9/$(APP)/trampolines.o $(BUILD)/obj/Backend.o $(BUILD)/obj/ObjCRuntime.o $(APP_OBJS) $(APP_DIR)/Info.plist $(ENTITLEMENTS)
 	@mkdir -p $(BUNDLE)
-	$(CC) $(LDFLAGS) $(WRAPPED) $(BUILD)/obj/Backend.o $(APP_OBJS) -o $@.tmp
+	$(CC) $(LDFLAGS) $(WRAPPED) $(BUILD)/obj/Backend.o $(BUILD)/obj/ObjCRuntime.o $(APP_OBJS) -o $@.tmp
 	ldid -S$(ENTITLEMENTS) $@.tmp
 	mv $@.tmp $@
 	plutil -convert binary1 -o $(BUNDLE)/Info.plist $(APP_DIR)/Info.plist

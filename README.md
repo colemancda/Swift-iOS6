@@ -8,6 +8,8 @@ with example apps that use `NavigationStack`, `List` and `async`/`await`.
 networks with iOS 6's private MobileWiFi framework, and
 [BluetoothScanner/](BluetoothScanner/README.md) one that finds Bluetooth
 Classic devices with the private BluetoothManager framework.
+[ObjC/](ObjC/README.md) lets Embedded Swift send Objective-C messages
+(`ObjC.UIDevice.currentDevice().systemVersion()`) through `@dynamicCallable`.
 [SystemInfo/](SystemInfo/README.md) shows system and hardware information
 (device, CPU, memory, storage, battery, processes, installed apps) like AIDA64.
 
