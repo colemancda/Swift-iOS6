@@ -360,6 +360,7 @@ final class ListNode: FlexibleNode {
 
 enum ViewKind: Equatable {
     case label, button, toggle, tappable, stack, color, spacer, padding, background, list, listRows, row
+    case textField, slider, stepper, progress, activity
 }
 
 /// A UIKit view kept from render to render, with the values last set on it.
@@ -380,6 +381,11 @@ final class Retained {
     var color: UInt?
     var isOn = false
     var insets: [Int] = []
+    /// A slider's, stepper's or progress view's last value, and its range.
+    var number: Double?
+    var range: [Double] = []
+    var placeholder: String?
+    var secure: Bool?
     /// Set during a render and applied before measuring (and at commit), so a
     /// font or color set right after the view is made doesn't apply the
     /// default first.
@@ -592,9 +598,32 @@ func defineBackendClasses() {
             guard let state = targets[address(call.this)] else { return }
             state.changed?(state.context, call[0].isOn().asBool == true ? 1 : 0)
         }
+        cls.method("editingChanged:") { call in
+            controlHandlers[address(call.this)]?.text?(call[0].text().asString ?? "")
+        }
+        cls.method("returnPressed:") { call in
+            controlHandlers[address(call.this)]?.submit?()
+        }
+        cls.method("valueChanged:") { call in
+            controlHandlers[address(call.this)]?.value?(call[0].value().asDouble ?? 0)
+        }
         cls.method("dealloc") { call in
             targets[address(call.this)] = nil
+            controlHandlers[address(call.this)] = nil
             call.callSuper()
+        }
+    }
+
+    // Calls an alert's button actions.
+    ObjC.defineClass("SUIAlertDelegate") { cls in
+        cls.method("alertView:clickedButtonAtIndex:", types: "v@:@i") { call in
+            let alertAddress = address(call[0])
+            guard let state = alertsByView[alertAddress] else { return }
+            alertsByView[alertAddress] = nil
+            if let key = state.key { alerts[key] = nil }
+            let index = call[1].asInt ?? -1
+            state.dismissed()
+            if index >= 0 && index < state.actions.count { state.actions[index]?() }
         }
     }
 
@@ -1044,6 +1073,199 @@ func sui_view_set_size(_ reference: SUIViewRef?, _ width: Int, _ height: Int) {
     guard let node = node(reference) else { return }
     node.fixedWidth = Float(width)
     node.fixedHeight = Float(height)
+}
+
+// MARK: - Input controls
+
+/// Swift handlers for text fields, sliders and steppers, by target address.
+final class ControlHandlers {
+    var text: ((String) -> Void)?
+    var submit: (() -> Void)?
+    var value: ((Double) -> Void)?
+}
+
+var controlHandlers: [UInt: ControlHandlers] = [:]
+
+// UIControlEvents for text fields.
+let editingChanged = 1 << 17
+let editingDidEndOnExit = 1 << 19
+
+/// The handlers for `control`, made with its target the first time.
+func handlers(for control: ObjCValue, _ events: [(String, Int)]) -> ControlHandlers {
+    let existing = control.associated(actionTargetKey)
+    if !existing.isNil, let found = controlHandlers[address(existing)] { return found }
+    let target = ObjC.SUIActionTarget.new()
+    for (selector, event) in events {
+        control.addTarget(target, action: ObjC.selector(selector), forControlEvents: event)
+    }
+    control.setAssociated(target, for: actionTargetKey)
+    let made = ControlHandlers()
+    controlHandlers[address(target)] = made
+    return made
+}
+
+/// A text field, slider or progress bar: takes the width it's offered, at its
+/// own height.
+final class WideNode: LayoutNode {
+    let height: Float
+    let minimumWidth: Float
+
+    init(view: ObjCValue, height: Float, minimumWidth: Float) {
+        self.height = height
+        self.minimumWidth = minimumWidth
+        super.init(view: view)
+    }
+
+    override func naturalSize(_ proposal: LayoutSize) -> LayoutSize {
+        LayoutSize(width: min(minimumWidth, proposal.width), height: height)
+    }
+
+    override func isFlexible(vertical: Bool) -> Bool { !vertical }
+}
+
+let fieldSalt: UInt64 = 0x4649_454c_4400_0000
+let sliderSalt: UInt64 = 0x534c_4944_4552_0000
+let stepperSalt: UInt64 = 0x5354_4550_0000_0000
+let progressSalt: UInt64 = 0x5052_4f47_0000_0000
+let activitySalt: UInt64 = 0x4143_5449_5600_0000
+
+/// A text field showing `text`. Its text is set only when `text` changes from
+/// what the last render showed, so typing (and the cursor) isn't disturbed.
+func sui_text_field_create(_ text: String, placeholder: String, secure: Bool, onChange: @escaping (String) -> Void,
+                           onSubmit: (() -> Void)?) -> SUIViewRef? {
+    let retained = reuse(.textField, fieldSalt) {
+        let field = ObjC.UITextField.new()
+        field.setBorderStyle(3)  // UITextBorderStyleRoundedRect
+        field.setFont(font(size: 17, weight: Int(SUIFontWeightRegular)))
+        field.setContentVerticalAlignment(0)  // centered
+        field.setClearButtonMode(1)  // while editing
+        field.setReturnKeyType(9)  // Done
+        return field
+    }
+    let field = retained.view
+    if retained.text != text {
+        if field.text().asString != text { field.setText(text) }
+        retained.text = text
+    }
+    if retained.placeholder != placeholder {
+        field.setPlaceholder(placeholder)
+        retained.placeholder = placeholder
+    }
+    if retained.secure != secure {
+        field.setSecureTextEntry(secure)
+        field.setAutocorrectionType(secure ? 1 : 0)  // no correction for passwords
+        retained.secure = secure
+    }
+    // Return ends editing (UIKit hides the keyboard for a field with this event's target).
+    let handler = handlers(for: field, [("editingChanged:", editingChanged), ("returnPressed:", editingDidEndOnExit)])
+    handler.text = onChange
+    handler.submit = onSubmit
+    return keep(WideNode(view: field, height: 31, minimumWidth: 80))
+}
+
+/// Sets a slider's, stepper's or progress view's value only when the state
+/// changes from what the last render showed, as for switches.
+func syncNumber(_ retained: Retained, _ value: Double, _ set: (Double) -> Void) {
+    if retained.number != value {
+        set(value)
+        retained.number = value
+    }
+}
+
+func sui_slider_create(_ value: Double, minimum: Double, maximum: Double, onChange: @escaping (Double) -> Void) -> SUIViewRef? {
+    let retained = reuse(.slider, sliderSalt) { ObjC.UISlider.new() }
+    let slider = retained.view
+    if retained.range != [minimum, maximum] {
+        slider.setMinimumValue(Float(minimum))
+        slider.setMaximumValue(Float(maximum))
+        retained.range = [minimum, maximum]
+        retained.number = nil
+    }
+    syncNumber(retained, value) { slider.setValue(Float($0)) }
+    handlers(for: slider, [("valueChanged:", valueChanged)]).value = onChange
+    return keep(WideNode(view: slider, height: 23, minimumWidth: 100))
+}
+
+func sui_stepper_create(_ value: Double, minimum: Double, maximum: Double, step: Double,
+                        onChange: @escaping (Double) -> Void) -> SUIViewRef? {
+    let retained = reuse(.stepper, stepperSalt) { ObjC.UIStepper.new() }
+    let stepper = retained.view
+    if retained.range != [minimum, maximum, step] {
+        stepper.setMinimumValue(minimum)
+        stepper.setMaximumValue(maximum)
+        stepper.setStepValue(step)
+        retained.range = [minimum, maximum, step]
+        retained.number = nil
+    }
+    syncNumber(retained, value) { stepper.setValue($0) }
+    handlers(for: stepper, [("valueChanged:", valueChanged)]).value = onChange
+    return keep(LeafNode(view: stepper, retained: retained))
+}
+
+/// A progress bar from 0 to 1, or a spinning indicator when `value` is nil.
+func sui_progress_create(_ value: Double?) -> SUIViewRef? {
+    guard let value else {
+        let retained = reuse(.activity, activitySalt) {
+            let indicator = ObjC.UIActivityIndicatorView.alloc().initWithActivityIndicatorStyle(2)  // gray
+            indicator.startAnimating()
+            return indicator
+        }
+        return keep(LeafNode(view: retained.view, retained: retained))
+    }
+    let retained = reuse(.progress, progressSalt) { ObjC.UIProgressView.alloc().initWithProgressViewStyle(0) }
+    syncNumber(retained, value) { retained.view.setProgress(Float($0)) }
+    return keep(WideNode(view: retained.view, height: 9, minimumWidth: 100))
+}
+
+// MARK: - Alerts
+
+final class AlertState {
+    var key: UInt64?
+    let view: ObjCValue
+    var actions: [(() -> Void)?]
+    var dismissed: () -> Void
+
+    init(view: ObjCValue, actions: [(() -> Void)?], dismissed: @escaping () -> Void) {
+        self.view = view
+        self.actions = actions
+        self.dismissed = dismissed
+    }
+}
+
+/// Alerts on screen, by their modifier's key and by view address.
+var alerts: [UInt64: AlertState] = [:]
+var alertsByView: [UInt: AlertState] = [:]
+let alertDelegate: ObjCValue = ObjC.SUIAlertDelegate.new()
+
+/// Shows a UIAlertView for `key` while `presented`, and dismisses it when
+/// that turns false. `buttons` are titles and actions; `cancelIndex` is the
+/// cancel button's index, or -1. `dismissed` runs when a button is tapped.
+func sui_alert_update(_ key: UInt64, presented: Bool, title: String, message: String?,
+                      buttons: [(String, (() -> Void)?)], cancelIndex: Int, dismissed: @escaping () -> Void) {
+    if let state = alerts[key] {
+        if presented {
+            // Showing: this render's actions.
+            state.actions = buttons.map { $0.1 }
+            state.dismissed = dismissed
+        } else {
+            alerts[key] = nil
+            alertsByView[address(state.view)] = nil
+            state.view.dismissWithClickedButtonIndex(-1, animated: true)
+        }
+        return
+    }
+    guard presented else { return }
+    let alert = ObjC.UIAlertView.new()
+    alert.setTitle(title)
+    if let message { alert.setMessage(message) }
+    for (title, _) in buttons { _ = alert.addButtonWithTitle(title) }
+    if cancelIndex >= 0 { alert.setCancelButtonIndex(cancelIndex) }
+    alert.setDelegate(alertDelegate)
+    let state = AlertState(view: alert, actions: buttons.map { $0.1 }, dismissed: dismissed)
+    state.key = key
+    alerts[key] = state
+    alertsByView[address(alert)] = state
+    alert.show()
 }
 
 // MARK: - List
