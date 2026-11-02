@@ -48,8 +48,9 @@ typedef struct {
 /// Sends `message`, filling in its result. Returns 0, or 1 if it has too many words.
 long objcrt_send(ObjCRTMessage *message);
 
-/// The types of the method `receiver` runs for `selector`. Returns 0, or 1
-/// if the receiver doesn't respond to it.
+/// The types of the method `receiver` runs for `selector`, including one it
+/// forwards to another object. Returns 0, or 1 if the receiver doesn't
+/// respond to it.
 long objcrt_signature(void *receiver, void *selector, ObjCRTSignature *signature);
 
 /// objc_getClass; NULL if there's no such class.
