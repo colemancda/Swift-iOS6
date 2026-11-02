@@ -50,6 +50,9 @@ make EXAMPLE=Planets run      # launch it (the iPod must be unlocked)
 - **Counter:** `@State`, buttons and stacks.
 - **Planets:** `NavigationStack` and `List`, three screens deep (planets, then a
   planet's facts, then its moons).
+- **Interop:** UIKit and Foundation from Swift through
+  [ObjCInterop](../ObjC/README.md): device details, screen brightness, keeping
+  the screen awake and opening a URL, with no Objective-C file.
 - **Devices:** `NavigationView`, `List`, `@EnvironmentObject`, and an async
   `task` that updates the list every second.
 
