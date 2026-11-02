@@ -72,10 +72,33 @@ static long ObjCRTSize(const char *type) {
     return (long)size;
 }
 
+/// The types of a method the receiver doesn't implement itself but forwards
+/// (UITextField forwards its text input traits, for example), from
+/// methodSignatureForSelector:, which Objective-C's forwarding also uses.
+static long ObjCRTForwardedSignature(id receiver, SEL selector, ObjCRTSignature *signature) {
+    SEL responds = sel_registerName("respondsToSelector:");
+    if (!((BOOL (*)(id, SEL, SEL))objc_msgSend)(receiver, responds, selector)) return 1;
+    id methodSignature = ((id (*)(id, SEL, SEL))objc_msgSend)(receiver, sel_registerName("methodSignatureForSelector:"), selector);
+    if (!methodSignature) return 1;
+    const char *returnType = ((const char *(*)(id, SEL))objc_msgSend)(methodSignature, sel_registerName("methodReturnType"));
+    unsigned long count = ((unsigned long (*)(id, SEL))objc_msgSend)(methodSignature, sel_registerName("numberOfArguments"));
+    SEL argumentAt = sel_registerName("getArgumentTypeAtIndex:");
+    signature->returnType = ObjCRTKind(returnType);
+    signature->returnSize = ObjCRTSize(returnType);
+    signature->argumentCount = count >= 2 ? (long)count - 2 : 0;
+    if (signature->argumentCount > ObjCRTMaxArguments) signature->argumentCount = ObjCRTMaxArguments;
+    for (long i = 0; i < signature->argumentCount; i++) {
+        const char *type = ((const char *(*)(id, SEL, unsigned long))objc_msgSend)(methodSignature, argumentAt, (unsigned long)i + 2);
+        signature->argumentTypes[i] = ObjCRTKind(type);
+        signature->argumentSizes[i] = ObjCRTSize(type);
+    }
+    return 0;
+}
+
 long objcrt_signature(void *receiver, void *selector, ObjCRTSignature *signature) {
     if (!receiver) return 1;
     Method method = class_getInstanceMethod(object_getClass(receiver), selector);
-    if (!method) return 1;
+    if (!method) return ObjCRTForwardedSignature(receiver, selector, signature);
     char type[256];
     method_getReturnType(method, type, sizeof type);
     signature->returnType = ObjCRTKind(type);
