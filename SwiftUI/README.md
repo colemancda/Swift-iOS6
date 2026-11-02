@@ -56,6 +56,8 @@ make EXAMPLE=Planets run      # launch it (the iPod must be unlocked)
   Foundation and UIKit modules generated from the SDK's headers.
 - **Devices:** `NavigationView`, `List`, `@EnvironmentObject`, and an async
   `task` that updates the list every second.
+- **Controls:** `TextField` with `onSubmit`, `SecureField`, `Slider`,
+  `Stepper`, `ProgressView` (bar and spinner), `Toggle`, and an alert.
 
 `make -C .. screenshot` saves the iPod's screen to `../build/screenshot.png`.
 
@@ -66,9 +68,29 @@ The SDK, SSH config and app launcher come from the parent directory (see
 
 The same as SwiftUI-iOS9 (`Text`, `Button`, stacks, `Spacer`, `ForEach`,
 `List`, `NavigationView`, `NavigationLink`, `@State`, `ObservableObject`,
-`@EnvironmentObject`, `task`, `async`/`await` and more), plus `NavigationStack`
-and `Toggle`. `NavigationStack` renders like `NavigationView` and has no `path`
-binding or `navigationDestination`. `Toggle` is a `UISwitch`.
+`@EnvironmentObject`, `task`, `async`/`await` and more), plus:
+
+- **`NavigationStack`** renders like `NavigationView`. It has no `path`
+  binding or `navigationDestination`.
+- **`Toggle`** is a `UISwitch`.
+- **`TextField` and `SecureField`** are `UITextField`s with rounded borders.
+  Return calls `onSubmit` (or `onCommit:`) and hides the keyboard.
+- **`Slider`** is a `UISlider`, optionally with a `step`.
+- **`Stepper`** is a `UIStepper` beside its label, over an `Int` range.
+- **`ProgressView(value:total:)`** is a `UIProgressView`, and
+  `ProgressView()` a gray `UIActivityIndicatorView`.
+- **`.alert(isPresented:content:)`** shows SwiftUI's `Alert` (title,
+  message, `default`, `cancel` and `destructive` buttons) as a
+  `UIAlertView`. A cancel button goes on the left, and `destructive` looks
+  like any other button on iOS 6.
+
+**How controls stay in sync:** each control is set from its binding only
+when the bound value changes from what the last render showed. A text field
+being typed in, a slider being dragged or a tapped switch is left alone
+until its own event updates the state.
+
+**Missing:** keyboard avoidance. A text field low on the screen can end up
+under the keyboard.
 
 The Interop example uses the generated Foundation and UIKit modules
 ([../Frameworks](../Frameworks/README.md)), listed in its `LIBS` file.
