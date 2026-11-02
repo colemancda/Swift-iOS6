@@ -8,11 +8,11 @@
 // Unlike Backend.m, this file is compiled for the bare-metal armv7 target,
 // like the Swift runtime that calls it: the hooks use the Swift calling
 // convention and pass executor references by value. It only calls into iOS
-// through SwiftUIBackend.h, with pointers and `unsigned long`.
+// through ObjCRuntime.h's main-queue functions, with pointers and `unsigned long`.
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "SwiftUIBackend.h"
+#include "ObjCRuntime.h"
 
 // From the toolchain's swift/ExecutorImpl.h, which needs a C library.
 typedef struct SwiftJob SwiftJob;
@@ -36,24 +36,24 @@ static void SUIRunJob(void *job) {
 }
 
 SWIFT_CC_SWIFT void swift_task_enqueueGlobalImpl(SwiftJob *job) {
-    sui_dispatch_main(SUIRunJob, job);
+    objcrt_async(SUIRunJob, job);
 }
 
 SWIFT_CC_SWIFT void swift_task_enqueueGlobalWithDelayImpl(SwiftJobDelay delay, SwiftJob *job) {
     // Nanoseconds, rounded up to whole milliseconds.
     unsigned long long milliseconds = (delay + 999999) / 1000000;
-    sui_dispatch_main_after(milliseconds > 0xFFFFFFFFull ? 0xFFFFFFFFul : (unsigned long)milliseconds, SUIRunJob, job);
+    objcrt_after(milliseconds > 0xFFFFFFFFull ? 0xFFFFFFFFul : (unsigned long)milliseconds, SUIRunJob, job);
 }
 
 SWIFT_CC_SWIFT void swift_task_enqueueGlobalWithDeadlineImpl(long long sec, long long nsec,
                                                              long long tsec, long long tnsec,
                                                              int clock, SwiftJob *job) {
     // Deadlines come from clocks, which Embedded Swift doesn't have yet.
-    sui_dispatch_main(SUIRunJob, job);
+    objcrt_async(SUIRunJob, job);
 }
 
 SWIFT_CC_SWIFT void swift_task_enqueueMainExecutorImpl(SwiftJob *job) {
-    sui_dispatch_main(SUIRunJob, job);
+    objcrt_async(SUIRunJob, job);
 }
 
 SWIFT_CC_SWIFT void swift_task_checkIsolatedImpl(SwiftExecutorRef executor) {

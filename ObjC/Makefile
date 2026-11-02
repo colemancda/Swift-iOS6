@@ -17,7 +17,7 @@ SWIFTFLAGS := -target armv7-apple-none-macho -enable-experimental-feature Embedd
               -wmo -Osize -Xcc -marm -Xcc -ffixed-r9 -Iinclude -Ibuild/modules
 CFLAGS     := -arch armv7 -isysroot $(SDK) -miphoneos-version-min=$(MIN_IOS) -marm -O2 -Wall -Iinclude
 LDFLAGS    := -arch armv7 -isysroot $(SDK) -miphoneos-version-min=$(MIN_IOS) \
-              -framework Foundation -framework UIKit -Wl,-dead_strip \
+              -framework Foundation -Wl,-dead_strip \
               $(SWIFT_EMBEDDED_LIB)/libswiftUnicodeDataTables.a
 
 SSH_CONF ?= ../ipod-ssh.conf

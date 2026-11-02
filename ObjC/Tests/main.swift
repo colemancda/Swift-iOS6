@@ -1,5 +1,9 @@
 // Exercises ObjCInterop against Foundation and UIKit on the device.
 // Run with `make test`; prints each check and a summary.
+//
+// iOS 6 won't start UIKit outside an app (it traps in GraphicsServices), so
+// there the UIKit checks are skipped; the SwiftUI apps exercise UIKit
+// through the bridge instead. iOS 7 and later run them.
 
 import ObjCInterop
 
@@ -11,7 +15,13 @@ func check(_ name: String, _ condition: Bool, _ detail: String = "") {
     print("\(condition ? "PASS" : "FAIL") \(name)\(detail.isEmpty ? "" : ": " + detail)")
 }
 
-ObjC.load(framework: "UIKit")
+let osVersion = ObjC.NSProcessInfo.processInfo().operatingSystemVersionString().asString ?? ""
+let hasUIKit = !osVersion.hasPrefix("Version 5.") && !osVersion.hasPrefix("Version 6.")
+if hasUIKit {
+    ObjC.load(framework: "UIKit")
+} else {
+    print("SKIP UIKit checks: UIKit can't start outside an app on \(osVersion)")
+}
 
 ObjC.autoreleasepool {
     // Strings: a Swift string becomes an NSString argument.
@@ -66,14 +76,14 @@ ObjC.autoreleasepool {
     let holder = ObjC.NSMutableArray.array()
     holder.addObject(greeting)
     check("ObjCValue variable", holder.lastObject().asString == "Hello, iOS 6")
-    let plain = ObjC.UIView.new()
-    plain.setBackgroundColor(ObjC.UIColor.redColor())
-    check("object argument", !plain.backgroundColor().isNil)
-    plain.setBackgroundColor(ObjC.nil)
-    check("ObjC.nil argument", plain.backgroundColor().isNil)
-    plain.setBackgroundColor(ObjC.UIColor.blueColor())
-    plain.setAccessibilityLabel(missing)
-    check("nil Optional argument", plain.accessibilityLabel().isNil)
+    // setValue:forKey: with nil removes the key.
+    let values = ObjC.NSMutableDictionary.dictionary()
+    values.setObject("a", forKey: "first")
+    values.setObject("b", forKey: "second")
+    values.setValue(ObjC.nil, forKey: "first")
+    check("ObjC.nil argument", values.objectForKey("first").isNil && values.count().asInt == 1)
+    values.setValue(missing, forKey: "second")
+    check("nil Optional argument", values.count().asInt == 0)
 
     // Classes, selectors, nil.
     check("isKind(of:)", greeting.isKind(of: "NSString") && !greeting.isKind(of: "NSArray"))
@@ -83,7 +93,16 @@ ObjC.autoreleasepool {
     let nothing: ObjCValue = nil
     check("message to nil is nil", nothing.length().isNil)
 
+}
+
+func uikitChecks() {
     // UIKit: struct results returned through objc_msgSend_stret.
+    let plain = ObjC.UIView.new()
+    plain.setBackgroundColor(ObjC.UIColor.redColor())
+    check("object argument", !plain.backgroundColor().isNil)
+    plain.setBackgroundColor(ObjC.nil)
+    check("ObjC.nil argument to UIKit", plain.backgroundColor().isNil)
+
     let device = ObjC.UIDevice.currentDevice()
     let system = "\(device.systemName().asString ?? "?") \(device.systemVersion().asString ?? "?")"
     check("UIDevice", system.hasPrefix("iPhone OS ") && device.systemVersion().length().asInt ?? 0 >= 3, system)
@@ -98,12 +117,118 @@ ObjC.autoreleasepool {
     let center = view.center().asStruct
     check("CGPoint stret result", center?.float(at: 0) == 160 && center?.float(at: 1) == 220)
 
+    // What the SwiftUI backend does for a Text.
+    let label = ObjC.UILabel.new()
+    label.setText(ObjC.NSString.stringWithUTF8String("Jupiter"))
+    label.setNumberOfLines(0)
+    label.setFont(ObjC.UIFont.systemFontOfSize(17))
+    check("label text set", label.text().asString == "Jupiter", label.text().asString ?? "nil")
+    let fitted = label.sizeThatFits(.size(width: 288, height: 100000)).asStruct
+    check("label sizeThatFits", (fitted?.float(at: 0) ?? 0) > 20 && (fitted?.float(at: 1) ?? 0) > 10,
+          "\(fitted?.float(at: 0) ?? -1) × \(fitted?.float(at: 1) ?? -1)")
+    label.setFrame(.rect(x: 16, y: 11, width: 60, height: 21))
+    let labelFrame = label.frame().asStruct
+    check("label frame", labelFrame?.float(at: 2) == 60, "\(labelFrame?.float(at: 2) ?? -1)")
+
     let screen = ObjC.UIScreen.mainScreen()
     let bounds = screen.bounds().asStruct
     check("UIScreen bounds", bounds?.float(at: 2) == 320 && bounds?.float(at: 3) == 480,
           "\(Int(bounds?.float(at: 2) ?? 0))×\(Int(bounds?.float(at: 3) ?? 0))")
     check("UIScreen scale", screen.scale().asDouble == 2)
 }
+
+if hasUIKit { ObjC.autoreleasepool { uikitChecks() } }
+
+// Classes defined from Swift.
+var notified = 0
+var notificationName = ""
+var layouts = 0
+var deallocs = 0
+
+ObjC.autoreleasepool {
+    // A target for target-action and notifications.
+    let observerClass = ObjC.defineClass("SITestObserver") { cls in
+        cls.method("received:") { call in
+            notified += 1
+            notificationName = call[0].name().asString ?? "?"
+        }
+        cls.method("dealloc") { call in
+            deallocs += 1
+            call.callSuper()
+        }
+    }
+    let observer = observerClass.new()
+    let center = ObjC.NSNotificationCenter.defaultCenter()
+    center.addObserver(observer, selector: ObjC.selector("received:"), name: "SITest", object: ObjC.nil)
+    center.postNotificationName("SITest", object: ObjC.nil)
+    center.postNotificationName("SITest", object: ObjC.nil)
+    check("method called from Objective-C", notified == 2, "\(notified)")
+    check("object argument decoded", notificationName == "SITest", notificationName)
+    center.removeObserver(observer)
+
+    // New methods with explicit types: numbers and objects in and out.
+    let mathClass = ObjC.defineClass("SITestMath") { cls in
+        cls.function("answer", types: "i@:") { _ in 42 }
+        cls.function("multiply:by:", types: "d@:dd") { call in
+            ObjCValue((call[0].asDouble ?? 0) * (call[1].asDouble ?? 0))
+        }
+        cls.function("greet:", types: "@@:@") { call in
+            ObjC.NSString.stringWithString("Hello, \(call[0].asString ?? "?")")
+        }
+        cls.function("halve:", types: "f@:f") { call in ObjCValue((call[0].asDouble ?? 0) / 2) }
+        cls.function("description") { _ in ObjC.NSString.stringWithString("SITestMath!") }
+    }
+    let math = mathClass.new()
+    check("int result", math.answer().asInt == 42)
+    check("double arguments and result", math.multiply(1.5, by: 4).asDouble == 6)
+    check("float argument and result", math.halve(5).asDouble == 2.5)
+    check("object argument and result", math.greet("Swift").asString == "Hello, Swift")
+    check("override of an NSObject method", math.send("description").asString == "SITestMath!")
+
+    // Associated objects keep a value alive with its owner.
+    let key = ObjCAssociationKey()
+    let owner = ObjC.NSObject.new()
+    owner.setAssociated(ObjC.NSString.stringWithString("kept"), for: key)
+    check("associated object", owner.associated(key).asString == "kept")
+}
+check("dealloc override runs", deallocs == 1, "\(deallocs)")
+
+func uikitClassChecks() {
+    // Overrides of a UIKit class, calling super.
+    let viewClass = ObjC.defineClass("SITestView", superclass: "UIView") { cls in
+        cls.method("layoutSubviews") { call in
+            layouts += 1
+            call.callSuper()
+        }
+        cls.function("sizeThatFits:") { call in
+            let proposal = call[0].asStruct
+            return .size(width: (proposal?.float(at: 0) ?? 0) / 2, height: 33)
+        }
+    }
+    let view = viewClass.alloc().initWithFrame(.rect(x: 0, y: 0, width: 100, height: 100))
+    let fitted = view.sizeThatFits(.size(width: 200, height: 999)).asStruct
+    check("struct override through stret", fitted?.float(at: 0) == 100 && fitted?.float(at: 1) == 33)
+    view.setNeedsLayout()
+    view.layoutIfNeeded()
+    check("layoutSubviews override", layouts == 1, "\(layouts)")
+    check("defined class is a UIView", view.isKind(of: "UIView") && view.className == "SITestView")
+
+    // Protocol methods take their types from the protocol.
+    let delegateClass = ObjC.defineClass("SITestScrollDelegate") { cls in
+        cls.conform(to: "UIScrollViewDelegate")
+        cls.method("scrollViewDidScroll:") { _ in layouts += 100 }
+    }
+    let delegate = delegateClass.new()
+    check("protocol method added", delegate.responds(to: "scrollViewDidScroll:"))
+    let scroll = ObjC.UIScrollView.alloc().initWithFrame(.rect(x: 0, y: 0, width: 100, height: 100))
+    scroll.setContentSize(.size(width: 100, height: 1000))
+    scroll.setDelegate(delegate)
+    scroll.setContentOffset(.point(x: 0, y: 10))
+    check("delegate called by UIKit", layouts >= 101, "\(layouts)")
+    scroll.setDelegate(ObjC.nil)
+}
+
+if hasUIKit { ObjC.autoreleasepool { uikitClassChecks() } }
 
 // Ownership: alloc/init and convenience constructors in a loop; an extra
 // release would crash, and a leak would grow memory.
