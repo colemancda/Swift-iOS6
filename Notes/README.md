@@ -3,8 +3,10 @@
 A list of notes kept with Core Data on iOS 6. It's written in SwiftUI with
 the CoreData module generated in [../Frameworks](../Frameworks/README.md).
 
-- **Add note** adds a note with a sample title and the current time.
-- Opening a note shows its date, a **Done** switch and **Delete**.
+- Type a title and press **Add** (or Done on the keyboard) to add a note,
+  dated now.
+- Opening a note lets you rename it, and shows its date, a **Done** switch
+  and **Delete**.
 - **Delete done** removes the notes marked done.
 
 The notes are saved after every change and stay after the app quits.

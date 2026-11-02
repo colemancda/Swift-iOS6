@@ -21,6 +21,9 @@ It's built on `@dynamicMemberLookup` and `@dynamicCallable`:
 - **Classes:** `ObjC.Name` looks up a class (nil if there's none).
   `ObjC.load(framework: "BluetoothManager")` loads a public or private
   framework first.
+- **Forwarded methods:** a method an object forwards to another (as
+  `UITextField` forwards `setReturnKeyType:` to its input traits) works too.
+  Its types come from `methodSignatureForSelector:`.
 - **Messages:** on any value, `.name(arguments)` sends a message. The selector
   is the name followed by one `label:` per argument, and the first argument is
   unlabeled. So `setTitle("Go", forState: 0)` sends `setTitle:forState:`, and

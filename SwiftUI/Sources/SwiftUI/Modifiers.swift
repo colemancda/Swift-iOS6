@@ -46,11 +46,13 @@ public struct _EnvironmentModifier<Content: View>: View {
         let savedFont = context.font
         let savedColor = context.foregroundColor
         let savedObjects = context.environmentObjects
+        let savedSubmit = context.onSubmit
         update(context)
         content._render(into: &nodes, context: context)
         context.font = savedFont
         context.foregroundColor = savedColor
         context.environmentObjects = savedObjects
+        context.onSubmit = savedSubmit
     }
 }
 

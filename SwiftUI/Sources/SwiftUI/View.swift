@@ -51,6 +51,8 @@ public final class _RenderContext {
     var navigation: _NavigationLevel?
     /// Set while rendering the rows of a `List`.
     var isInList = false
+    /// From `onSubmit(_:)`: what Return does in a text field.
+    var onSubmit: (() -> Void)?
 
     init(renderer: Renderer) {
         self.renderer = renderer
