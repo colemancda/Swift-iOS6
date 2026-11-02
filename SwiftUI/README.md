@@ -116,20 +116,42 @@ rest of the module didn't change. The backend never uses dynamic casts (`as?`,
 `is`): one cast in an earlier version failed on the 4S in some builds and not
 others, so stacks and lists are kept in typed tables instead.
 
-A render of the 178-view Wi-Fi Scanner list takes about 0.3 s on the iPod,
-roughly 1.3 times the Objective-C backend's time. Most of it is creating
-views, which takes several bridged messages per view.
+### Diffing
+
+Renders reuse UIKit views instead of building new ones.
+
+- **Keys:** each view the renderer asks for gets a key from its position in
+  the view tree, the same scheme `@State` uses. `ForEach` rows over
+  `Identifiable` data are keyed by `id`.
+- **Reuse:** the backend keeps last render's views by key and kind. It
+  updates a reused view in place, setting only what changed: text, font,
+  color, a switch's state, a button's title and action.
+- **Containers** (stacks, padding, rows, lists, and each screen's host view)
+  keep their subviews where they are. They add only new children and remove
+  only ones that are gone.
+
+What this gives:
+
+- **Controls:** a control under a finger stays in the window. A switch is set
+  only when the state changes from what the last render showed. A tapped
+  switch turns itself over before it sends its event, and a render in
+  between used to flip it back; Motion's switch couldn't be turned off.
+- **Lists** keep their scroll view, so they keep their scroll position.
+- **Speed:** a render of the Wi-Fi Scanner list (about 14 networks) takes
+  17–42 ms on the iPod after the first, against 146–181 ms when every render
+  built new views. The first render, which makes the views, takes about
+  100 ms. Times are from the start of a render to its commit; layout runs
+  after.
 
 - A `NavigationStack` or `NavigationView` is one `UINavigationController`,
   kept across renders. Each screen in it is a `UIViewController`. A `NavigationLink` pushes one, and the system back
   button pops it.
 - A `List` is a `UIScrollView` of rows. A `NavigationLink` row highlights when
   touched and shows a chevron.
-- Each render installs a screen's content in a new host view inside that
-  screen's view controller.
+- Each screen's content is in a host view inside that screen's view
+  controller, kept from render to render.
 - Renders wait while a list is being dragged or is still decelerating, and
-  run once it stops. A render replaces the list's scroll view, which would end
-  the scroll gesture and make scrolling stutter.
+  run once it stops, so the content doesn't move under the finger.
 - Renders don't push or pop while a navigation transition is animating. A
   change requested during one is applied when it ends, and a pop is reported
   to Swift when it starts. Otherwise a render landing during a back animation
@@ -142,7 +164,7 @@ The changes are in the backend and the build:
 
 - **Layout with frames, not Auto Layout:** iOS 6 has no `UIStackView` or
   layout anchors. A first port used the original Auto Layout API, but every
-  render rebuilds the views on screen. On the iPod's A4, adding, removing and
+  render rebuilt the views on screen. On the iPod's A4, adding, removing and
   solving about a thousand constraints took 1.5–2.5 seconds per render. That
   was slow enough for iOS's watchdog to kill the Wi-Fi scanner. iOS 6 Auto
   Layout also threw when a pushed screen still had constraints left over from

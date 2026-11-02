@@ -160,6 +160,7 @@ class Model:
         self.all_classes = set()
         self.records = {}  # RecordDecl id -> [(field name, type node)]
         self.record_names = {}  # struct or typedef name -> RecordDecl id
+        self.typedefs = {}  # typedef name -> its underlying C type
 
     def add_record(self, node):
         if node.get("tagUsed") != "struct" or not node.get("completeDefinition"):
@@ -172,6 +173,9 @@ class Model:
             self.record_names.setdefault(node["name"], node["id"])
 
     def add_typedef(self, node):
+        if node.get("name"):
+            underlying = node.get("type", {})
+            self.typedefs[node["name"]] = underlying.get("desugaredQualType", underlying.get("qualType", ""))
         def find(n):
             for child in n.get("inner", []):
                 decl = child.get("decl") or child.get("ownedTagDecl")
@@ -290,6 +294,14 @@ class Types:
             "_Nonnull" not in qual and "*" in sugar)
         text = clean(qual)
         plain = clean(sugar)
+        # Inside block types, clang's desugared text keeps typedef names: resolve them.
+        for _ in range(4):
+            if plain not in self.model.typedefs or plain in KNOWN_STRUCTS or plain in ("BOOL", "CGFloat"):
+                break
+            resolved = clean(self.model.typedefs[plain])
+            if resolved == plain or "(^" in resolved:
+                break
+            plain = resolved
         if "(^" in plain or "(*" in plain or "[" in plain or "..." in plain:
             return None
         if text == "instancetype" or plain == "instancetype":
@@ -456,6 +468,119 @@ def c_cast(type_text):
     return f"*({re.sub(TYPE_PARAMETERS, 'id', type_text)} *)0"
 
 
+# MARK: Blocks
+
+KNOWN_ENCODINGS = {
+    "CGPoint": "{CGPoint=ff}", "CGSize": "{CGSize=ff}",
+    "CGRect": "{CGRect={CGPoint=ff}{CGSize=ff}}", "NSRange": "{_NSRange=II}",
+}
+
+
+def split_parameters(text):
+    """The parameters in a C parameter list, split at top-level commas."""
+    parts, depth, current = [], 0, ""
+    for char in text:
+        if char in "(<[":
+            depth += 1
+        elif char in ")>]":
+            depth -= 1
+        if char == "," and depth == 0:
+            parts.append(current.strip())
+            current = ""
+        else:
+            current += char
+    if current.strip():
+        parts.append(current.strip())
+    return [] if parts == ["void"] else parts
+
+
+BLOCK_TYPE = re.compile(r"^(.*?)\(\^\s*([^)]*)\)\s*\((.*)\)\s*$")
+
+
+def block_encoding(swift, plain, types):
+    """The type encoding for a block's argument or result, or None."""
+    base = swift[:-1] if swift.endswith("?") else swift
+    if base == "Void":
+        return "v"
+    if base == "Bool":
+        return "B" if plain in ("_Bool", "bool") else "c"
+    if base == "Int":
+        return "L" if plain.startswith("unsigned") or plain == "NSUInteger" else "l"
+    simple = {"Int64": "q", "Float": "f", "Double": "d", "String": "@"}
+    if base in simple:
+        return simple[base]
+    if base in KNOWN_ENCODINGS:
+        return KNOWN_ENCODINGS[base]
+    if base in types.structs:
+        codes = {"Double": "d", "Float": "f", "Int": "l"}
+        return "{" + base + "=" + "".join(codes[t] for _, t in types.structs[base][1]) + "}"
+    if base in types.wrapped:
+        return "@"
+    if base == "ObjCValue":
+        if plain == "SEL":
+            return ":"
+        if plain == "Class":
+            return "#"
+        pointee = re.match(r"(\w+) \*$", plain)
+        if plain == "id" or plain.startswith("id<") or (pointee and pointee.group(1) in types.model.all_classes):
+            return "@"
+        if plain.endswith("*"):
+            return "^v"
+    return None
+
+
+def block_parameter(type_node, types, framework):
+    """A block parameter as a Swift closure: (closure type, block types,
+    argument types, result type, optional), or None if it can't be one."""
+    qual = type_node.get("qualType", "")
+    sugar = type_node.get("desugaredQualType", qual)
+    sugar_match, qual_match = BLOCK_TYPE.match(sugar), BLOCK_TYPE.match(qual)
+    if not sugar_match:
+        return None
+    # A typedef'd block (NSComparator) carries its nullability on the typedef's name.
+    optional = "_Nonnull" not in (qual_match.group(2) if qual_match else qual)
+    plain_params = split_parameters(sugar_match.group(3))
+    text_params = split_parameters(qual_match.group(3)) if qual_match else plain_params
+    if len(text_params) != len(plain_params):
+        text_params = plain_params
+    plain_result = sugar_match.group(1).strip()
+    text_result = qual_match.group(1).strip() if qual_match else plain_result
+    if "(^" in plain_result or any("(^" in p or "(*" in p for p in plain_params):
+        return None
+
+    result = types.swift({"qualType": text_result, "desugaredQualType": plain_result}, "return", None, framework)
+    if result is None or result.startswith("Self"):
+        return None
+    result_encoding = block_encoding(result, clean(plain_result), types)
+    arguments, encodings = [], []
+    for text, plain in zip(text_params, plain_params):
+        swift = types.swift({"qualType": text, "desugaredQualType": plain}, "return", None, framework)
+        if swift is None or swift.startswith("Self") or swift == "Void":
+            return None
+        encoding = block_encoding(swift, clean(plain), types)
+        if encoding is None:
+            return None
+        arguments.append(swift)
+        encodings.append(encoding)
+    if result_encoding is None:
+        return None
+    closure = f"({', '.join(arguments)}) -> {result}"
+    return closure, result_encoding + "".join(encodings), arguments, result, optional
+
+
+def block_argument(name, block):
+    """An expression that wraps the closure `name` in an ObjCBlock."""
+    closure, encoding, arguments, result, optional = block
+    call = ", ".join(f"objcResult(call[{i}])" for i in range(len(arguments)))
+    body_name = "body" if optional else name
+    if result == "Void":
+        body = f"{body_name}({call}); return nil"
+    else:
+        body = f"return {body_name}({call}).objcValue"
+    make = f'ObjCBlock(types: "{encoding}") {{ call in {body} }}'
+    return f"{name}.map {{ body in {make} }}" if optional else make
+
+
 def declare_method(member, types):
     node = member.node
     if node.get("variadic"):
@@ -469,7 +594,16 @@ def declare_method(member, types):
     if returns is None:
         return None
     swift_params = []
-    for param in params:
+    blocks = {}  # parameter index -> block_parameter
+    for index, param in enumerate(params):
+        param_type = param.get("type", {})
+        if "(^" in param_type.get("qualType", "") or "(^" in param_type.get("desugaredQualType", ""):
+            block = block_parameter(param.get("type", {}), types, member.framework)
+            if block is None:
+                return None
+            blocks[index] = block
+            swift_params.append(f"({block[0]})?" if block[4] else f"@escaping {block[0]}")
+            continue
         swift = types.swift(param.get("type", {}), "param", member.cls, member.framework)
         if swift is None or swift.startswith("Self"):
             return None
@@ -482,7 +616,8 @@ def declare_method(member, types):
 
     receiver = member.cls if member.static else f"(({member.cls} *)0)"
     if ":" in selector:
-        call = " ".join(f"{part}:{c_cast(param_type_text(param))}" for part, param in zip(parts, params))
+        call = " ".join(f"{part}:{'0' if index in blocks else c_cast(param_type_text(param))}"
+                        for index, (part, param) in enumerate(zip(parts, params)))
     else:
         call = selector
     member.probe = f"(void)[{receiver} {call}];"
@@ -503,6 +638,9 @@ def declare_method(member, types):
             return None
         args = ", ".join(f"{ident(l) if l in SWIFT_KEYWORDS else l} a{i}: {t}"
                          for i, (l, t) in enumerate(zip(labels, swift_params)))
+        if blocks:
+            return (f"public init({args}) {{ self.init(Self.objcClass.alloc().send(\"{selector}\""
+                    f"{send_arguments(len(params), blocks)})) }}")
         return f'@ObjCMethod("{selector}") public init({args})'
 
     name = parts[0]
@@ -518,7 +656,19 @@ def declare_method(member, types):
         args.append(f"{label} a{i}: {swift}")
     static = "static " if member.static else ""
     result = "" if returns == "Void" else f" -> {returns}"
+    if blocks:
+        # Closures become ObjCBlocks here, so the body is written out
+        # rather than generated by @ObjCMethod.
+        receiver = "Self.objcClass" if member.static else "self.object"
+        send = f'{receiver}.send("{selector}"{send_arguments(len(params), blocks)})'
+        body = f"_ = {send}" if returns == "Void" else f"return objcResult({send})"
+        return f"public {static}func {ident(name)}({', '.join(args)}){result} {{ {body} }}"
     return f'@ObjCMethod("{selector}") public {static}func {ident(name)}({", ".join(args)}){result}'
+
+
+def send_arguments(count, blocks):
+    """The arguments after the selector in a generated send(...)."""
+    return "".join(f", {block_argument(f'a{i}', blocks[i]) if i in blocks else f'a{i}'}" for i in range(count))
 
 
 def declare_property(member, types):

@@ -5,9 +5,17 @@ import ObjCInterop
 // The UIKit backend, in Swift: the `sui_*` functions the rest of the module
 // renders through, talking to UIKit with ObjCInterop's Objective-C messages.
 //
-// Every render builds new UIKit views. Layout uses frames, not Auto Layout,
-// which took seconds per render on an A4. Each view has a layout node that
-// measures it (its natural size for a proposed size) and places its children:
+// Renders reuse UIKit views: each view the renderer asks for has a key, from
+// its position in the view tree (as @State's are), and the view made for that
+// key in the last render is updated in place when it's of the same kind. Only
+// properties that changed are set, and containers keep the subviews they
+// still have. So controls keep their touches and animations, lists their
+// scroll position, and a render costs a fraction of building views anew.
+//
+// Layout uses frames, not Auto Layout, which took seconds per render on an
+// A4. Each render builds layout nodes (cheap Swift objects) around the reused
+// views; a node measures its view (its natural size for a proposed size) and
+// places its children:
 //
 // - LeafNode: a label, button or switch, measured with sizeThatFits:.
 // - StackNode: children along an axis, with spacing; leftover space goes to
@@ -102,8 +110,16 @@ class LayoutNode {
 final class LeafNode: LayoutNode {
     private var lastProposal: LayoutSize?
     private var lastSize = LayoutSize(width: 0, height: 0)
+    let retained: Retained?
+
+    init(view: ObjCValue, retained: Retained? = nil) {
+        self.retained = retained
+        super.init(view: view)
+    }
 
     override func naturalSize(_ proposal: LayoutSize) -> LayoutSize {
+        // A font or color set after the view was made changes its size.
+        retained?.applyPending()
         // Stacks and rows measure a child more than once per layout.
         if proposal == lastProposal { return lastSize }
         // Labels wrap to the proposed width; controls have a natural size.
@@ -186,7 +202,7 @@ final class StackNode: LayoutNode {
     func add(_ child: LayoutNode, stretch: Bool) {
         children.append(child)
         stretched.append(stretch)
-        view.addSubview(child.view)
+        want(child.view, in: view)
     }
 
     func main(_ size: LayoutSize) -> Float { vertical ? size.height : size.width }
@@ -323,10 +339,13 @@ final class RowNode: LayoutNode {
 final class ListNode: FlexibleNode {
     let key: UInt
     let rows: StackNode
+    /// A new scroll view, which starts where the last one for this key was.
+    let isNew: Bool
 
-    init(view: ObjCValue, key: UInt, rows: StackNode) {
+    init(view: ObjCValue, key: UInt, rows: StackNode, isNew: Bool) {
         self.key = key
         self.rows = rows
+        self.isNew = isNew
         super.init(view: view)
     }
 
@@ -335,6 +354,111 @@ final class ListNode: FlexibleNode {
         rows.place(x: 0, y: 0, width: size.width, height: height)
         view.setContentSize(.size(width: size.width, height: height))
     }
+}
+
+// MARK: - Reused views
+
+enum ViewKind: Equatable {
+    case label, button, toggle, tappable, stack, color, spacer, padding, background, list, listRows, row
+}
+
+/// A UIKit view kept from render to render, with the values last set on it.
+final class Retained {
+    let kind: ViewKind
+    let view: ObjCValue
+    /// Made in this render, rather than reused.
+    var isNew = true
+
+    /// For containers: the subviews this one manages, as of the last render,
+    /// and those wanted in this one (nil for views without managed children).
+    var children: [ObjCValue] = []
+    var wanted: [ObjCValue]?
+
+    // The last values set, so unchanged ones aren't set again.
+    var text: String?
+    var font = -1
+    var color: UInt?
+    var isOn = false
+    var insets: [Int] = []
+    /// Set during a render and applied before measuring (and at commit), so a
+    /// font or color set right after the view is made doesn't apply the
+    /// default first.
+    var pendingFont = -1
+    var pendingColor: UInt?
+
+    // Parts of rows and lists.
+    var chevron: ObjCValue?
+    var separator: ObjCValue?
+    var rows: Retained?
+
+    init(kind: ViewKind, view: ObjCValue) {
+        self.kind = kind
+        self.view = view
+    }
+
+    func applyPending() {
+        if pendingFont >= 0 && pendingFont != font {
+            font = pendingFont
+            let value = fontFromKey(pendingFont)
+            if kind == .button { view.titleLabel().setFont(value) } else { view.setFont(value) }
+        }
+        if let pendingColor, pendingColor != color {
+            color = pendingColor
+            if kind == .button { setButtonColor(view, pendingColor) } else { view.setTextColor(rgbaColor(pendingColor)) }
+        }
+    }
+}
+
+/// The views from the last render and this one, by key.
+var liveViews: [UInt64: Retained] = [:]
+var passViews: [UInt64: Retained] = [:]
+/// Every view retained in this render (a duplicate key's too), and by view
+/// address, to find a container's record from its node.
+var passRetained: [Retained] = []
+var passRetainedByView: [UInt: Retained] = [:]
+
+/// The view for the next key in the render: last render's, if it's of the
+/// same kind, or a new one from `make`.
+func reuse(_ kind: ViewKind, _ salt: UInt64, container: Bool = false, make: () -> ObjCValue) -> Retained {
+    let key = currentRenderer?.makeKey(salt) ?? 0
+    let retained: Retained
+    if passViews[key] == nil, let existing = liveViews[key], existing.kind == kind {
+        retained = existing
+        retained.isNew = false
+    } else {
+        retained = Retained(kind: kind, view: make())
+    }
+    if passViews[key] == nil { passViews[key] = retained }
+    retained.wanted = container ? [] : nil
+    passRetained.append(retained)
+    passRetainedByView[address(retained.view)] = retained
+    return retained
+}
+
+/// Records that `child` is a subview of the container `parent` in this render.
+func want(_ child: ObjCValue, in parent: ObjCValue) {
+    if let retained = passRetainedByView[address(parent)], retained.wanted != nil {
+        retained.wanted!.append(child)
+    } else if address(child.superview()) != address(parent) {
+        parent.addSubview(child)
+    }
+}
+
+/// Gives a container the subviews it wants: adds the new ones and removes
+/// the ones it no longer has, leaving the rest where they are.
+func syncChildren(_ retained: Retained) {
+    guard let wanted = retained.wanted else { return }
+    let container = address(retained.view)
+    var keep = Set<UInt>()
+    for child in wanted {
+        keep.insert(address(child))
+        if address(child.superview()) != container { retained.view.addSubview(child) }
+    }
+    for child in retained.children where !keep.contains(address(child)) && address(child.superview()) == container {
+        child.removeFromSuperview()
+    }
+    retained.children = wanted
+    retained.wanted = nil
 }
 
 // MARK: - State
@@ -553,7 +677,13 @@ let touchCancel = 1 << 8
 let valueChanged = 1 << 12
 
 /// Calls `action` when `control` is tapped, highlighting it while touched.
+/// A reused control keeps its target, which gets this render's action.
 func attachAction(_ control: ObjCValue, _ action: SUICallback?, _ context: UnsafeMutableRawPointer?, highlight: Highlight) {
+    let existing = control.associated(actionTargetKey)
+    if !existing.isNil {
+        targets[address(existing)] = TargetState(action: action, changed: nil, context: context, highlight: highlight)
+        return
+    }
     let target = ObjC.SUIActionTarget.new()
     targets[address(target)] = TargetState(action: action, changed: nil, context: context, highlight: highlight)
     control.addTarget(target, action: ObjC.selector("fire:"), forControlEvents: touchUpInside)
@@ -579,6 +709,19 @@ func font(size: Int, weight: Int) -> ObjCValue {
     let font = bold ? ObjC.UIFont.boldSystemFontOfSize(size) : ObjC.UIFont.systemFontOfSize(size)
     fonts[key] = font
     return font
+}
+
+func fontKey(size: Int, weight: Int) -> Int {
+    let bold = weight == Int(SUIFontWeightSemibold) || weight == Int(SUIFontWeightBold)
+    return size * 2 + (bold ? 1 : 0)
+}
+
+func fontFromKey(_ key: Int) -> ObjCValue {
+    font(size: key / 2, weight: key % 2 == 1 ? Int(SUIFontWeightBold) : Int(SUIFontWeightRegular))
+}
+
+func rgbaColor(_ rgba: UInt) -> ObjCValue {
+    color(rgba)
 }
 
 func color(_ rgba: UInt) -> ObjCValue {
@@ -626,8 +769,8 @@ func sui_schedule_render() {
     renderScheduled = true
     objcrt_async({ _ in
         renderScheduled = false
-        // A render replaces the list being scrolled, which ends the gesture
-        // and stalls the scroll. Wait until it settles.
+        // A render lays out the list being scrolled, whose content may move
+        // under the finger. Wait until it settles.
         if isScrolling() {
             renderDeferred = true
             return
@@ -661,19 +804,36 @@ func sui_render_begin() {
     passStacks = [:]
     passListNodes = [:]
     passLists = []
+    passViews = [:]
+    passRetained = []
+    passRetainedByView = [:]
     // The lists on screen are about to be replaced; remember where they were.
     for (key, list) in liveLists where !list.window().isNil {
         listOffsets[key] = list.contentOffset().asStruct?.float(at: 1) ?? 0
     }
 }
 
-/// Replaces `controller`'s content with `root`, filling or centered in each
+/// Each controller's host view, by controller address: kept from render to render.
+var controllerHosts: [UInt: ObjCValue] = [:]
+
+/// Makes `root` `controller`'s content, filling or centered in each
 /// dimension. On iOS 6 a controller's view already starts below the status
 /// and navigation bars.
 func install(_ controller: ObjCValue, _ root: LayoutNode, fillWidth: Bool, fillHeight: Bool) {
     let view = controller.view()
-    // A navigation controller's view is the same in every pass; leave it be.
-    if address(root.view.superview().superview()) == address(view) && address(view) != 0 { return }
+    let state = HostState(root: root, fillWidth: fillWidth || root.flexible(vertical: false),
+                          fillHeight: fillHeight || root.flexible(vertical: true))
+    // The host from the last render: lay out the new tree in it.
+    if let host = controllerHosts[address(controller)], address(host.superview()) == address(view) {
+        hosts[address(host)] = state
+        if address(root.view.superview()) != address(host) {
+            let subviews = host.subviews()
+            for index in 0..<(subviews.count().asInt ?? 0) { subviews.objectAtIndex(index).removeFromSuperview() }
+            host.addSubview(root.view)
+        }
+        host.setNeedsLayout()
+        return
+    }
     let subviews = view.subviews()
     let count = subviews.count().asInt ?? 0
     for index in 0..<count {
@@ -681,15 +841,16 @@ func install(_ controller: ObjCValue, _ root: LayoutNode, fillWidth: Bool, fillH
     }
     let host = ObjC.SUIHostView.alloc().initWithFrame(view.bounds())
     host.setAutoresizingMask(2 | 16) // flexible width and height
-    hosts[address(host)] = HostState(root: root, fillWidth: fillWidth || root.flexible(vertical: false),
-                                     fillHeight: fillHeight || root.flexible(vertical: true))
+    hosts[address(host)] = state
     host.addSubview(root.view)
     view.addSubview(host)
+    controllerHosts[address(controller)] = host
 }
 
-/// Scrolls each list made in this pass back to where its predecessor was.
+/// Scrolls each new list back to where its predecessor was. (A reused list
+/// is still where it was.)
 func restoreListOffsets() {
-    for list in passLists {
+    for list in passLists where list.isNew {
         guard let saved = listOffsets[list.key] else { continue }
         var top = list.view
         while true {
@@ -705,6 +866,10 @@ func restoreListOffsets() {
 }
 
 func sui_render_commit(_ rootReference: SUIViewRef?, _ fillWidth: Int, _ fillHeight: Int) {
+    for retained in passRetained {
+        syncChildren(retained)
+        retained.applyPending()
+    }
     if let root = node(rootReference) {
         install(rootController, root, fillWidth: fillWidth != 0, fillHeight: fillHeight != 0)
     }
@@ -712,6 +877,11 @@ func sui_render_commit(_ rootReference: SUIViewRef?, _ fillWidth: Int, _ fillHei
     var lists: [UInt: ObjCValue] = [:]
     for list in passLists { lists[list.key] = list.view }
     liveLists = lists
+    // Views not used in this render go (their containers have dropped them).
+    liveViews = passViews
+    passViews = [:]
+    passRetained = []
+    passRetainedByView = [:]
     passLists = []
     passNodes = [:]
     passStacks = [:]
@@ -720,22 +890,43 @@ func sui_render_commit(_ rootReference: SUIViewRef?, _ fillWidth: Int, _ fillHei
 
 // MARK: - Views
 
+// Each kind of view has its own salt, mixed into its key.
+let labelSalt: UInt64 = 0x4c41_4245_4c00_0000
+let buttonSalt: UInt64 = 0x4255_5454_4f4e_0000
+let switchSalt: UInt64 = 0x5357_4954_4348_0000
+let tappableSalt: UInt64 = 0x5441_5050_0000_0000
+let stackSalt: UInt64 = 0x5354_4143_4b00_0000
+let colorSalt: UInt64 = 0x434f_4c4f_5200_0000
+let spacerSalt: UInt64 = 0x5350_4143_4500_0000
+let paddingSalt: UInt64 = 0x5041_4444_0000_0000
+let backgroundSalt: UInt64 = 0x4247_0000_0000_0000
+let listSalt: UInt64 = 0x4c49_5354_5649_4557
+let rowSalt: UInt64 = 0x524f_5700_0000_0000
+
 func sui_label_create(_ utf8: UnsafePointer<CChar>?) -> SUIViewRef? {
-    let label = ObjC.UILabel.new()
-    label.setText(ObjC.NSString.stringWithUTF8String(String(cString: utf8!)))
-    label.setNumberOfLines(0)
-    label.setFont(font(size: 17, weight: Int(SUIFontWeightRegular)))
-    // iOS 6 labels are opaque white by default.
-    label.setBackgroundColor(ObjC.UIColor.clearColor())
-    return keep(LeafNode(view: label))
+    let retained = reuse(.label, labelSalt) {
+        let label = ObjC.UILabel.new()
+        label.setNumberOfLines(0)
+        // iOS 6 labels are opaque white by default.
+        label.setBackgroundColor(ObjC.UIColor.clearColor())
+        return label
+    }
+    let text = String(cString: utf8!)
+    if retained.text != text {
+        retained.text = text
+        retained.view.setText(ObjC.NSString.stringWithUTF8String(text))
+    }
+    retained.pendingFont = fontKey(size: 17, weight: Int(SUIFontWeightRegular))
+    retained.pendingColor = 0x0000_00FF
+    return keep(LeafNode(view: retained.view, retained: retained))
 }
 
 func sui_label_set_font(_ label: SUIViewRef?, _ size: Int, _ weight: Int) {
-    node(label)?.view.setFont(font(size: size, weight: weight))
+    passRetainedByView[UInt(bitPattern: label)]?.pendingFont = fontKey(size: size, weight: weight)
 }
 
 func sui_label_set_color(_ label: SUIViewRef?, _ rgba: UInt) {
-    node(label)?.view.setTextColor(color(rgba))
+    passRetainedByView[UInt(bitPattern: label)]?.pendingColor = rgba
 }
 
 /// iOS 6 has no borderless system button, so text buttons are custom buttons
@@ -746,43 +937,63 @@ func setButtonColor(_ button: ObjCValue, _ rgba: UInt) {
 }
 
 func sui_button_create(_ title: UnsafePointer<CChar>?, _ action: SUICallback?, _ context: UnsafeMutableRawPointer?) -> SUIViewRef? {
-    let button = ObjC.UIButton.buttonWithType(0) // custom
-    button.setTitle(String(cString: title!), forState: 0)
-    button.titleLabel().setFont(font(size: 17, weight: Int(SUIFontWeightRegular)))
-    setButtonColor(button, 0x007AFFFF)
-    attachAction(button, action, context, highlight: .none)
-    return keep(LeafNode(view: button))
+    let retained = reuse(.button, buttonSalt) { ObjC.UIButton.buttonWithType(0) } // custom
+    let text = String(cString: title!)
+    if retained.text != text {
+        retained.text = text
+        retained.view.setTitle(text, forState: 0)
+    }
+    retained.pendingFont = fontKey(size: 17, weight: Int(SUIFontWeightRegular))
+    retained.pendingColor = 0x007A_FFFF
+    attachAction(retained.view, action, context, highlight: .none)
+    return keep(LeafNode(view: retained.view, retained: retained))
 }
 
 func sui_button_set_font(_ button: SUIViewRef?, _ size: Int, _ weight: Int) {
-    node(button)?.view.titleLabel().setFont(font(size: size, weight: weight))
+    passRetainedByView[UInt(bitPattern: button)]?.pendingFont = fontKey(size: size, weight: weight)
 }
 
 func sui_button_set_color(_ button: SUIViewRef?, _ rgba: UInt) {
-    if let button = node(button) { setButtonColor(button.view, rgba) }
+    passRetainedByView[UInt(bitPattern: button)]?.pendingColor = rgba
 }
 
 func sui_switch_create(_ on: Int, _ changed: SUIIndexCallback?, _ context: UnsafeMutableRawPointer?) -> SUIViewRef? {
-    let control = ObjC.UISwitch.new()
-    control.setOn(on != 0)
-    let target = ObjC.SUIActionTarget.new()
-    targets[address(target)] = TargetState(action: nil, changed: changed, context: context, highlight: .none)
-    control.addTarget(target, action: ObjC.selector("changed:"), forControlEvents: valueChanged)
-    control.setAssociated(target, for: actionTargetKey)
-    return keep(LeafNode(view: control))
+    let retained = reuse(.toggle, switchSalt) {
+        let control = ObjC.UISwitch.new()
+        let target = ObjC.SUIActionTarget.new()
+        control.addTarget(target, action: ObjC.selector("changed:"), forControlEvents: valueChanged)
+        control.setAssociated(target, for: actionTargetKey)
+        return control
+    }
+    let control = retained.view
+    // Set the switch only when the state changes from what the last render
+    // showed, never because the switch differs from the state: a tapped
+    // switch turns itself over and animates before it sends its event, and
+    // a render in between must leave it be (it would flip back).
+    if retained.isNew {
+        control.setOn(on != 0)
+    } else if retained.isOn != (on != 0) {
+        control.setOn(on != 0, animated: true)
+    }
+    retained.isOn = on != 0
+    // The action belongs to this render.
+    targets[address(control.associated(actionTargetKey))] = TargetState(action: nil, changed: changed, context: context,
+                                                                         highlight: .none)
+    return keep(LeafNode(view: control, retained: retained))
 }
 
 func sui_tappable_create(_ contentReference: SUIViewRef?, _ action: SUICallback?, _ context: UnsafeMutableRawPointer?) -> SUIViewRef? {
     guard let content = node(contentReference) else { return nil }
-    let control = ObjC.UIControl.new()
+    let retained = reuse(.tappable, tappableSalt, container: true) { ObjC.UIControl.new() }
     content.view.setUserInteractionEnabled(false)
-    control.addSubview(content.view)
-    attachAction(control, action, context, highlight: .dim)
-    return keep(ContainerNode(view: control, content: content))
+    want(content.view, in: retained.view)
+    attachAction(retained.view, action, context, highlight: .dim)
+    return keep(ContainerNode(view: retained.view, content: content))
 }
 
 func sui_stack_create(_ axis: Int, _ spacing: Int, _ alignment: Int) -> SUIViewRef? {
-    let stack = StackNode(view: ObjC.UIView.new(), vertical: axis == Int(SUIAxisVertical), spacing: Float(spacing),
+    let retained = reuse(.stack, stackSalt, container: true) { ObjC.UIView.new() }
+    let stack = StackNode(view: retained.view, vertical: axis == Int(SUIAxisVertical), spacing: Float(spacing),
                           alignment: alignment)
     let reference = keep(stack)
     passStacks[UInt(bitPattern: reference)] = stack
@@ -794,30 +1005,39 @@ func sui_stack_add(_ stack: SUIViewRef?, _ child: SUIViewRef?, _ stretchCrossAxi
     stack.add(child, stretch: stretchCrossAxis != 0)
 }
 
+/// Sets a plain view's background color if it changed.
+func setBackground(_ retained: Retained, _ rgba: UInt) {
+    if retained.color != rgba {
+        retained.color = rgba
+        retained.view.setBackgroundColor(color(rgba))
+    }
+}
+
 func sui_color_view_create(_ rgba: UInt) -> SUIViewRef? {
-    let view = ObjC.UIView.new()
-    view.setBackgroundColor(color(rgba))
-    return keep(FlexibleNode(view: view))
+    let retained = reuse(.color, colorSalt) { ObjC.UIView.new() }
+    setBackground(retained, rgba)
+    return keep(FlexibleNode(view: retained.view))
 }
 
 func sui_spacer_create(_ minLength: Int) -> SUIViewRef? {
-    keep(SpacerNode(view: ObjC.UIView.new(), minLength: Float(minLength)))
+    let retained = reuse(.spacer, spacerSalt) { ObjC.UIView.new() }
+    return keep(SpacerNode(view: retained.view, minLength: Float(minLength)))
 }
 
 func sui_padding_create(_ child: SUIViewRef?, _ top: Int, _ leading: Int, _ bottom: Int, _ trailing: Int) -> SUIViewRef? {
     guard let content = node(child) else { return nil }
-    let view = ObjC.UIView.new()
-    view.addSubview(content.view)
-    return keep(ContainerNode(view: view, content: content, top: Float(top), leading: Float(leading),
+    let retained = reuse(.padding, paddingSalt, container: true) { ObjC.UIView.new() }
+    want(content.view, in: retained.view)
+    return keep(ContainerNode(view: retained.view, content: content, top: Float(top), leading: Float(leading),
                               bottom: Float(bottom), trailing: Float(trailing)))
 }
 
 func sui_background_create(_ child: SUIViewRef?, _ rgba: UInt) -> SUIViewRef? {
     guard let content = node(child) else { return nil }
-    let view = ObjC.UIView.new()
-    view.setBackgroundColor(color(rgba))
-    view.addSubview(content.view)
-    return keep(ContainerNode(view: view, content: content))
+    let retained = reuse(.background, backgroundSalt, container: true) { ObjC.UIView.new() }
+    setBackground(retained, rgba)
+    want(content.view, in: retained.view)
+    return keep(ContainerNode(view: retained.view, content: content))
 }
 
 func sui_view_set_size(_ reference: SUIViewRef?, _ width: Int, _ height: Int) {
@@ -848,13 +1068,23 @@ func makeChevron() -> ObjCValue {
 }
 
 func sui_list_create(_ key: UInt) -> SUIViewRef? {
-    let list = ObjC.UIScrollView.new()
-    list.setAlwaysBounceVertical(true)
-    list.setBackgroundColor(ObjC.UIColor.whiteColor())
-    list.setDelegate(scrollDelegate)
-    let rows = StackNode(view: ObjC.UIView.new(), vertical: true, spacing: 0, alignment: Int(SUIAlignmentCenter))
-    list.addSubview(rows.view)
-    let node = ListNode(view: list, key: key, rows: rows)
+    let retained = reuse(.list, listSalt, container: true) {
+        let list = ObjC.UIScrollView.new()
+        list.setAlwaysBounceVertical(true)
+        list.setBackgroundColor(ObjC.UIColor.whiteColor())
+        list.setDelegate(scrollDelegate)
+        return list
+    }
+    // The rows' container, kept with the list.
+    if retained.rows == nil { retained.rows = Retained(kind: .listRows, view: ObjC.UIView.new()) }
+    let rowsRetained = retained.rows!
+    rowsRetained.wanted = []
+    passRetained.append(rowsRetained)
+    passRetainedByView[address(rowsRetained.view)] = rowsRetained
+    want(rowsRetained.view, in: retained.view)
+
+    let rows = StackNode(view: rowsRetained.view, vertical: true, spacing: 0, alignment: Int(SUIAlignmentCenter))
+    let node = ListNode(view: retained.view, key: key, rows: rows, isNew: retained.isNew)
     passLists.append(node)
     let reference = keep(node)
     passListNodes[UInt(bitPattern: reference)] = node
@@ -864,19 +1094,30 @@ func sui_list_create(_ key: UInt) -> SUIViewRef? {
 func sui_list_add_row(_ listReference: SUIViewRef?, _ contentReference: SUIViewRef?, _ disclosure: Int,
                       _ action: SUICallback?, _ context: UnsafeMutableRawPointer?) {
     guard let list = passListNodes[UInt(bitPattern: listReference)], let content = node(contentReference) else { return }
-    let row = ObjC.UIControl.new()
-    row.setBackgroundColor(ObjC.UIColor.whiteColor())
+    let retained = reuse(.row, rowSalt, container: true) {
+        let row = ObjC.UIControl.new()
+        row.setBackgroundColor(ObjC.UIColor.whiteColor())
+        return row
+    }
+    let row = retained.view
     content.view.setUserInteractionEnabled(action == nil)
-    row.addSubview(content.view)
+    want(content.view, in: row)
 
-    let chevron: ObjCValue? = disclosure != 0 ? makeChevron() : nil
-    if let chevron { row.addSubview(chevron) }
-    let separator = ObjC.UIView.new()
-    separator.setBackgroundColor(color(separatorColor))
-    row.addSubview(separator)
+    if disclosure != 0 && retained.chevron == nil { retained.chevron = makeChevron() }
+    let chevron: ObjCValue? = disclosure != 0 ? retained.chevron : nil
+    if let chevron { want(chevron, in: row) }
+    if retained.separator == nil {
+        let separator = ObjC.UIView.new()
+        separator.setBackgroundColor(color(separatorColor))
+        retained.separator = separator
+    }
+    want(retained.separator!, in: row)
 
-    if action != nil { attachAction(row, action, context, highlight: .gray) }
-    list.rows.add(RowNode(view: row, content: content, chevron: chevron, separator: separator), stretch: true)
+    // A row that was tappable keeps its target, which then does nothing.
+    if action != nil || !row.associated(actionTargetKey).isNil {
+        attachAction(row, action, context, highlight: action != nil ? .gray : .none)
+    }
+    list.rows.add(RowNode(view: row, content: content, chevron: chevron, separator: retained.separator!), stretch: true)
 }
 
 // MARK: - Navigation
@@ -921,7 +1162,9 @@ func sui_navigation_set_level(_ navigationReference: SUIViewRef?, _ index: Int, 
     if let trailing = node(trailingReference) {
         let size = trailing.measure(LayoutSize(width: 160, height: 44))
         trailing.place(x: 0, y: 0, width: size.width, height: size.height)
-        item.setRightBarButtonItem(ObjC.UIBarButtonItem.alloc().initWithCustomView(trailing.view))
+        if address(item.rightBarButtonItem().customView()) != address(trailing.view) {
+            item.setRightBarButtonItem(ObjC.UIBarButtonItem.alloc().initWithCustomView(trailing.view))
+        }
     } else {
         item.setRightBarButtonItem(ObjC.nil)
     }
@@ -934,6 +1177,7 @@ func sui_navigation_commit(_ navigationReference: SUIViewRef?, _ count: Int, _ d
     state.context = context
     state.count = count
     if count < state.levels.count {
+        for level in state.levels[count...] { controllerHosts[address(level)] = nil }
         state.levels.removeLast(state.levels.count - count)
     }
 

@@ -141,6 +141,8 @@ public protocol NSManagedObjectContextMethods: NSObjectMethods {}
 @ObjC public struct NSManagedObjectContext: NSManagedObjectContextMethods {}
 extension NSManagedObjectContextMethods {
     @ObjCMethod("initWithConcurrencyType:") public init(concurrencyType a0: Int)
+    public func performBlock(_ a0: @escaping () -> Void) { _ = self.object.send("performBlock:", ObjCBlock(types: "v") { call in a0(); return nil }) }
+    public func performBlockAndWait(_ a0: @escaping () -> Void) { _ = self.object.send("performBlockAndWait:", ObjCBlock(types: "v") { call in a0(); return nil }) }
     @ObjCProperty public var persistentStoreCoordinator: NSPersistentStoreCoordinator?
     @ObjCProperty public var parentContext: NSManagedObjectContext?
     @ObjCProperty public var undoManager: NSUndoManager?

@@ -256,10 +256,45 @@ the UIKit checks are skipped there, and the SwiftUI apps cover UIKit instead.
 An earlier version of the suite, including the UIKit checks, passed 55/55 on
 the iPhone 4S (iOS 9.3.6). The current suite hasn't run there yet.
 
+## Blocks
+
+`ObjCBlock` makes an Objective-C block from a Swift closure, for methods that
+take blocks: enumeration, comparators, completion handlers, animations.
+
+```swift
+numbers.enumerateObjectsUsingBlock(ObjCBlock(types: "v@I^c") { call in  // void (^)(id, NSUInteger, BOOL *)
+    print(call[0].asInt ?? 0)
+    if call[1].asInt == 2 { call[2].setPointee(true) }                 // *stop = YES
+    return nil
+})
+let sorted = numbers.sortedArrayUsingComparator(ObjCBlock(types: "i@@") { call in
+    ObjCValue((call[0].asInt ?? 0) - (call[1].asInt ?? 0))
+})
+ObjC.NSBlockOperation.blockOperationWithBlock(ObjCBlock { print("later") }).start()
+```
+
+- **Types:** a block's types are the result's encoding, then each
+  argument's, as in a method's encoding without self and `_cmd`. Arguments are
+  decoded like message results (objects, numbers, BOOLs, structs, pointers),
+  and the closure returns the result (nil for void). `ObjCBlock { … }` is
+  `void (^)(void)`.
+- **Memory:** the block is a real heap block (`_Block_copy`). Objective-C can
+  keep it, copy it, and run it later. The closure is released when the last
+  copy of the block goes.
+- **Struct results** larger than 4 bytes use the block stret convention.
+- **Threads:** a block runs on whichever thread calls it. Completion
+  handlers that come back on another thread should hand their work to the
+  main queue.
+- **Generated wrappers** take Swift closures for block parameters (see
+  [../Frameworks](../Frameworks/README.md)).
+- **How it works:** the C side (`objcrt_block_create` in `ObjCRuntime.c`)
+  builds a block whose invoke function collects up to 16 argument words, like
+  a Swift-defined method's, and calls Swift through `objcrt_call_aligned`.
+  Copy and dispose helpers keep a reference count on a box that holds the
+  Swift side.
+
 ## Limits
 
-- **No blocks:** methods that take blocks (`addObserverForName:…usingBlock:`,
-  `animateWithDuration:animations:`) can't be called.
 - **No instance variables:** classes defined from Swift keep their state in
   Swift (for example, in a dictionary by object address, cleared in
   `dealloc`) or in associated objects.

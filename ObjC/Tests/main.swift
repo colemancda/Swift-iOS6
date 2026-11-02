@@ -270,6 +270,89 @@ ObjC.autoreleasepool {
 }
 check("@ObjCImplementation dealloc runs", Counter.deallocs >= 1, "\(Counter.deallocs)")
 
+// Blocks made from Swift closures.
+final class Witness {
+    static var released = 0
+    deinit { Witness.released += 1 }
+}
+
+/// Sets a BOOL * argument to YES (an enumeration's stop flag).
+func setStop(_ pointer: ObjCValue) {
+    if case .pointer(let stop?) = pointer.storage { stop.storeBytes(of: 1, as: Int8.self) }
+}
+
+ObjC.autoreleasepool {
+    let numbers = ObjC.NSMutableArray.array()
+    for value in [5, 3, 9, 1] { numbers.addObject(ObjC.NSNumber.numberWithInt(value)) }
+
+    var seen: [Int] = []
+    numbers.enumerateObjectsUsingBlock(ObjCBlock(types: "v@I^c") { call in
+        seen.append(call[0].asInt ?? -1)
+        if call[1].asInt == 2 { setStop(call[2]) }
+        return nil
+    })
+    check("block: enumerateObjectsUsingBlock: with stop", seen == [5, 3, 9], list(seen))
+
+    let sorted = numbers.sortedArrayUsingComparator(ObjCBlock(types: "i@@") { call in
+        let a = call[0].asInt ?? 0, b = call[1].asInt ?? 0
+        return ObjCValue(a < b ? -1 : (a > b ? 1 : 0))
+    })
+    check("block: comparator result", sorted.componentsJoinedByString(",").asString == "1,3,5,9",
+          sorted.componentsJoinedByString(",").asString ?? "nil")
+
+    let big = numbers.indexesOfObjectsPassingTest(ObjCBlock(types: "c@I^c") { call in
+        ObjCValue((call[0].asInt ?? 0) > 4)
+    })
+    check("block: BOOL result", big.count().asInt == 2, "\(big.count().asInt ?? -1)")
+
+    let dictionary = ObjC.NSMutableDictionary.dictionary()
+    dictionary.setObject("one", forKey: "a")
+    dictionary.setObject("two", forKey: "b")
+    var pairs: [String] = []
+    dictionary.enumerateKeysAndObjectsUsingBlock(ObjCBlock(types: "v@@^c") { call in
+        pairs.append("\(call[0].asString ?? "?")=\(call[1].asString ?? "?")")
+        return nil
+    })
+    check("block: two object arguments", pairs.sorted() == ["a=one", "b=two"], pairs.sorted().joined(separator: " "))
+
+    let sentence = ObjC.NSString.stringWithString("Blocks from Embedded Swift")
+    var words: [String] = []
+    var ranges: [Int] = []
+    sentence.enumerateSubstringsInRange(.range(location: 0, length: 26), options: 3,  // by words
+                                        usingBlock: ObjCBlock(types: "v@{_NSRange=II}{_NSRange=II}^c") { call in
+        words.append(call[0].asString ?? "?")
+        ranges.append(call[1].asStruct?.int(at: 0) ?? -1)
+        return nil
+    })
+    check("block: NSRange struct arguments", words == ["Blocks", "from", "Embedded", "Swift"] && ranges == [0, 7, 12, 21],
+          words.joined(separator: " ") + " at " + list(ranges))
+
+    // A block Objective-C keeps and runs later, and releases.
+    var ran = 0
+    ObjC.autoreleasepool {
+        let witness = Witness()
+        let operation = ObjC.NSBlockOperation.blockOperationWithBlock(ObjCBlock {
+            _ = witness
+            ran += 1
+        })
+        operation.start()
+    }
+    check("block: kept and run later", ran == 1)
+    check("block: closure released with the block", Witness.released == 1, "\(Witness.released)")
+
+    for _ in 0..<2_000 {
+        ObjC.autoreleasepool {
+            let witness = Witness()
+            ObjC.NSBlockOperation.blockOperationWithBlock(ObjCBlock { _ = witness }).start()
+        }
+    }
+    check("block: 2,000 blocks made, run and freed", Witness.released == 2_001, "\(Witness.released)")
+}
+
+func list(_ values: [Int]) -> String {
+    values.map { "\($0)" }.joined(separator: ",")
+}
+
 // Ownership: alloc/init and convenience constructors in a loop; an extra
 // release would crash, and a leak would grow memory.
 for _ in 0..<10_000 {
