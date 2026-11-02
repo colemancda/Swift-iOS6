@@ -52,7 +52,8 @@ make EXAMPLE=Planets run      # launch it (the iPod must be unlocked)
   planet's facts, then its moons).
 - **Interop:** UIKit and Foundation from Swift through
   [ObjCInterop](../ObjC/README.md): device details, screen brightness, keeping
-  the screen awake and opening a URL, with no Objective-C file.
+  the screen awake and opening a URL, with no Objective-C file. `UIKit.swift`
+  declares the API as typed wrappers with ObjCInterop's macros.
 - **Devices:** `NavigationView`, `List`, `@EnvironmentObject`, and an async
   `task` that updates the list every second.
 
@@ -83,14 +84,34 @@ holds the app's Swift sources and `Info.plist`, and optionally:
 
 ```
 App code (Embedded Swift)
-  └─ SwiftUI module (Embedded Swift)        Sources/SwiftUI          unchanged
-       └─ C API                              SwiftUIBackend.h         unchanged
-            └─ UIKit backend (Objective-C)   Backend.m                rewritten for iOS 6
+  └─ SwiftUI module (Embedded Swift)         Sources/SwiftUI
+       └─ UIKit backend (Embedded Swift)     Sources/SwiftUI/Backend.swift
+            └─ ObjCInterop                    ../ObjC: Objective-C messages and classes
+                 └─ ObjCRuntime.c             objc_msgSend, built for iOS
 ```
 
+The library has no Objective-C. The backend is Swift: it creates and lays out
+UIKit views with [ObjCInterop](../ObjC/README.md)'s messages, and defines the
+Objective-C classes UIKit needs with it:
+
+- **SUIHostView**, a `UIView` subclass whose `layoutSubviews` runs the layout.
+- **SUIActionTarget**, for target-action and touch highlighting.
+- **SUINavigationDelegate** and **SUIScrollDelegate**, the navigation and
+  scroll-view delegates.
+- **SUIAppDelegate**, the app delegate.
+
+The `sui_*` functions the views render through keep their names and plain C
+types (`SwiftUIBackend.h` holds the types and the callback signatures), so the
+rest of the module didn't change. The backend never uses dynamic casts (`as?`,
+`is`): one cast in an earlier version failed on the 4S in some builds and not
+others, so stacks and lists are kept in typed tables instead.
+
+A render of the 178-view Wi-Fi Scanner list takes about 0.3 s on the iPod,
+roughly 1.3 times the Objective-C backend's time. Most of it is creating
+views, which takes several bridged messages per view.
+
 - A `NavigationStack` or `NavigationView` is one `UINavigationController`,
-  kept across renders. Each screen in it is a `UIViewController`
-  (`SUILevelController`). A `NavigationLink` pushes one, and the system back
+  kept across renders. Each screen in it is a `UIViewController`. A `NavigationLink` pushes one, and the system back
   button pops it.
 - A `List` is a `UIScrollView` of rows. A `NavigationLink` row highlights when
   touched and shows a chevron.

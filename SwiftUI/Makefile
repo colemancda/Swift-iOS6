@@ -19,8 +19,10 @@ BUILD    ?= build
 BUNDLE   := $(BUILD)/$(APP).app
 BUNDLE_ID = $(shell plutil -extract CFBundleIdentifier raw $(APP_DIR)/Info.plist)
 SDK      := ../sdk/iPhoneOS9.3.sdk
-# Objective-C messaging from Swift (`import ObjCInterop`), built into every app.
+# Objective-C messaging from Swift (`import ObjCInterop`), built into every app,
+# with its macros (a compiler plugin built by ../ObjC/Makefile).
 OBJC     := ../ObjC
+MACROS   := $(abspath $(OBJC))/build/plugins/libObjCMacros.dylib
 MIN_IOS  := 6.0
 ARCH     := armv7
 
@@ -39,7 +41,7 @@ CFLAGS  := -arch $(ARCH) -isysroot $(SDK) -miphoneos-version-min=$(MIN_IOS) \
 # The executor hooks and libc shims are called by the Swift runtime with its
 # (bare-metal) calling convention, so they are compiled for the same target.
 EXECUTOR_CFLAGS := -target armv7-apple-none-macho -ffreestanding -marm -ffixed-r9 \
-                   -O2 -Wall -ISources/CSwiftUIBackend/include
+                   -O2 -Wall -ISources/CSwiftUIBackend/include -I$(OBJC)/include
 # String comparison and normalization need the stdlib's Unicode tables;
 # only the parts an app uses are linked. The concurrency runtime is C++, and
 # -dead_strip drops its unused parts, which reference symbols nothing defines.
@@ -60,7 +62,8 @@ WRAPPED   := $(addprefix $(BUILD)/r9/$(APP)/,$(notdir $(BAREMETAL))) $(BUILD)/r9
 # clobber r9, but the bare-metal convention expects it preserved.
 SWIFTFLAGS := -target armv7-apple-none-macho -enable-experimental-feature Embedded \
               -wmo -Osize -Xcc -marm -Xcc -ffixed-r9 \
-              -ISources/CSwiftUIBackend/include -I$(OBJC)/include -I$(BUILD)/modules -I$(APP_DIR)/include
+              -ISources/CSwiftUIBackend/include -I$(OBJC)/include -I$(BUILD)/modules -I$(APP_DIR)/include \
+              -load-plugin-library $(MACROS)
 
 SWIFTUI_SRCS := $(wildcard Sources/SwiftUI/*.swift)
 APP_SRCS     := $(wildcard $(APP_DIR)/*.swift)
@@ -84,14 +87,17 @@ SSH_HOST ?= ipod
 all: $(BUNDLE)/$(APP)
 
 # Also writes $(BUILD)/modules/SwiftUI.swiftmodule.
-$(BUILD)/obj/SwiftUI.o: $(SWIFTUI_SRCS) Sources/CSwiftUIBackend/include/SwiftUIBackend.h
+$(BUILD)/obj/SwiftUI.o: $(SWIFTUI_SRCS) Sources/CSwiftUIBackend/include/SwiftUIBackend.h $(BUILD)/obj/ObjCInterop.o
 	@mkdir -p $(BUILD)/modules $(BUILD)/obj
 	$(SWIFTC) $(SWIFTFLAGS) -parse-as-library -module-name SwiftUI \
 	  -emit-module -emit-module-path $(BUILD)/modules/SwiftUI.swiftmodule \
 	  -c $(SWIFTUI_SRCS) -o $@
 
+$(MACROS): $(OBJC)/Macros/ObjCMacros.swift
+	$(MAKE) -C $(OBJC) macros
+
 # Also writes $(BUILD)/modules/ObjCInterop.swiftmodule.
-$(BUILD)/obj/ObjCInterop.o: $(OBJC)/Sources/ObjCInterop.swift $(OBJC)/include/ObjCRuntime.h
+$(BUILD)/obj/ObjCInterop.o: $(OBJC)/Sources/ObjCInterop.swift $(OBJC)/include/ObjCRuntime.h $(MACROS)
 	@mkdir -p $(BUILD)/modules $(BUILD)/obj
 	$(SWIFTC) $(SWIFTFLAGS) -parse-as-library -module-name ObjCInterop \
 	  -emit-module -emit-module-path $(BUILD)/modules/ObjCInterop.swiftmodule \
@@ -104,10 +110,6 @@ $(BUILD)/obj/ObjCRuntime.o: $(OBJC)/ObjCRuntime.c $(OBJC)/include/ObjCRuntime.h
 $(BUILD)/obj/$(APP).o: $(APP_SRCS) $(APP_HEADERS) $(BUILD)/obj/SwiftUI.o $(BUILD)/obj/ObjCInterop.o
 	$(SWIFTC) $(SWIFTFLAGS) -parse-as-library -module-name $(APP) -c $(APP_SRCS) -o $@
 
-$(BUILD)/obj/Backend.o: Sources/CSwiftUIBackend/Backend.m Sources/CSwiftUIBackend/include/SwiftUIBackend.h
-	@mkdir -p $(BUILD)/obj
-	$(CC) $(CFLAGS) -c $< -o $@
-
 $(BUILD)/obj/$(APP)-%.o: $(APP_DIR)/%.c $(APP_HEADERS)
 	@mkdir -p $(BUILD)/obj
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -116,7 +118,7 @@ $(BUILD)/obj/$(APP)-%.o: $(APP_DIR)/%.m $(APP_HEADERS)
 	@mkdir -p $(BUILD)/obj
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BUILD)/obj/Executor.o: Sources/CSwiftUIBackend/Executor.c Sources/CSwiftUIBackend/include/SwiftUIBackend.h
+$(BUILD)/obj/Executor.o: Sources/CSwiftUIBackend/Executor.c $(OBJC)/include/ObjCRuntime.h
 	@mkdir -p $(BUILD)/obj
 	$(CC) $(EXECUTOR_CFLAGS) -c $< -o $@
 
@@ -133,9 +135,9 @@ $(BUILD)/r9/$(APP)/trampolines.s: $(BAREMETAL) tools/r9wrap.py $(IOS_HEADERS)
 $(BUILD)/r9/$(APP)/trampolines.o: $(BUILD)/r9/$(APP)/trampolines.s
 	$(CC) -arch $(ARCH) -isysroot $(SDK) -miphoneos-version-min=$(MIN_IOS) -c $< -o $@
 
-$(BUNDLE)/$(APP): $(BUILD)/r9/$(APP)/trampolines.o $(BUILD)/obj/Backend.o $(BUILD)/obj/ObjCRuntime.o $(APP_OBJS) $(APP_DIR)/Info.plist $(ENTITLEMENTS)
+$(BUNDLE)/$(APP): $(BUILD)/r9/$(APP)/trampolines.o $(BUILD)/obj/ObjCRuntime.o $(APP_OBJS) $(APP_DIR)/Info.plist $(ENTITLEMENTS)
 	@mkdir -p $(BUNDLE)
-	$(CC) $(LDFLAGS) $(WRAPPED) $(BUILD)/obj/Backend.o $(BUILD)/obj/ObjCRuntime.o $(APP_OBJS) -o $@.tmp
+	$(CC) $(LDFLAGS) $(WRAPPED) $(BUILD)/obj/ObjCRuntime.o $(APP_OBJS) -o $@.tmp
 	ldid -S$(ENTITLEMENTS) $@.tmp
 	mv $@.tmp $@
 	plutil -convert binary1 -o $(BUNDLE)/Info.plist $(APP_DIR)/Info.plist

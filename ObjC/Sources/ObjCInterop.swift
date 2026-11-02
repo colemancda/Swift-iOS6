@@ -21,6 +21,13 @@ import CObjCRuntime
 // Objects are retained while a value holds them, following Objective-C's
 // naming rules: results of alloc, new, copy and mutableCopy are already owned,
 // and init… consumes its receiver.
+//
+// Swift can also define Objective-C classes, for delegates, targets and
+// overrides:
+//
+//     let target = ObjC.defineClass("Target", superclass: "NSObject") { cls in
+//         cls.method("fire:") { call in print("fired by \(call[0].className ?? "?")") }
+//     }
 
 /// The Objective-C classes, by name: `ObjC.NSString`.
 public let ObjC = ObjCRuntime()
@@ -33,8 +40,7 @@ public struct ObjCRuntime {
     }
 
     public func classNamed(_ name: String) -> ObjCValue {
-        let pointer = withCString(name) { objcrt_class($0) }
-        return ObjCValue(pointer.map { ObjCObject(retaining: $0) })
+        ObjCValue(object: ObjCCache.classNamed(name))
     }
 
     /// Loads a public or private framework by name, such as "UIKit" or
@@ -78,6 +84,12 @@ public final class ObjCObject {
 
     init(adopting pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
+    }
+
+    /// Doesn't retain or release: for `self` in dealloc.
+    init(borrowing pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+        owned = false
     }
 
     deinit {
@@ -133,6 +145,8 @@ public struct ObjCValue: ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral,
 
     public init(storage: Storage) { self.storage = storage }
     public init(_ object: ObjCObject?) { storage = .object(object) }
+    /// Wraps (and retains) an object pointer, such as one C code returned.
+    public init(object pointer: UnsafeMutableRawPointer?) { storage = .object(pointer.map { ObjCObject(retaining: $0) }) }
     public init(_ value: Int) { storage = .int(value) }
     public init(_ value: Int64) { storage = .int64(value) }
     public init(_ value: Double) { storage = .double(value) }
@@ -237,8 +251,27 @@ public struct ObjCValue: ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral,
 
     public func responds(to selector: String) -> Bool {
         guard let object = asObject else { return false }
-        var signature = ObjCRTSignature()
-        return objcrt_signature(object.pointer, withCString(selector) { objcrt_selector($0) }, &signature) == 0
+        return ObjCCache.signature(object.pointer, ObjCCache.selector(selector)) != nil
+    }
+
+    /// Sends `selector` to the implementation in the superclass of `cls`, for
+    /// a method of a class defined from Swift.
+    @discardableResult
+    public func sendSuper(_ selector: String, from cls: ObjCValue, _ arguments: [any ObjCConvertible]) -> ObjCValue {
+        var values: [ObjCValue] = []
+        for argument in arguments { values.append(argument.objcValue) }
+        return ObjCValue.send(selector, to: self, values, superclass: cls.asObject?.pointer)
+    }
+
+    /// objc_setAssociatedObject (retained): keeps `value` alive as long as this object.
+    public func setAssociated(_ value: ObjCValue, for key: ObjCAssociationKey) {
+        guard let object = asObject else { return }
+        objcrt_set_associated(object.pointer, key.pointer, value.rawPointer)
+    }
+
+    public func associated(_ key: ObjCAssociationKey) -> ObjCValue {
+        guard let object = asObject else { return nil }
+        return ObjCValue(object: objcrt_get_associated(object.pointer, key.pointer))
     }
 }
 
@@ -337,16 +370,16 @@ extension ObjCConvertible where Self == ObjCValue {
 // MARK: - Sending
 
 extension ObjCValue {
-    static func send(_ selectorName: String, to receiver: ObjCValue, _ arguments: [ObjCValue]) -> ObjCValue {
+    static func send(_ selectorName: String, to receiver: ObjCValue, _ arguments: [ObjCValue],
+                     superclass: UnsafeMutableRawPointer? = nil) -> ObjCValue {
         // Messages to nil return nil, as in Objective-C.
         guard let target = receiver.asObject else { return nil }
-        let selector = withCString(selectorName) { objcrt_selector($0) }
-        var signature = ObjCRTSignature()
-        guard objcrt_signature(target.pointer, selector, &signature) == 0 else {
+        let selector = ObjCCache.selector(selectorName)
+        guard let signature = ObjCCache.signature(target.pointer, selector) else {
             fatalError("-[\(target.className) \(selectorName)]: unrecognized selector")
         }
-        guard signature.argumentCount == arguments.count else {
-            fatalError("-[\(target.className) \(selectorName)] takes \(signature.argumentCount) arguments, not \(arguments.count)")
+        guard signature.types.count == arguments.count else {
+            fatalError("-[\(target.className) \(selectorName)] takes \(signature.types.count) arguments, not \(arguments.count)")
         }
 
         // C strings passed as char * live until the message returns.
@@ -354,10 +387,9 @@ extension ObjCValue {
         defer { for buffer in buffers { buffer.deallocate() } }
 
         var words: [UInt] = []
-        for (index, argument) in arguments.enumerated() {
-            let type = byte(signature.argumentTypes, index)
-            let size = long(signature.argumentSizes, index)
-            argument.appendWords(to: &words, type: type, size: size, buffers: &buffers, selector: selectorName)
+        for index in 0..<arguments.count {
+            arguments[index].appendWords(to: &words, type: signature.types[index], size: signature.sizes[index],
+                                         buffers: &buffers, selector: selectorName)
         }
         guard words.count <= ObjCRTMaxWords else {
             fatalError("-[\(target.className) \(selectorName)]: too many argument words")
@@ -376,6 +408,7 @@ extension ObjCValue {
                 var message = ObjCRTMessage(
                     receiver: target.pointer,
                     selector: selector,
+                    superclass: superclass,
                     words: wordBuffer.baseAddress,
                     wordCount: words.count,
                     structResult: usesStructReturn ? UnsafeMutableRawPointer(structBuffer.baseAddress) : nil,
@@ -535,4 +568,427 @@ func withCString<Result>(_ string: String, _ body: (UnsafePointer<CChar>) -> Res
     for byte in string.utf8 { bytes.append(CChar(bitPattern: byte)) }
     bytes.append(0)
     return bytes.withUnsafeBufferPointer { body($0.baseAddress!) }
+}
+
+// MARK: - Caches
+
+/// A method's argument and return types, from objcrt_signature.
+struct ObjCSignature {
+    let returnType: CChar
+    let returnSize: Int
+    let types: [CChar]
+    let sizes: [Int]
+}
+
+/// Selectors, classes and method signatures, looked up once: layout code
+/// sends thousands of messages per render.
+enum ObjCCache {
+    static var selectors: [String: UnsafeMutableRawPointer] = [:]
+    static var classes: [String: UnsafeMutableRawPointer] = [:]
+    static var signatures: [UInt64: ObjCSignature] = [:]
+
+    static func selector(_ name: String) -> UnsafeMutableRawPointer {
+        if let selector = selectors[name] { return selector }
+        let selector = withCString(name) { objcrt_selector($0) }!
+        selectors[name] = selector
+        return selector
+    }
+
+    static func classNamed(_ name: String) -> UnsafeMutableRawPointer? {
+        if let cls = classes[name] { return cls }
+        guard let cls = withCString(name, { objcrt_class($0) }) else { return nil }
+        classes[name] = cls
+        return cls
+    }
+
+    static func key(_ cls: UnsafeMutableRawPointer, _ selector: UnsafeMutableRawPointer) -> UInt64 {
+        UInt64(UInt(bitPattern: cls)) << 32 | UInt64(UInt(bitPattern: selector))
+    }
+
+    /// The types of the method `object` runs for `selector`, or nil if it
+    /// doesn't respond to it.
+    static func signature(_ object: UnsafeMutableRawPointer, _ selector: UnsafeMutableRawPointer) -> ObjCSignature? {
+        guard let cls = objcrt_object_class(object) else { return nil }
+        let cacheKey = key(cls, selector)
+        if let signature = signatures[cacheKey] { return signature }
+        var raw = ObjCRTSignature()
+        guard objcrt_signature(object, selector, &raw) == 0 else { return nil }
+        var types: [CChar] = []
+        var sizes: [Int] = []
+        for index in 0..<raw.argumentCount {
+            types.append(byte(raw.argumentTypes, index))
+            sizes.append(long(raw.argumentSizes, index))
+        }
+        let signature = ObjCSignature(returnType: raw.returnType, returnSize: raw.returnSize, types: types, sizes: sizes)
+        signatures[cacheKey] = signature
+        return signature
+    }
+}
+
+/// A key for setAssociated(_:for:): its address identifies it.
+public final class ObjCAssociationKey {
+    let pointer: UnsafeMutableRawPointer
+
+    public init() {
+        pointer = UnsafeMutableRawPointer.allocate(byteCount: 1, alignment: 1)
+    }
+}
+
+// MARK: - Defining classes
+
+extension ObjCRuntime {
+    /// Defines an Objective-C class whose methods are Swift closures, and
+    /// returns it. If a class of that name exists, returns it unchanged.
+    @discardableResult
+    public func defineClass(_ name: String, superclass: String = "NSObject",
+                            _ build: (ObjCClassBuilder) -> Void) -> ObjCValue {
+        if let existing = ObjCCache.classNamed(name) { return ObjCValue(object: existing) }
+        ObjCMethods.install()
+        guard let parent = ObjCCache.classNamed(superclass),
+              let cls = withCString(name, { objcrt_allocate_class($0, parent) }) else {
+            fatalError("can't define \(name): no superclass \(superclass)")
+        }
+        build(ObjCClassBuilder(pointer: cls))
+        objcrt_register_class(cls)
+        ObjCCache.classes[name] = cls
+        return ObjCValue(object: cls)
+    }
+}
+
+/// Adds methods and protocols to a class being defined.
+public final class ObjCClassBuilder {
+    public let pointer: UnsafeMutableRawPointer
+    var protocols: [String] = []
+
+    init(pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    /// Adopts a protocol, whose methods' types `method` can then use.
+    /// Returns false if the runtime doesn't know the protocol: only protocols
+    /// some loaded code refers to are registered, so give such methods `types`.
+    @discardableResult
+    public func conform(to protocolName: String) -> Bool {
+        guard withCString(protocolName, { objcrt_add_protocol(pointer, $0) }) == 0 else { return false }
+        protocols.append(protocolName)
+        return true
+    }
+
+    /// Implements a method that returns nothing.
+    public func method(_ selector: String, types: String? = nil, fallbackTypes: String? = nil,
+                       _ body: @escaping (ObjCMethodCall) -> Void) {
+        function(selector, types: types, fallbackTypes: fallbackTypes) { call in
+            body(call)
+            return ObjCValue(storage: .void)
+        }
+    }
+
+    /// Implements a method that returns a value. Its types come from `types`, else the superclass
+    /// (an override), else an adopted protocol, else `fallbackTypes`, else
+    /// they're objects returning void: "v@:" plus "@" for each colon.
+    public func function(_ selector: String, types: String? = nil, fallbackTypes: String? = nil,
+                         _ body: @escaping (ObjCMethodCall) -> ObjCValue) {
+        let sel = ObjCCache.selector(selector)
+        var encoding = types
+        if encoding == nil, let inherited = objcrt_method_types(pointer, sel) {
+            encoding = String(cString: inherited)
+        }
+        if encoding == nil {
+            for name in protocols {
+                if let found = withCString(name, { objcrt_protocol_method_types($0, sel) }) {
+                    encoding = String(cString: found)
+                    break
+                }
+            }
+        }
+        if encoding == nil { encoding = fallbackTypes }
+        if encoding == nil {
+            var defaults = "v@:"
+            for byte in selector.utf8 where byte == UInt8(ascii: ":") { defaults += "@" }
+            encoding = defaults
+        }
+        if withCString(encoding!, { objcrt_add_method(pointer, sel, $0) }) != 0 {
+            fatalError("can't add \(selector) with types \(encoding!)")
+        }
+        ObjCMethods.handlers[ObjCCache.key(pointer, sel)] = ObjCMethodHandler(definingClass: pointer, selector: selector, body: body)
+    }
+}
+
+/// One call of a method defined from Swift.
+public struct ObjCMethodCall {
+    /// The receiver (self).
+    public let this: ObjCValue
+    public let arguments: [ObjCValue]
+    public let selector: String
+    let definingClass: UnsafeMutableRawPointer
+
+    /// An argument, or nil past the end.
+    public subscript(index: Int) -> ObjCValue {
+        index < arguments.count ? arguments[index] : nil
+    }
+
+    /// Sends this message to the superclass's implementation, with the same arguments.
+    @discardableResult
+    public func callSuper() -> ObjCValue {
+        ObjCValue.send(selector, to: this, arguments, superclass: definingClass)
+    }
+
+    /// Sends this message to the superclass's implementation, with other arguments.
+    @discardableResult
+    public func callSuper(_ arguments: any ObjCConvertible...) -> ObjCValue {
+        var values: [ObjCValue] = []
+        for argument in arguments { values.append(argument.objcValue) }
+        return ObjCValue.send(selector, to: this, values, superclass: definingClass)
+    }
+}
+
+final class ObjCMethodHandler {
+    let definingClass: UnsafeMutableRawPointer
+    let selector: String
+    let body: (ObjCMethodCall) -> ObjCValue
+
+    init(definingClass: UnsafeMutableRawPointer, selector: String, body: @escaping (ObjCMethodCall) -> ObjCValue) {
+        self.definingClass = definingClass
+        self.selector = selector
+        self.body = body
+    }
+}
+
+enum ObjCMethods {
+    /// By class and selector.
+    static var handlers: [UInt64: ObjCMethodHandler] = [:]
+    static var isInstalled = false
+
+    static func install() {
+        guard !isInstalled else { return }
+        isInstalled = true
+        objcrt_set_handler { object, selector, words, result, structResult in
+            guard let object, let selector, let words else { return }
+            ObjCMethods.run(object, selector, words, result, structResult)
+        }
+    }
+
+    /// Runs the Swift implementation for a message to a defined class (or a subclass of one).
+    static func run(_ object: UnsafeMutableRawPointer, _ selector: UnsafeMutableRawPointer, _ words: UnsafePointer<UInt>,
+                    _ result: UnsafeMutablePointer<UInt>?, _ structResult: UnsafeMutableRawPointer?) {
+        var cls = objcrt_object_class(object)
+        var handler: ObjCMethodHandler?
+        while let current = cls, handler == nil {
+            handler = handlers[ObjCCache.key(current, selector)]
+            cls = objcrt_superclass(current)
+        }
+        guard let handler, let signature = ObjCCache.signature(object, selector) else { return }
+
+        var arguments: [ObjCValue] = []
+        var index = 0
+        for (type, size) in zip(signature.types, signature.sizes) {
+            let count = ObjCValue.wordCount(type: type, size: size)
+            var argumentWords: [UInt] = []
+            for offset in 0..<count where index + offset < ObjCRTMaxWords { argumentWords.append(words[index + offset]) }
+            index += count
+            let high = argumentWords.count > 1 ? argumentWords[1] : 0
+            arguments.append(ObjCValue(returnType: type, size: size, result: (argumentWords.first ?? 0, high),
+                                       structWords: argumentWords, owned: false))
+        }
+
+        // self isn't retained during dealloc, where it can't be revived.
+        let this = handler.selector == "dealloc" ? ObjCObject(borrowing: object) : ObjCObject(retaining: object)
+        let value = handler.body(ObjCMethodCall(this: ObjCValue(this), arguments: arguments, selector: handler.selector,
+                                                definingClass: handler.definingClass))
+
+        let returnType = signature.returnType
+        if returnType == ascii("v") { return }
+        if returnType == ascii("@"), let returned = value.asObject {
+            // Returned objects outlive `value`: owned (+1) for the alloc, new,
+            // copy and init families, autoreleased otherwise.
+            _ = objcrt_retain(returned.pointer)
+            if MethodFamily(handler.selector) == .other { objcrt_autorelease(returned.pointer) }
+        }
+        var buffers: [UnsafeMutablePointer<CChar>] = []
+        var resultWords: [UInt] = []
+        value.appendWords(to: &resultWords, type: returnType, size: signature.returnSize, buffers: &buffers,
+                          selector: handler.selector)
+        if let structResult {
+            let bytes = structResult.assumingMemoryBound(to: UInt.self)
+            for (offset, word) in resultWords.enumerated() { bytes[offset] = word }
+        } else if let result {
+            result[0] = resultWords.first ?? 0
+            result[1] = resultWords.count > 1 ? resultWords[1] : 0
+        }
+    }
+}
+
+extension ObjCValue {
+    /// How many words an argument of this type takes.
+    static func wordCount(type: CChar, size: Int) -> Int {
+        switch type {
+        case ascii("d"), ascii("q"), ascii("Q"): return 2
+        case ascii("{"), ascii("("): return max(1, (size + 3) / 4)
+        default: return 1
+        }
+    }
+}
+
+// MARK: - Macros
+
+/// A typed wrapper around an Objective-C object:
+///
+///     @ObjC("UILabel")
+///     struct UILabel {
+///         @ObjCMethod init(frame: CGRect)
+///         @ObjCProperty var text: String?
+///         @ObjCMethod func sizeThatFits(_ size: CGSize) -> CGSize
+///     }
+///
+/// Adds `object`, `init(_ object: ObjCValue)` and `objcClass`, and makes
+/// the type an ObjCWrapper. The class name defaults to the type's name.
+@attached(member, names: named(object), named(init), named(objcClass))
+@attached(extension, conformances: ObjCWrapper)
+public macro ObjC(_ className: String? = nil) = #externalMacro(module: "ObjCMacros", type: "ObjCClassMacro")
+
+/// Without a body: sends the message, with the selector from the name and
+/// labels (or the one given), and converts the result to the return type.
+/// On a static method it messages the class; on an initializer it sends
+/// alloc and init… to the class. With a body, in an @ObjCImplementation
+/// class: the class exports the method to Objective-C.
+@attached(body)
+public macro ObjCMethod(_ selector: String? = nil) = #externalMacro(module: "ObjCMacros", type: "ObjCMethodMacro")
+
+/// Getter and setter messages for a property: `text` and `setText:` by default.
+@attached(accessor)
+public macro ObjCProperty(getter: String? = nil, setter: String? = nil, readonly: Bool = false) =
+    #externalMacro(module: "ObjCMacros", type: "ObjCPropertyMacro")
+
+/// Defines an Objective-C class implemented by this Swift class: each
+/// @ObjCMethod method becomes a method of `objcClass`, converting its
+/// arguments and result. See ObjCImplementationMacro for how instances are tied.
+@attached(member, names: named(objcInstances), named(objcPointer), named(object), named(objcClass), named(attach),
+          named(objcInstance), named(callSuper))
+@attached(extension, conformances: ObjCConvertible, names: named(objcValue))
+public macro ObjCImplementation(_ className: String? = nil, superclass: String = "NSObject") =
+    #externalMacro(module: "ObjCMacros", type: "ObjCImplementationMacro")
+
+// MARK: - Typed results
+
+/// A Swift type a message result or a method argument converts to.
+public protocol ObjCResult {
+    init(objcValue: ObjCValue)
+}
+
+/// Converts a message result to the type the context expects.
+public func objcResult<T: ObjCResult>(_ value: ObjCValue) -> T {
+    T(objcValue: value)
+}
+
+extension ObjCValue: ObjCResult {
+    public init(objcValue: ObjCValue) { self = objcValue }
+}
+
+extension Int: ObjCResult {
+    public init(objcValue: ObjCValue) { self = objcValue.asInt ?? 0 }
+}
+
+extension Int32: ObjCResult {
+    public init(objcValue: ObjCValue) { self = Int32(truncatingIfNeeded: objcValue.asInt ?? 0) }
+}
+
+extension UInt: ObjCResult {
+    public init(objcValue: ObjCValue) { self = UInt(bitPattern: objcValue.asInt ?? 0) }
+}
+
+extension Int64: ObjCResult {
+    public init(objcValue: ObjCValue) { self = objcValue.asInt64 ?? 0 }
+}
+
+extension Double: ObjCResult {
+    public init(objcValue: ObjCValue) { self = objcValue.asDouble ?? 0 }
+}
+
+extension Float: ObjCResult {
+    public init(objcValue: ObjCValue) { self = Float(objcValue.asDouble ?? 0) }
+}
+
+extension Bool: ObjCResult {
+    public init(objcValue: ObjCValue) { self = objcValue.asBool ?? false }
+}
+
+extension String: ObjCResult {
+    /// An NSString's contents, or "" for nil.
+    public init(objcValue: ObjCValue) { self = objcValue.asString ?? "" }
+}
+
+extension Optional: ObjCResult where Wrapped: ObjCResult {
+    public init(objcValue: ObjCValue) {
+        self = objcValue.isNil ? nil : Wrapped(objcValue: objcValue)
+    }
+}
+
+/// A Swift type that wraps an Objective-C object; @ObjC makes one.
+public protocol ObjCWrapper: ObjCConvertible, ObjCResult {
+    var object: ObjCValue { get }
+    init(_ object: ObjCValue)
+    static var objcClass: ObjCValue { get }
+}
+
+extension ObjCWrapper {
+    public var objcValue: ObjCValue { object }
+    public init(objcValue: ObjCValue) { self.init(objcValue) }
+
+    /// Whether the object is nil.
+    public var isNil: Bool { object.isNil }
+
+    /// The same object as another wrapper type, such as a UILabel as a UIView.
+    public func `as`<T: ObjCWrapper>(_ type: T.Type) -> T { T(object) }
+}
+
+// MARK: - Geometry
+
+/// Core Graphics and Foundation structs as they are on armv7 (CGFloat is a
+/// 32-bit float), passed and returned by value.
+public struct CGPoint: Equatable, ObjCConvertible, ObjCResult {
+    public var x: Float
+    public var y: Float
+    public init(x: Float, y: Float) { self.x = x; self.y = y }
+    public var objcValue: ObjCValue { .point(x: x, y: y) }
+    public init(objcValue: ObjCValue) {
+        let words = objcValue.asStruct
+        self.init(x: words?.float(at: 0) ?? 0, y: words?.float(at: 1) ?? 0)
+    }
+}
+
+public struct CGSize: Equatable, ObjCConvertible, ObjCResult {
+    public var width: Float
+    public var height: Float
+    public init(width: Float, height: Float) { self.width = width; self.height = height }
+    public var objcValue: ObjCValue { .size(width: width, height: height) }
+    public init(objcValue: ObjCValue) {
+        let words = objcValue.asStruct
+        self.init(width: words?.float(at: 0) ?? 0, height: words?.float(at: 1) ?? 0)
+    }
+}
+
+public struct CGRect: Equatable, ObjCConvertible, ObjCResult {
+    public var origin: CGPoint
+    public var size: CGSize
+    public init(x: Float, y: Float, width: Float, height: Float) {
+        origin = CGPoint(x: x, y: y)
+        size = CGSize(width: width, height: height)
+    }
+    public var objcValue: ObjCValue { .rect(x: origin.x, y: origin.y, width: size.width, height: size.height) }
+    public init(objcValue: ObjCValue) {
+        let words = objcValue.asStruct
+        self.init(x: words?.float(at: 0) ?? 0, y: words?.float(at: 1) ?? 0,
+                  width: words?.float(at: 2) ?? 0, height: words?.float(at: 3) ?? 0)
+    }
+}
+
+public struct NSRange: Equatable, ObjCConvertible, ObjCResult {
+    public var location: Int
+    public var length: Int
+    public init(location: Int, length: Int) { self.location = location; self.length = length }
+    public var objcValue: ObjCValue { .range(location: location, length: length) }
+    public init(objcValue: ObjCValue) {
+        let words = objcValue.asStruct
+        self.init(location: words?.int(at: 0) ?? 0, length: words?.int(at: 1) ?? 0)
+    }
 }

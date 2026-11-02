@@ -2,7 +2,8 @@ import ObjCInterop
 import SwiftUI
 
 // UIKit and Foundation from Swift, with no Objective-C file: every value and
-// action here is an Objective-C message sent through ObjCInterop.
+// action here is an Objective-C message, through the typed declarations in
+// UIKit.swift (written with ObjCInterop's macros).
 
 @main
 struct InteropApp: App {
@@ -24,70 +25,66 @@ struct Fact: Identifiable, Equatable {
 }
 
 final class DeviceStore: ObservableObject {
-    let device = ObjC.UIDevice.currentDevice()
-    let screen = ObjC.UIScreen.mainScreen()
-    let application = ObjC.UIApplication.sharedApplication()
+    let device = UIDevice.currentDevice()
+    let screen = UIScreen.mainScreen()
+    let application = UIApplication.sharedApplication()
 
     @Published var facts: [Fact] = []
     @Published var keepAwake = false
     @Published var monitorsBattery = false
 
     init() {
-        keepAwake = application.isIdleTimerDisabled().asBool ?? false
-        monitorsBattery = device.isBatteryMonitoringEnabled().asBool ?? false
+        keepAwake = application.idleTimerDisabled
+        monitorsBattery = device.batteryMonitoringEnabled
         refresh()
     }
 
     func refresh() {
-        let bounds = screen.bounds().asStruct
-        let scale = screen.scale().asDouble ?? 1
-        let width = Int(Double(bounds?.float(at: 2) ?? 0) * scale)
-        let height = Int(Double(bounds?.float(at: 3) ?? 0) * scale)
-        let version = ObjC.NSBundle.mainBundle().objectForInfoDictionaryKey("CFBundleShortVersionString")
+        let scale = screen.scale
+        let width = Int(screen.bounds.size.width * scale)
+        let height = Int(screen.bounds.size.height * scale)
 
         var found = [
-            Fact(id: "Name", value: device.name().asString ?? "?"),
-            Fact(id: "Model", value: device.model().asString ?? "?"),
-            Fact(id: "System", value: "\(device.systemName().asString ?? "?") \(device.systemVersion().asString ?? "?")"),
+            Fact(id: "Name", value: device.name),
+            Fact(id: "Model", value: device.model),
+            Fact(id: "System", value: "\(device.systemName) \(device.systemVersion)"),
             Fact(id: "Screen", value: "\(width) × \(height) at \(Int(scale))×"),
-            Fact(id: "Brightness", value: "\(Int((screen.brightness().asDouble ?? 0) * 100))%"),
-            Fact(id: "Locale", value: ObjC.NSLocale.currentLocale().localeIdentifier().asString ?? "?"),
-            Fact(id: "Time zone", value: ObjC.NSTimeZone.localTimeZone().name().asString ?? "?"),
-            Fact(id: "App version", value: version.asString ?? "?"),
+            Fact(id: "Brightness", value: "\(Int(screen.brightness * 100))%"),
+            Fact(id: "Locale", value: NSLocale.currentLocale().localeIdentifier),
+            Fact(id: "Time zone", value: NSTimeZone.localTimeZone().name),
+            Fact(id: "App version", value: NSBundle.mainBundle().objectForInfoDictionaryKey("CFBundleShortVersionString") ?? "?"),
         ]
-        // identifierForVendor is iOS 6 and later.
-        if device.responds(to: "identifierForVendor") {
-            found.append(Fact(id: "Vendor ID", value: device.identifierForVendor().UUIDString().asString ?? "?"))
+        if let vendor = device.identifierForVendor {
+            found.append(Fact(id: "Vendor ID", value: vendor.uuidString))
         }
         if monitorsBattery {
-            let level = device.batteryLevel().asDouble ?? -1
+            let level = device.batteryLevel
             let states = ["Unknown", "On battery", "Charging", "Full"]
-            let state = device.batteryState().asInt ?? 0
+            let state = device.batteryState
             found.append(Fact(id: "Battery", value: level < 0 ? "Unknown" : "\(Int(level * 100))%"))
-            found.append(Fact(id: "Battery state", value: state < states.count ? states[state] : "?"))
+            found.append(Fact(id: "Battery state", value: state >= 0 && state < states.count ? states[state] : "?"))
         }
         if found != facts { facts = found }
     }
 
     func setKeepAwake(_ on: Bool) {
-        application.setIdleTimerDisabled(on)
-        keepAwake = application.isIdleTimerDisabled().asBool ?? on
+        application.idleTimerDisabled = on
+        keepAwake = application.idleTimerDisabled
     }
 
     func setMonitorsBattery(_ on: Bool) {
-        device.setBatteryMonitoringEnabled(on)
-        monitorsBattery = device.isBatteryMonitoringEnabled().asBool ?? on
+        device.batteryMonitoringEnabled = on
+        monitorsBattery = device.batteryMonitoringEnabled
         refresh()
     }
 
-    func changeBrightness(by step: Double) {
-        let current = screen.brightness().asDouble ?? 0.5
-        screen.setBrightness(min(1, max(0, current + step)))
+    func changeBrightness(by step: Float) {
+        screen.brightness = min(1, max(0, screen.brightness + step))
         refresh()
     }
 
     func openWebsite() {
-        application.openURL(ObjC.NSURL.URLWithString("http://www.apple.com"))
+        _ = application.open(NSURL.URLWithString("http://www.apple.com"))
     }
 }
 
