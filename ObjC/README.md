@@ -128,8 +128,9 @@ make frameworks   # python3 tools/objcgen.py --framework Foundation --framework 
    a protocol that refines the superclass's protocol, so subclasses inherit
    them. The generated code has no hand edits.
 
-Other frameworks work the same way (`--framework MessageUI`, for example);
-give dependencies first. `--min-ios` changes the version.
+`FRAMEWORKS` in the Makefile lists the frameworks to generate (Foundation,
+UIKit, CoreLocation, CoreBluetooth and CoreData), with dependencies first.
+Others work the same way. `--min-ios` changes the version.
 
 ## Defining classes
 

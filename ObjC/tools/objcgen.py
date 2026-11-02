@@ -117,6 +117,9 @@ class HeaderIndex:
         self.frameworks = frameworks
         self.classes = {}
         self.categories = {}
+        self.structs = {}
+        struct_patterns = [re.compile(r"\}\s*([A-Za-z_][A-Za-z0-9_]*)\s*;"),
+                           re.compile(r"\bstruct\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{")]
         pattern = re.compile(r"@interface\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?:<[^>]*>\s*)?(\(\s*([A-Za-z0-9_]*)\s*\)|:|$|\{)", re.M)
         # NSObject is declared by the Objective-C runtime's headers; it's wrapped with Foundation.
         directories = [("Foundation", os.path.join(sdk, "usr/include/objc"))] if "Foundation" in frameworks else []
@@ -127,6 +130,9 @@ class HeaderIndex:
                     continue
                 with open(os.path.join(headers, name), errors="replace") as handle:
                     text = handle.read()
+                for struct_pattern in struct_patterns:
+                    for match in struct_pattern.finditer(text):
+                        self.structs.setdefault(match.group(1), framework)
                 for match in pattern.finditer(text):
                     cls, category = match.group(1), match.group(3)
                     if match.group(2).startswith("("):
@@ -152,6 +158,32 @@ class Model:
         self.index = index
         self.classes = {}  # name -> {"super", "framework", "members": [Member]}
         self.all_classes = set()
+        self.records = {}  # RecordDecl id -> [(field name, type node)]
+        self.record_names = {}  # struct or typedef name -> RecordDecl id
+
+    def add_record(self, node):
+        if node.get("tagUsed") != "struct" or not node.get("completeDefinition"):
+            return
+        fields = [(c.get("name"), c.get("type", {})) for c in node.get("inner", []) if c.get("kind") == "FieldDecl"]
+        if any(c.get("kind") == "FieldDecl" and c.get("isBitfield") for c in node.get("inner", [])):
+            return
+        self.records[node["id"]] = fields
+        if node.get("name"):
+            self.record_names.setdefault(node["name"], node["id"])
+
+    def add_typedef(self, node):
+        def find(n):
+            for child in n.get("inner", []):
+                decl = child.get("decl") or child.get("ownedTagDecl")
+                if decl and decl.get("kind") == "RecordDecl":
+                    return decl["id"]
+                found = find(child)
+                if found:
+                    return found
+            return None
+        record = find(node)
+        if record and node.get("name"):
+            self.record_names[node["name"]] = record
 
     def add_interface(self, node, file):
         name = node["name"]
@@ -223,6 +255,10 @@ def parse_headers(frameworks, sdk, min_ios):
             model.add_category(node, file)
         elif kind == "ObjCProtocolDecl":
             model.add_root_protocol(node)
+        elif kind == "RecordDecl":
+            model.add_record(node)
+        elif kind == "TypedefDecl":
+            model.add_typedef(node)
 
     for node in root.get("inner", []):
         walk_locations(node, tracker, on_decl)
@@ -233,11 +269,19 @@ def parse_headers(frameworks, sdk, min_ios):
 
 
 class Types:
-    def __init__(self, model, wrapped):
+    def __init__(self, model, wrapped, order):
         self.model = model
         self.wrapped = wrapped  # class name -> framework, for the classes being generated
+        self.order = order  # frameworks, dependencies first
+        self.structs = {}  # Swift structs to emit: name -> (framework, [(field, swift type)])
 
-    def swift(self, type_node, position, owner):
+    def visible(self, cls, framework):
+        """Whether code in `framework` can use the wrapper for `cls`: only
+        frameworks listed before it (its dependencies) and itself."""
+        home = self.wrapped.get(cls)
+        return home is not None and self.order.index(home) <= self.order.index(framework)
+
+    def swift(self, type_node, position, owner, framework):
         """The Swift type for a C type, or None if it can't be passed.
         position is "param" or "return"."""
         qual = type_node.get("qualType", "")
@@ -266,7 +310,12 @@ class Types:
             return "Int64"
         if plain in INTEGERS or plain.startswith("enum "):
             return "Int"
+        struct = self.struct(text, plain, framework)
+        if struct:
+            return struct
         if plain.startswith("struct ") and not plain.endswith("*"):
+            return "ObjCValue"
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", text) and text in self.model.record_names:
             return "ObjCValue"
         if plain in ("id", "SEL", "Class") or plain.startswith("id<"):
             return "ObjCValue"
@@ -279,13 +328,88 @@ class Types:
                 cls = name.group(0)
                 if cls == "NSString":
                     swift = "String"
-                elif cls in self.wrapped:
+                elif self.visible(cls, framework):
                     swift = cls
                 else:
                     return "ObjCValue"
                 return swift + "?" if nullable else swift
             return "ObjCValue"
         return None
+
+
+    def struct(self, text, plain, framework):
+        """A Swift struct for a C struct whose fields are all numbers of the
+        same size (CLLocationCoordinate2D, UIEdgeInsets, UIOffset), declared
+        in a framework `framework` can see. Mixed sizes could have padding,
+        so those stay ObjCValue."""
+        name = plain[len("struct "):] if plain.startswith("struct ") else text
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name or ""):
+            return None
+        if name in self.structs:
+            home = self.structs[name][0]
+            return name if self.order.index(home) <= self.order.index(framework) else None
+        record = self.model.record_names.get(name)
+        home = self.model.index.structs.get(name)
+        if record is None or home is None or home not in self.order or record not in self.model.records:
+            return None
+        if self.order.index(home) > self.order.index(framework):
+            return None
+        fields = []
+        for field, field_type in self.model.records[record]:
+            sugar = clean(field_type.get("desugaredQualType", field_type.get("qualType", "")))
+            if sugar == "double":
+                fields.append((field, "Double"))
+            elif sugar == "float":
+                fields.append((field, "Float"))
+            elif sugar in ("int", "long", "unsigned int", "unsigned long") or sugar.startswith("enum "):
+                fields.append((field, "Int"))
+            else:
+                return None
+        sizes = {8 if t == "Double" else 4 for _, t in fields}
+        if not fields or len(sizes) != 1 or any(not f for f, _ in fields):
+            return None
+        self.structs[name] = (home, fields)
+        return name
+
+
+def swift_struct(name, fields):
+    """A Swift struct for a C struct, converting to and from the runtime's words."""
+    params = ", ".join(f"{f}: {t}" for f, t in fields)
+    lines = [f"/// The C struct {name}.",
+             f"public struct {name}: Equatable, ObjCConvertible, ObjCResult {{"]
+    lines += [f"    public var {ident(f)}: {t}" for f, t in fields]
+    lines.append(f"    public init({params}) {{")
+    lines += [f"        self.{f} = {f}" for f, _ in fields]
+    lines.append("    }")
+    lines.append("    public var objcValue: ObjCValue {")
+    lines.append("        var words: [UInt] = []")
+    for f, t in fields:
+        if t == "Double":
+            lines.append(f"        words.append(UInt(truncatingIfNeeded: {f}.bitPattern))")
+            lines.append(f"        words.append(UInt(truncatingIfNeeded: {f}.bitPattern >> 32))")
+        elif t == "Float":
+            lines.append(f"        words.append(UInt({f}.bitPattern))")
+        else:
+            lines.append(f"        words.append(UInt(bitPattern: {f}))")
+    lines.append("        return ObjCValue(ObjCStruct(words: words))")
+    lines.append("    }")
+    lines.append("    public init(objcValue: ObjCValue) {")
+    lines.append("        let words = objcValue.asStruct?.words ?? []")
+    lines.append("        func word(_ index: Int) -> UInt { index < words.count ? words[index] : 0 }")
+    index = 0
+    for f, t in fields:
+        if t == "Double":
+            lines.append(f"        {f} = Double(bitPattern: UInt64(word({index})) | UInt64(word({index + 1})) << 32)")
+            index += 2
+        elif t == "Float":
+            lines.append(f"        {f} = Float(bitPattern: UInt32(truncatingIfNeeded: word({index})))")
+            index += 1
+        else:
+            lines.append(f"        {f} = Int(bitPattern: word({index}))")
+            index += 1
+    lines.append("    }")
+    lines.append("}")
+    return "\n".join(lines)
 
 
 def clean(text):
@@ -341,18 +465,19 @@ def declare_method(member, types):
     parts = selector.split(":")[:-1] if ":" in selector else [selector]
     if ":" in selector and len(parts) != len(params):
         return None
-    returns = types.swift(node.get("returnType", {}), "return", member.cls)
+    returns = types.swift(node.get("returnType", {}), "return", member.cls, member.framework)
     if returns is None:
         return None
     swift_params = []
     for param in params:
-        swift = types.swift(param.get("type", {}), "param", member.cls)
+        swift = types.swift(param.get("type", {}), "param", member.cls, member.framework)
         if swift is None or swift.startswith("Self"):
             return None
-        # A wrapper parameter takes any subclass's wrapper: some NSArrayMethods.
-        base = swift.rstrip("?")
-        if base in types.wrapped:
-            swift = f"(some {base}Methods)?" if swift.endswith("?") else f"some {base}Methods"
+        # A non-null wrapper parameter takes any subclass's wrapper: some
+        # NSArrayMethods. A nullable one stays NSArray?, so that nil works
+        # (Swift can't infer a generic type from nil).
+        if swift in types.wrapped:
+            swift = f"some {swift}Methods"
         swift_params.append(swift)
 
     receiver = member.cls if member.static else f"(({member.cls} *)0)"
@@ -401,7 +526,7 @@ def declare_property(member, types):
     name = member.selector
     if name in RESERVED_MEMBERS:
         return None
-    swift = types.swift(node.get("type", {}), "return", member.cls)
+    swift = types.swift(node.get("type", {}), "return", member.cls, member.framework)
     if swift in (None, "Void", "Self", "Self?"):
         return None
     readonly = node.get("readonly") or not node.get("readwrite")
@@ -478,7 +603,7 @@ def generate(args):
     for name, entry in model.classes.items():
         if entry["framework"] in args.framework and name not in SKIPPED_CLASSES and not name.startswith("_"):
             wrapped[name] = entry["framework"]
-    types = Types(model, wrapped)
+    types = Types(model, wrapped, args.framework)
 
     # Members by class, declared, with ancestors' selectors taken first.
     def ancestors(name):
@@ -566,10 +691,24 @@ def generate(args):
                 outputs[other].append("\n".join([f"/// {other} additions to {name}.",
                                                  f"extension {name}Methods {{"] + body + ["}"]))
 
+    # Structs that some kept declaration uses, at the top of their framework's file.
+    everything = "\n".join("\n".join(parts) for parts in outputs.values())
+    for name in sorted(types.structs, reverse=True):
+        home, fields = types.structs[name]
+        if re.search(rf"\b{name}\b", everything):
+            outputs[home].insert(0, swift_struct(name, fields))
+
     for framework in args.framework:
         directory = os.path.join(args.out, framework, "Sources")
         os.makedirs(directory, exist_ok=True)
-        imports = ["import ObjCInterop"] + [f"import {f}" for f in args.framework[:args.framework.index(framework)]]
+        # Import the frameworks whose wrappers this one refers to.
+        text = "\n\n".join(outputs[framework])
+        used = set()
+        for word in set(re.findall(r"\b[A-Z][A-Za-z0-9_]*\b", text)):
+            cls = word[:-len("Methods")] if word.endswith("Methods") else word
+            if cls in wrapped and wrapped[cls] != framework:
+                used.add(wrapped[cls])
+        imports = ["import ObjCInterop"] + [f"import {f}" for f in args.framework if f in used]
         header = (f"// {framework} for Embedded Swift on iOS {args.min_ios}, generated by ObjC/tools/objcgen.py\n"
                   f"// from the iOS SDK's headers. Don't edit: regenerate with `make frameworks` in ObjC/.\n\n")
         with open(os.path.join(directory, f"{framework}.swift"), "w") as handle:

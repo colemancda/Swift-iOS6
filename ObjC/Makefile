@@ -39,7 +39,7 @@ all: build/objc-tests
 macros: $(MACROS)
 
 # Typed wrappers generated from the SDK's headers: one module per framework.
-FRAMEWORKS     := Foundation UIKit
+FRAMEWORKS     := Foundation UIKit CoreLocation CoreBluetooth CoreData
 FRAMEWORKS_DIR := ../Frameworks
 frameworks:
 	python3 tools/objcgen.py $(addprefix --framework ,$(FRAMEWORKS)) --out $(FRAMEWORKS_DIR) --sdk $(SDK) --min-ios $(MIN_IOS)
@@ -51,6 +51,14 @@ build/obj/Foundation.o: $(FRAMEWORKS_DIR)/Foundation/Sources/Foundation.swift bu
 build/obj/UIKit.o: $(FRAMEWORKS_DIR)/UIKit/Sources/UIKit.swift build/obj/Foundation.o
 	$(SWIFTC) $(SWIFTFLAGS) -parse-as-library -module-name UIKit \
 	  -emit-module -emit-module-path build/modules/UIKit.swiftmodule -c $< -o $@
+
+# CoreLocation, CoreBluetooth, CoreData…: each uses Foundation's wrappers.
+define FRAMEWORK_RULE
+build/obj/$(1).o: $(FRAMEWORKS_DIR)/$(1)/Sources/$(1).swift build/obj/Foundation.o
+	$$(SWIFTC) $$(SWIFTFLAGS) -parse-as-library -module-name $(1) \
+	  -emit-module -emit-module-path build/modules/$(1).swiftmodule -c $$< -o $$@
+endef
+$(foreach framework,$(filter-out Foundation UIKit,$(FRAMEWORKS)),$(eval $(call FRAMEWORK_RULE,$(framework))))
 
 build/obj/FrameworkTests.o: $(wildcard Tests/Frameworks/*.swift) build/obj/Foundation.o build/obj/UIKit.o
 	$(SWIFTC) $(SWIFTFLAGS) -module-name FrameworkTests -c $(wildcard Tests/Frameworks/*.swift) -o $@

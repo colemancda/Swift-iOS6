@@ -15,9 +15,13 @@ declare typed wrappers and implement Objective-C classes with macros
 backend is written with it.
 [SystemInfo/](SystemInfo/README.md) shows system and hardware information
 (device, CPU, memory, storage, battery, processes, installed apps) like AIDA64.
-[Frameworks/](Frameworks/README.md) has Foundation and UIKit as typed Swift
-modules (`UILabel(frame:)`, `label.text = "Hi"`), generated from the SDK's
-headers by `ObjC/tools/objcgen.py` and limited to iOS 6.0's API.
+[Frameworks/](Frameworks/README.md) has Foundation, UIKit, CoreLocation,
+CoreBluetooth and CoreData as typed Swift modules (`UILabel(frame:)`,
+`label.text = "Hi"`), generated from the SDK's headers by
+`ObjC/tools/objcgen.py` and limited to iOS 6.0's API. Example apps use them:
+[Location/](Location/README.md) (Core Location),
+[BLEScanner/](BLEScanner/README.md) (Core Bluetooth) and
+[Notes/](Notes/README.md) (Core Data).
 [XML/](XML/README.md) parses XML with NSXMLParser into Swift events or a
 document tree, and [XMLBrowser/](XMLBrowser/README.md) browses XML files and
 plists with it.

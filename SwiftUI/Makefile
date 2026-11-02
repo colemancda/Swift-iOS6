@@ -122,8 +122,11 @@ $(BUILD)/obj/lib%.o: $$(wildcard ../$$*/Sources/*.swift ../Frameworks/$$*/Source
 	  -emit-module -emit-module-path $(BUILD)/modules/$*.swiftmodule \
 	  -c $(filter %.swift,$^) -o $@
 
-# The generated UIKit module uses Foundation's.
-$(BUILD)/obj/libUIKit.o: $(BUILD)/obj/libFoundation.o
+# The other generated frameworks use Foundation's wrappers.
+GENERATED_LIBS := $(filter-out Foundation,$(patsubst ../Frameworks/%/Sources,%,$(wildcard ../Frameworks/*/Sources)))
+$(patsubst %,$(BUILD)/obj/lib%.o,$(GENERATED_LIBS)): $(BUILD)/obj/libFoundation.o
+# …and their apps link the Objective-C framework itself (UIKit and Foundation always are).
+LDFLAGS += $(patsubst %,-framework %,$(filter-out UIKit,$(filter $(GENERATED_LIBS),$(LIBS))))
 
 $(BUILD)/obj/$(APP).o: $(APP_SRCS) $(APP_HEADERS) $(BUILD)/obj/SwiftUI.o $(BUILD)/obj/ObjCInterop.o $(LIB_OBJS)
 	$(SWIFTC) $(SWIFTFLAGS) -parse-as-library -module-name $(APP) -c $(APP_SRCS) -o $@

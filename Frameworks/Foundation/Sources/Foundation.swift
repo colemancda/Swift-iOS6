@@ -42,7 +42,7 @@ extension NSObjectMethods {
     @ObjCMethod("conformsToProtocol:") public static func conformsToProtocol(_ a0: ObjCValue) -> Bool
     @ObjCMethod("doesNotRecognizeSelector:") public func doesNotRecognizeSelector(_ a0: ObjCValue)
     @ObjCMethod("forwardingTargetForSelector:") public func forwardingTargetForSelector(_ a0: ObjCValue) -> ObjCValue
-    @ObjCMethod("forwardInvocation:") public func forwardInvocation(_ a0: (some NSInvocationMethods)?)
+    @ObjCMethod("forwardInvocation:") public func forwardInvocation(_ a0: NSInvocation?)
     @ObjCMethod("methodSignatureForSelector:") public func methodSignatureForSelector(_ a0: ObjCValue) -> NSMethodSignature?
     @ObjCMethod("instanceMethodSignatureForSelector:") public static func instanceMethodSignatureForSelector(_ a0: ObjCValue) -> NSMethodSignature?
     @ObjCMethod("isSubclassOfClass:") public static func isSubclassOfClass(_ a0: ObjCValue) -> Bool
@@ -77,7 +77,7 @@ extension NSObjectMethods {
     @ObjCMethod("setNilValueForKey:") public func setNilValueForKey(_ a0: String)
     @ObjCMethod("dictionaryWithValuesForKeys:") public func dictionaryWithValuesForKeys(_ a0: some NSArrayMethods) -> NSDictionary
     @ObjCMethod("setValuesForKeysWithDictionary:") public func setValuesForKeysWithDictionary(_ a0: some NSDictionaryMethods)
-    @ObjCMethod("observeValueForKeyPath:ofObject:change:context:") public func observeValueForKeyPath(_ a0: String?, ofObject a1: ObjCValue, change a2: (some NSDictionaryMethods)?, context a3: ObjCValue)
+    @ObjCMethod("observeValueForKeyPath:ofObject:change:context:") public func observeValueForKeyPath(_ a0: String?, ofObject a1: ObjCValue, change a2: NSDictionary?, context a3: ObjCValue)
     @ObjCMethod("addObserver:forKeyPath:options:context:") public func addObserver(_ a0: some NSObjectMethods, forKeyPath a1: String, options a2: Int, context a3: ObjCValue)
     @ObjCMethod("removeObserver:forKeyPath:context:") public func removeObserver(_ a0: some NSObjectMethods, forKeyPath a1: String, context a2: ObjCValue)
     @ObjCMethod("removeObserver:forKeyPath:") public func removeObserver(_ a0: some NSObjectMethods, forKeyPath a1: String)
@@ -98,9 +98,9 @@ extension NSObjectMethods {
     @ObjCMethod("performSelector:withObject:afterDelay:") public func performSelector(_ a0: ObjCValue, withObject a1: ObjCValue, afterDelay a2: Double)
     @ObjCMethod("cancelPreviousPerformRequestsWithTarget:selector:object:") public static func cancelPreviousPerformRequestsWithTarget(_ a0: ObjCValue, selector a1: ObjCValue, object a2: ObjCValue)
     @ObjCMethod("cancelPreviousPerformRequestsWithTarget:") public static func cancelPreviousPerformRequestsWithTarget(_ a0: ObjCValue)
-    @ObjCMethod("performSelectorOnMainThread:withObject:waitUntilDone:modes:") public func performSelectorOnMainThread(_ a0: ObjCValue, withObject a1: ObjCValue, waitUntilDone a2: Bool, modes a3: (some NSArrayMethods)?)
+    @ObjCMethod("performSelectorOnMainThread:withObject:waitUntilDone:modes:") public func performSelectorOnMainThread(_ a0: ObjCValue, withObject a1: ObjCValue, waitUntilDone a2: Bool, modes a3: NSArray?)
     @ObjCMethod("performSelectorOnMainThread:withObject:waitUntilDone:") public func performSelectorOnMainThread(_ a0: ObjCValue, withObject a1: ObjCValue, waitUntilDone a2: Bool)
-    @ObjCMethod("performSelector:onThread:withObject:waitUntilDone:modes:") public func performSelector(_ a0: ObjCValue, onThread a1: some NSThreadMethods, withObject a2: ObjCValue, waitUntilDone a3: Bool, modes a4: (some NSArrayMethods)?)
+    @ObjCMethod("performSelector:onThread:withObject:waitUntilDone:modes:") public func performSelector(_ a0: ObjCValue, onThread a1: some NSThreadMethods, withObject a2: ObjCValue, waitUntilDone a3: Bool, modes a4: NSArray?)
     @ObjCMethod("performSelector:onThread:withObject:waitUntilDone:") public func performSelector(_ a0: ObjCValue, onThread a1: some NSThreadMethods, withObject a2: ObjCValue, waitUntilDone a3: Bool)
     @ObjCMethod("performSelectorInBackground:withObject:") public func performSelectorInBackground(_ a0: ObjCValue, withObject a1: ObjCValue)
 }
@@ -192,7 +192,7 @@ extension NSAttributedStringMethods {
     @ObjCMethod("attribute:atIndex:longestEffectiveRange:inRange:") public func attribute(_ a0: String, atIndex a1: Int, longestEffectiveRange a2: ObjCValue, inRange a3: NSRange) -> ObjCValue
     @ObjCMethod("isEqualToAttributedString:") public func isEqualToAttributedString(_ a0: some NSAttributedStringMethods) -> Bool
     @ObjCMethod("initWithString:") public init(string a0: String)
-    @ObjCMethod("initWithString:attributes:") public init(string a0: String, attributes a1: (some NSDictionaryMethods)?)
+    @ObjCMethod("initWithString:attributes:") public init(string a0: String, attributes a1: NSDictionary?)
     @ObjCMethod("initWithAttributedString:") public init(attributedString a0: some NSAttributedStringMethods)
 }
 
@@ -264,7 +264,7 @@ extension NSBundleMethods {
     @ObjCProperty(readonly: true) public var localizations: NSArray
     @ObjCProperty(readonly: true) public var developmentLocalization: String?
     @ObjCMethod("preferredLocalizationsFromArray:") public static func preferredLocalizationsFromArray(_ a0: some NSArrayMethods) -> NSArray
-    @ObjCMethod("preferredLocalizationsFromArray:forPreferences:") public static func preferredLocalizationsFromArray(_ a0: some NSArrayMethods, forPreferences a1: (some NSArrayMethods)?) -> NSArray
+    @ObjCMethod("preferredLocalizationsFromArray:forPreferences:") public static func preferredLocalizationsFromArray(_ a0: some NSArrayMethods, forPreferences a1: NSArray?) -> NSArray
     @ObjCProperty(readonly: true) public var executableArchitectures: NSArray?
 }
 
@@ -289,7 +289,7 @@ public protocol NSCachedURLResponseMethods: NSObjectMethods {}
 @ObjC public struct NSCachedURLResponse: NSCachedURLResponseMethods {}
 extension NSCachedURLResponseMethods {
     @ObjCMethod("initWithResponse:data:") public init(response a0: some NSURLResponseMethods, data a1: some NSDataMethods)
-    @ObjCMethod("initWithResponse:data:userInfo:storagePolicy:") public init(response a0: some NSURLResponseMethods, data a1: some NSDataMethods, userInfo a2: (some NSDictionaryMethods)?, storagePolicy a3: Int)
+    @ObjCMethod("initWithResponse:data:userInfo:storagePolicy:") public init(response a0: some NSURLResponseMethods, data a1: some NSDataMethods, userInfo a2: NSDictionary?, storagePolicy a3: Int)
     @ObjCProperty(readonly: true) public var response: NSURLResponse
     @ObjCProperty(readonly: true) public var data: NSData
     @ObjCProperty(readonly: true) public var userInfo: NSDictionary?
@@ -416,7 +416,7 @@ extension NSCoderMethods {
     @ObjCMethod("decodeIntegerForKey:") public func decodeIntegerForKey(_ a0: String) -> Int
     @ObjCProperty(readonly: true) public var requiresSecureCoding: Bool
     @ObjCMethod("decodeObjectOfClass:forKey:") public func decodeObjectOfClass(_ a0: ObjCValue, forKey a1: String) -> ObjCValue
-    @ObjCMethod("decodeObjectOfClasses:forKey:") public func decodeObjectOfClasses(_ a0: (some NSSetMethods)?, forKey a1: String) -> ObjCValue
+    @ObjCMethod("decodeObjectOfClasses:forKey:") public func decodeObjectOfClasses(_ a0: NSSet?, forKey a1: String) -> ObjCValue
     @ObjCMethod("decodePropertyListForKey:") public func decodePropertyListForKey(_ a0: String) -> ObjCValue
     @ObjCProperty(readonly: true) public var allowedClasses: NSSet?
 }
@@ -615,8 +615,8 @@ extension NSEnumeratorMethods {
 public protocol NSErrorMethods: NSObjectMethods {}
 @ObjC public struct NSError: NSErrorMethods {}
 extension NSErrorMethods {
-    @ObjCMethod("initWithDomain:code:userInfo:") public init(domain a0: String, code a1: Int, userInfo a2: (some NSDictionaryMethods)?)
-    @ObjCMethod("errorWithDomain:code:userInfo:") public static func errorWithDomain(_ a0: String, code a1: Int, userInfo a2: (some NSDictionaryMethods)?) -> Self
+    @ObjCMethod("initWithDomain:code:userInfo:") public init(domain a0: String, code a1: Int, userInfo a2: NSDictionary?)
+    @ObjCMethod("errorWithDomain:code:userInfo:") public static func errorWithDomain(_ a0: String, code a1: Int, userInfo a2: NSDictionary?) -> Self
     @ObjCProperty(readonly: true) public var domain: String
     @ObjCProperty(readonly: true) public var code: Int
     @ObjCProperty(readonly: true) public var userInfo: NSDictionary
@@ -632,8 +632,8 @@ extension NSErrorMethods {
 public protocol NSExceptionMethods: NSObjectMethods {}
 @ObjC public struct NSException: NSExceptionMethods {}
 extension NSExceptionMethods {
-    @ObjCMethod("exceptionWithName:reason:userInfo:") public static func exceptionWithName(_ a0: String, reason a1: String?, userInfo a2: (some NSDictionaryMethods)?) -> NSException
-    @ObjCMethod("initWithName:reason:userInfo:") public init(name a0: String, reason a1: String?, userInfo a2: (some NSDictionaryMethods)?)
+    @ObjCMethod("exceptionWithName:reason:userInfo:") public static func exceptionWithName(_ a0: String, reason a1: String?, userInfo a2: NSDictionary?) -> NSException
+    @ObjCMethod("initWithName:reason:userInfo:") public init(name a0: String, reason a1: String?, userInfo a2: NSDictionary?)
     @ObjCProperty(readonly: true) public var name: String
     @ObjCProperty(readonly: true) public var reason: String?
     @ObjCProperty(readonly: true) public var userInfo: NSDictionary?
@@ -659,7 +659,7 @@ extension NSExpressionMethods {
     @ObjCMethod("expressionForIntersectSet:with:") public static func expressionForIntersectSet(_ a0: some NSExpressionMethods, with a1: some NSExpressionMethods) -> NSExpression
     @ObjCMethod("expressionForMinusSet:with:") public static func expressionForMinusSet(_ a0: some NSExpressionMethods, with a1: some NSExpressionMethods) -> NSExpression
     @ObjCMethod("expressionForSubquery:usingIteratorVariable:predicate:") public static func expressionForSubquery(_ a0: some NSExpressionMethods, usingIteratorVariable a1: String, predicate a2: ObjCValue) -> NSExpression
-    @ObjCMethod("expressionForFunction:selectorName:arguments:") public static func expressionForFunction(_ a0: some NSExpressionMethods, selectorName a1: String, arguments a2: (some NSArrayMethods)?) -> NSExpression
+    @ObjCMethod("expressionForFunction:selectorName:arguments:") public static func expressionForFunction(_ a0: some NSExpressionMethods, selectorName a1: String, arguments a2: NSArray?) -> NSExpression
     @ObjCMethod("initWithExpressionType:") public init(expressionType a0: Int)
     @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
     @ObjCProperty(readonly: true) public var expressionType: Int
@@ -673,7 +673,7 @@ extension NSExpressionMethods {
     @ObjCProperty(readonly: true) public var predicate: NSPredicate?
     @ObjCProperty(readonly: true) public var leftExpression: NSExpression?
     @ObjCProperty(readonly: true) public var rightExpression: NSExpression?
-    @ObjCMethod("expressionValueWithObject:context:") public func expressionValueWithObject(_ a0: ObjCValue, context a1: (some NSMutableDictionaryMethods)?) -> ObjCValue
+    @ObjCMethod("expressionValueWithObject:context:") public func expressionValueWithObject(_ a0: ObjCValue, context a1: NSMutableDictionary?) -> ObjCValue
 }
 
 /// The Objective-C class NSFileCoordinator, a subclass of NSObject.
@@ -716,13 +716,13 @@ extension NSFileHandleMethods {
     @ObjCMethod("fileHandleForReadingFromURL:error:") public static func fileHandleForReadingFromURL(_ a0: some NSURLMethods, error a1: ObjCValue) -> Self?
     @ObjCMethod("fileHandleForWritingToURL:error:") public static func fileHandleForWritingToURL(_ a0: some NSURLMethods, error a1: ObjCValue) -> Self?
     @ObjCMethod("fileHandleForUpdatingURL:error:") public static func fileHandleForUpdatingURL(_ a0: some NSURLMethods, error a1: ObjCValue) -> Self?
-    @ObjCMethod("readInBackgroundAndNotifyForModes:") public func readInBackgroundAndNotifyForModes(_ a0: (some NSArrayMethods)?)
+    @ObjCMethod("readInBackgroundAndNotifyForModes:") public func readInBackgroundAndNotifyForModes(_ a0: NSArray?)
     @ObjCMethod("readInBackgroundAndNotify") public func readInBackgroundAndNotify()
-    @ObjCMethod("readToEndOfFileInBackgroundAndNotifyForModes:") public func readToEndOfFileInBackgroundAndNotifyForModes(_ a0: (some NSArrayMethods)?)
+    @ObjCMethod("readToEndOfFileInBackgroundAndNotifyForModes:") public func readToEndOfFileInBackgroundAndNotifyForModes(_ a0: NSArray?)
     @ObjCMethod("readToEndOfFileInBackgroundAndNotify") public func readToEndOfFileInBackgroundAndNotify()
-    @ObjCMethod("acceptConnectionInBackgroundAndNotifyForModes:") public func acceptConnectionInBackgroundAndNotifyForModes(_ a0: (some NSArrayMethods)?)
+    @ObjCMethod("acceptConnectionInBackgroundAndNotifyForModes:") public func acceptConnectionInBackgroundAndNotifyForModes(_ a0: NSArray?)
     @ObjCMethod("acceptConnectionInBackgroundAndNotify") public func acceptConnectionInBackgroundAndNotify()
-    @ObjCMethod("waitForDataInBackgroundAndNotifyForModes:") public func waitForDataInBackgroundAndNotifyForModes(_ a0: (some NSArrayMethods)?)
+    @ObjCMethod("waitForDataInBackgroundAndNotifyForModes:") public func waitForDataInBackgroundAndNotifyForModes(_ a0: NSArray?)
     @ObjCMethod("waitForDataInBackgroundAndNotify") public func waitForDataInBackgroundAndNotify()
     @ObjCMethod("initWithFileDescriptor:") public init(fileDescriptor a0: Int)
     @ObjCProperty(readonly: true) public var fileDescriptor: Int
@@ -733,15 +733,15 @@ public protocol NSFileManagerMethods: NSObjectMethods {}
 @ObjC public struct NSFileManager: NSFileManagerMethods {}
 extension NSFileManagerMethods {
     @ObjCMethod("defaultManager") public static func defaultManager() -> NSFileManager
-    @ObjCMethod("mountedVolumeURLsIncludingResourceValuesForKeys:options:") public func mountedVolumeURLsIncludingResourceValuesForKeys(_ a0: (some NSArrayMethods)?, options a1: Int) -> NSArray?
-    @ObjCMethod("contentsOfDirectoryAtURL:includingPropertiesForKeys:options:error:") public func contentsOfDirectoryAtURL(_ a0: some NSURLMethods, includingPropertiesForKeys a1: (some NSArrayMethods)?, options a2: Int, error a3: ObjCValue) -> NSArray?
+    @ObjCMethod("mountedVolumeURLsIncludingResourceValuesForKeys:options:") public func mountedVolumeURLsIncludingResourceValuesForKeys(_ a0: NSArray?, options a1: Int) -> NSArray?
+    @ObjCMethod("contentsOfDirectoryAtURL:includingPropertiesForKeys:options:error:") public func contentsOfDirectoryAtURL(_ a0: some NSURLMethods, includingPropertiesForKeys a1: NSArray?, options a2: Int, error a3: ObjCValue) -> NSArray?
     @ObjCMethod("URLsForDirectory:inDomains:") public func URLsForDirectory(_ a0: Int, inDomains a1: Int) -> NSArray
-    @ObjCMethod("URLForDirectory:inDomain:appropriateForURL:create:error:") public func URLForDirectory(_ a0: Int, inDomain a1: Int, appropriateForURL a2: (some NSURLMethods)?, create a3: Bool, error a4: ObjCValue) -> NSURL?
-    @ObjCMethod("createDirectoryAtURL:withIntermediateDirectories:attributes:error:") public func createDirectoryAtURL(_ a0: some NSURLMethods, withIntermediateDirectories a1: Bool, attributes a2: (some NSDictionaryMethods)?, error a3: ObjCValue) -> Bool
+    @ObjCMethod("URLForDirectory:inDomain:appropriateForURL:create:error:") public func URLForDirectory(_ a0: Int, inDomain a1: Int, appropriateForURL a2: NSURL?, create a3: Bool, error a4: ObjCValue) -> NSURL?
+    @ObjCMethod("createDirectoryAtURL:withIntermediateDirectories:attributes:error:") public func createDirectoryAtURL(_ a0: some NSURLMethods, withIntermediateDirectories a1: Bool, attributes a2: NSDictionary?, error a3: ObjCValue) -> Bool
     @ObjCMethod("createSymbolicLinkAtURL:withDestinationURL:error:") public func createSymbolicLinkAtURL(_ a0: some NSURLMethods, withDestinationURL a1: some NSURLMethods, error a2: ObjCValue) -> Bool
     @ObjCProperty public var delegate: ObjCValue
     @ObjCMethod("setAttributes:ofItemAtPath:error:") public func setAttributes(_ a0: some NSDictionaryMethods, ofItemAtPath a1: String, error a2: ObjCValue) -> Bool
-    @ObjCMethod("createDirectoryAtPath:withIntermediateDirectories:attributes:error:") public func createDirectoryAtPath(_ a0: String, withIntermediateDirectories a1: Bool, attributes a2: (some NSDictionaryMethods)?, error a3: ObjCValue) -> Bool
+    @ObjCMethod("createDirectoryAtPath:withIntermediateDirectories:attributes:error:") public func createDirectoryAtPath(_ a0: String, withIntermediateDirectories a1: Bool, attributes a2: NSDictionary?, error a3: ObjCValue) -> Bool
     @ObjCMethod("contentsOfDirectoryAtPath:error:") public func contentsOfDirectoryAtPath(_ a0: String, error a1: ObjCValue) -> NSArray?
     @ObjCMethod("subpathsOfDirectoryAtPath:error:") public func subpathsOfDirectoryAtPath(_ a0: String, error a1: ObjCValue) -> NSArray?
     @ObjCMethod("attributesOfItemAtPath:error:") public func attributesOfItemAtPath(_ a0: String, error a1: ObjCValue) -> NSDictionary?
@@ -777,7 +777,7 @@ extension NSFileManagerMethods {
     @ObjCMethod("enumeratorAtPath:") public func enumeratorAtPath(_ a0: String) -> NSDirectoryEnumerator?
     @ObjCMethod("subpathsAtPath:") public func subpathsAtPath(_ a0: String) -> NSArray?
     @ObjCMethod("contentsAtPath:") public func contentsAtPath(_ a0: String) -> NSData?
-    @ObjCMethod("createFileAtPath:contents:attributes:") public func createFileAtPath(_ a0: String, contents a1: (some NSDataMethods)?, attributes a2: (some NSDictionaryMethods)?) -> Bool
+    @ObjCMethod("createFileAtPath:contents:attributes:") public func createFileAtPath(_ a0: String, contents a1: NSData?, attributes a2: NSDictionary?) -> Bool
     @ObjCMethod("fileSystemRepresentationWithPath:") public func fileSystemRepresentationWithPath(_ a0: String) -> ObjCValue
     @ObjCMethod("stringWithFileSystemRepresentation:length:") public func stringWithFileSystemRepresentation(_ a0: String?, length a1: Int) -> String
     @ObjCMethod("replaceItemAtURL:withItemAtURL:backupItemName:options:resultingItemURL:error:") public func replaceItemAtURL(_ a0: some NSURLMethods, withItemAtURL a1: some NSURLMethods, backupItemName a2: String?, options a3: Int, resultingItemURL a4: ObjCValue, error a5: ObjCValue) -> Bool
@@ -835,7 +835,7 @@ extension NSFileWrapperMethods {
     @ObjCProperty public var fileAttributes: NSDictionary
     @ObjCMethod("matchesContentsOfURL:") public func matchesContentsOfURL(_ a0: some NSURLMethods) -> Bool
     @ObjCMethod("readFromURL:options:error:") public func readFromURL(_ a0: some NSURLMethods, options a1: Int, error a2: ObjCValue) -> Bool
-    @ObjCMethod("writeToURL:options:originalContentsURL:error:") public func writeToURL(_ a0: some NSURLMethods, options a1: Int, originalContentsURL a2: (some NSURLMethods)?, error a3: ObjCValue) -> Bool
+    @ObjCMethod("writeToURL:options:originalContentsURL:error:") public func writeToURL(_ a0: some NSURLMethods, options a1: Int, originalContentsURL a2: NSURL?, error a3: ObjCValue) -> Bool
     @ObjCProperty(readonly: true) public var serializedRepresentation: NSData?
     @ObjCMethod("addFileWrapper:") public func addFileWrapper(_ a0: some NSFileWrapperMethods) -> String
     @ObjCMethod("addRegularFileWithContents:preferredFilename:") public func addRegularFileWithContents(_ a0: some NSDataMethods, preferredFilename a1: String) -> String
@@ -851,7 +851,7 @@ public protocol NSFormatterMethods: NSObjectMethods {}
 @ObjC public struct NSFormatter: NSFormatterMethods {}
 extension NSFormatterMethods {
     @ObjCMethod("stringForObjectValue:") public func stringForObjectValue(_ a0: ObjCValue) -> String?
-    @ObjCMethod("attributedStringForObjectValue:withDefaultAttributes:") public func attributedStringForObjectValue(_ a0: ObjCValue, withDefaultAttributes a1: (some NSDictionaryMethods)?) -> NSAttributedString?
+    @ObjCMethod("attributedStringForObjectValue:withDefaultAttributes:") public func attributedStringForObjectValue(_ a0: ObjCValue, withDefaultAttributes a1: NSDictionary?) -> NSAttributedString?
     @ObjCMethod("editingStringForObjectValue:") public func editingStringForObjectValue(_ a0: ObjCValue) -> String?
     @ObjCMethod("getObjectValue:forString:errorDescription:") public func getObjectValue(_ a0: ObjCValue, forString a1: String, errorDescription a2: ObjCValue) -> Bool
     @ObjCMethod("isPartialStringValid:newEditingString:errorDescription:") public func isPartialStringValid(_ a0: String, newEditingString a1: ObjCValue, errorDescription a2: ObjCValue) -> Bool
@@ -890,7 +890,7 @@ extension NSHTTPCookieStorageMethods {
     @ObjCMethod("setCookie:") public func setCookie(_ a0: some NSHTTPCookieMethods)
     @ObjCMethod("deleteCookie:") public func deleteCookie(_ a0: some NSHTTPCookieMethods)
     @ObjCMethod("cookiesForURL:") public func cookiesForURL(_ a0: some NSURLMethods) -> NSArray?
-    @ObjCMethod("setCookies:forURL:mainDocumentURL:") public func setCookies(_ a0: some NSArrayMethods, forURL a1: (some NSURLMethods)?, mainDocumentURL a2: (some NSURLMethods)?)
+    @ObjCMethod("setCookies:forURL:mainDocumentURL:") public func setCookies(_ a0: some NSArrayMethods, forURL a1: NSURL?, mainDocumentURL a2: NSURL?)
     @ObjCProperty public var cookieAcceptPolicy: Int
     @ObjCMethod("sortedCookiesUsingDescriptors:") public func sortedCookiesUsingDescriptors(_ a0: some NSArrayMethods) -> NSArray
 }
@@ -1001,7 +1001,7 @@ extension NSLinguisticTaggerMethods {
     @ObjCProperty(readonly: true) public var tagSchemes: NSArray?
     @ObjCProperty public var string: String?
     @ObjCMethod("availableTagSchemesForLanguage:") public static func availableTagSchemesForLanguage(_ a0: String) -> NSArray
-    @ObjCMethod("setOrthography:range:") public func setOrthography(_ a0: (some NSOrthographyMethods)?, range a1: NSRange)
+    @ObjCMethod("setOrthography:range:") public func setOrthography(_ a0: NSOrthography?, range a1: NSRange)
     @ObjCMethod("orthographyAtIndex:effectiveRange:") public func orthographyAtIndex(_ a0: Int, effectiveRange a1: ObjCValue) -> NSOrthography?
     @ObjCMethod("stringEditedInRange:changeInLength:") public func stringEditedInRange(_ a0: NSRange, changeInLength a1: Int)
     @ObjCMethod("sentenceRangeForRange:") public func sentenceRangeForRange(_ a0: NSRange) -> NSRange
@@ -1164,7 +1164,7 @@ extension NSNetServiceMethods {
     @ObjCMethod("dataFromTXTRecordDictionary:") public static func dataFromTXTRecordDictionary(_ a0: some NSDictionaryMethods) -> NSData
     @ObjCMethod("resolveWithTimeout:") public func resolveWithTimeout(_ a0: Double)
     @ObjCMethod("getInputStream:outputStream:") public func getInputStream(_ a0: ObjCValue, outputStream a1: ObjCValue) -> Bool
-    @ObjCMethod("setTXTRecordData:") public func setTXTRecordData(_ a0: (some NSDataMethods)?) -> Bool
+    @ObjCMethod("setTXTRecordData:") public func setTXTRecordData(_ a0: NSData?) -> Bool
     @ObjCMethod("TXTRecordData") public func TXTRecordData() -> NSData?
     @ObjCMethod("startMonitoring") public func startMonitoring()
     @ObjCMethod("stopMonitoring") public func stopMonitoring()
@@ -1189,10 +1189,10 @@ public protocol NSNotificationMethods: NSObjectMethods {}
 extension NSNotificationMethods {
     @ObjCProperty(readonly: true) public var name: String
     @ObjCProperty(readonly: true) public var userInfo: NSDictionary?
-    @ObjCMethod("initWithName:object:userInfo:") public init(name a0: String, object a1: ObjCValue, userInfo a2: (some NSDictionaryMethods)?)
+    @ObjCMethod("initWithName:object:userInfo:") public init(name a0: String, object a1: ObjCValue, userInfo a2: NSDictionary?)
     @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
     @ObjCMethod("notificationWithName:object:") public static func notificationWithName(_ a0: String, object a1: ObjCValue) -> Self
-    @ObjCMethod("notificationWithName:object:userInfo:") public static func notificationWithName(_ a0: String, object a1: ObjCValue, userInfo a2: (some NSDictionaryMethods)?) -> Self
+    @ObjCMethod("notificationWithName:object:userInfo:") public static func notificationWithName(_ a0: String, object a1: ObjCValue, userInfo a2: NSDictionary?) -> Self
 }
 
 /// The Objective-C class NSNotificationCenter, a subclass of NSObject.
@@ -1203,7 +1203,7 @@ extension NSNotificationCenterMethods {
     @ObjCMethod("addObserver:selector:name:object:") public func addObserver(_ a0: ObjCValue, selector a1: ObjCValue, name a2: String?, object a3: ObjCValue)
     @ObjCMethod("postNotification:") public func postNotification(_ a0: some NSNotificationMethods)
     @ObjCMethod("postNotificationName:object:") public func postNotificationName(_ a0: String, object a1: ObjCValue)
-    @ObjCMethod("postNotificationName:object:userInfo:") public func postNotificationName(_ a0: String, object a1: ObjCValue, userInfo a2: (some NSDictionaryMethods)?)
+    @ObjCMethod("postNotificationName:object:userInfo:") public func postNotificationName(_ a0: String, object a1: ObjCValue, userInfo a2: NSDictionary?)
     @ObjCMethod("removeObserver:") public func removeObserver(_ a0: ObjCValue)
     @ObjCMethod("removeObserver:name:object:") public func removeObserver(_ a0: ObjCValue, name a1: String?, object a2: ObjCValue)
 }
@@ -1215,7 +1215,7 @@ extension NSNotificationQueueMethods {
     @ObjCMethod("defaultQueue") public static func defaultQueue() -> NSNotificationQueue
     @ObjCMethod("initWithNotificationCenter:") public init(notificationCenter a0: some NSNotificationCenterMethods)
     @ObjCMethod("enqueueNotification:postingStyle:") public func enqueueNotification(_ a0: some NSNotificationMethods, postingStyle a1: Int)
-    @ObjCMethod("enqueueNotification:postingStyle:coalesceMask:forModes:") public func enqueueNotification(_ a0: some NSNotificationMethods, postingStyle a1: Int, coalesceMask a2: Int, forModes a3: (some NSArrayMethods)?)
+    @ObjCMethod("enqueueNotification:postingStyle:coalesceMask:forModes:") public func enqueueNotification(_ a0: some NSNotificationMethods, postingStyle a1: Int, coalesceMask a2: Int, forModes a3: NSArray?)
     @ObjCMethod("dequeueNotificationsMatching:coalesceMask:") public func dequeueNotificationsMatching(_ a0: some NSNotificationMethods, coalesceMask a1: Int)
 }
 
@@ -1380,21 +1380,21 @@ extension NSPortMethods {
     @ObjCMethod("scheduleInRunLoop:forMode:") public func scheduleInRunLoop(_ a0: some NSRunLoopMethods, forMode a1: String)
     @ObjCMethod("removeFromRunLoop:forMode:") public func removeFromRunLoop(_ a0: some NSRunLoopMethods, forMode a1: String)
     @ObjCProperty(readonly: true) public var reservedSpaceLength: Int
-    @ObjCMethod("sendBeforeDate:components:from:reserved:") public func sendBeforeDate(_ a0: some NSDateMethods, components a1: (some NSMutableArrayMethods)?, from a2: (some NSPortMethods)?, reserved a3: Int) -> Bool
-    @ObjCMethod("sendBeforeDate:msgid:components:from:reserved:") public func sendBeforeDate(_ a0: some NSDateMethods, msgid a1: Int, components a2: (some NSMutableArrayMethods)?, from a3: (some NSPortMethods)?, reserved a4: Int) -> Bool
+    @ObjCMethod("sendBeforeDate:components:from:reserved:") public func sendBeforeDate(_ a0: some NSDateMethods, components a1: NSMutableArray?, from a2: NSPort?, reserved a3: Int) -> Bool
+    @ObjCMethod("sendBeforeDate:msgid:components:from:reserved:") public func sendBeforeDate(_ a0: some NSDateMethods, msgid a1: Int, components a2: NSMutableArray?, from a3: NSPort?, reserved a4: Int) -> Bool
 }
 
 /// The Objective-C class NSPredicate, a subclass of NSObject.
 public protocol NSPredicateMethods: NSObjectMethods {}
 @ObjC public struct NSPredicate: NSPredicateMethods {}
 extension NSPredicateMethods {
-    @ObjCMethod("predicateWithFormat:argumentArray:") public static func predicateWithFormat(_ a0: String, argumentArray a1: (some NSArrayMethods)?) -> NSPredicate
+    @ObjCMethod("predicateWithFormat:argumentArray:") public static func predicateWithFormat(_ a0: String, argumentArray a1: NSArray?) -> NSPredicate
     @ObjCMethod("predicateWithFormat:arguments:") public static func predicateWithFormat(_ a0: String, arguments a1: ObjCValue) -> NSPredicate
     @ObjCMethod("predicateWithValue:") public static func predicateWithValue(_ a0: Bool) -> NSPredicate
     @ObjCProperty(readonly: true) public var predicateFormat: String
     @ObjCMethod("predicateWithSubstitutionVariables:") public func predicateWithSubstitutionVariables(_ a0: some NSDictionaryMethods) -> Self
     @ObjCMethod("evaluateWithObject:") public func evaluateWithObject(_ a0: ObjCValue) -> Bool
-    @ObjCMethod("evaluateWithObject:substitutionVariables:") public func evaluateWithObject(_ a0: ObjCValue, substitutionVariables a1: (some NSDictionaryMethods)?) -> Bool
+    @ObjCMethod("evaluateWithObject:substitutionVariables:") public func evaluateWithObject(_ a0: ObjCValue, substitutionVariables a1: NSDictionary?) -> Bool
 }
 
 /// The Objective-C class NSProcessInfo, a subclass of NSObject.
@@ -1599,7 +1599,7 @@ extension NSStringMethods {
     @ObjCMethod("rangeOfString:") public func rangeOfString(_ a0: String) -> NSRange
     @ObjCMethod("rangeOfString:options:") public func rangeOfString(_ a0: String, options a1: Int) -> NSRange
     @ObjCMethod("rangeOfString:options:range:") public func rangeOfString(_ a0: String, options a1: Int, range a2: NSRange) -> NSRange
-    @ObjCMethod("rangeOfString:options:range:locale:") public func rangeOfString(_ a0: String, options a1: Int, range a2: NSRange, locale a3: (some NSLocaleMethods)?) -> NSRange
+    @ObjCMethod("rangeOfString:options:range:locale:") public func rangeOfString(_ a0: String, options a1: Int, range a2: NSRange, locale a3: NSLocale?) -> NSRange
     @ObjCMethod("rangeOfCharacterFromSet:") public func rangeOfCharacterFromSet(_ a0: some NSCharacterSetMethods) -> NSRange
     @ObjCMethod("rangeOfCharacterFromSet:options:") public func rangeOfCharacterFromSet(_ a0: some NSCharacterSetMethods, options a1: Int) -> NSRange
     @ObjCMethod("rangeOfCharacterFromSet:options:range:") public func rangeOfCharacterFromSet(_ a0: some NSCharacterSetMethods, options a1: Int, range a2: NSRange) -> NSRange
@@ -1615,9 +1615,9 @@ extension NSStringMethods {
     @ObjCProperty(readonly: true) public var uppercaseString: String
     @ObjCProperty(readonly: true) public var lowercaseString: String
     @ObjCProperty(readonly: true) public var capitalizedString: String
-    @ObjCMethod("uppercaseStringWithLocale:") public func uppercaseStringWithLocale(_ a0: (some NSLocaleMethods)?) -> String
-    @ObjCMethod("lowercaseStringWithLocale:") public func lowercaseStringWithLocale(_ a0: (some NSLocaleMethods)?) -> String
-    @ObjCMethod("capitalizedStringWithLocale:") public func capitalizedStringWithLocale(_ a0: (some NSLocaleMethods)?) -> String
+    @ObjCMethod("uppercaseStringWithLocale:") public func uppercaseStringWithLocale(_ a0: NSLocale?) -> String
+    @ObjCMethod("lowercaseStringWithLocale:") public func lowercaseStringWithLocale(_ a0: NSLocale?) -> String
+    @ObjCMethod("capitalizedStringWithLocale:") public func capitalizedStringWithLocale(_ a0: NSLocale?) -> String
     @ObjCMethod("getLineStart:end:contentsEnd:forRange:") public func getLineStart(_ a0: ObjCValue, end a1: ObjCValue, contentsEnd a2: ObjCValue, forRange a3: NSRange)
     @ObjCMethod("lineRangeForRange:") public func lineRangeForRange(_ a0: NSRange) -> NSRange
     @ObjCMethod("getParagraphStart:end:contentsEnd:forRange:") public func getParagraphStart(_ a0: ObjCValue, end a1: ObjCValue, contentsEnd a2: ObjCValue, forRange a3: NSRange)
@@ -1644,7 +1644,7 @@ extension NSStringMethods {
     @ObjCMethod("componentsSeparatedByCharactersInSet:") public func componentsSeparatedByCharactersInSet(_ a0: some NSCharacterSetMethods) -> NSArray
     @ObjCMethod("stringByTrimmingCharactersInSet:") public func stringByTrimmingCharactersInSet(_ a0: some NSCharacterSetMethods) -> String
     @ObjCMethod("stringByPaddingToLength:withString:startingAtIndex:") public func stringByPaddingToLength(_ a0: Int, withString a1: String, startingAtIndex a2: Int) -> String
-    @ObjCMethod("stringByFoldingWithOptions:locale:") public func stringByFoldingWithOptions(_ a0: Int, locale a1: (some NSLocaleMethods)?) -> String
+    @ObjCMethod("stringByFoldingWithOptions:locale:") public func stringByFoldingWithOptions(_ a0: Int, locale a1: NSLocale?) -> String
     @ObjCMethod("stringByReplacingOccurrencesOfString:withString:options:range:") public func stringByReplacingOccurrencesOfString(_ a0: String, withString a1: String, options a2: Int, range a3: NSRange) -> String
     @ObjCMethod("stringByReplacingOccurrencesOfString:withString:") public func stringByReplacingOccurrencesOfString(_ a0: String, withString a1: String) -> String
     @ObjCMethod("stringByReplacingCharactersInRange:withString:") public func stringByReplacingCharactersInRange(_ a0: NSRange, withString a1: String) -> String
@@ -1707,12 +1707,12 @@ extension NSStringMethods {
     @ObjCProperty(readonly: true) public var stringByStandardizingPath: String
     @ObjCProperty(readonly: true) public var stringByResolvingSymlinksInPath: String
     @ObjCMethod("stringsByAppendingPaths:") public func stringsByAppendingPaths(_ a0: some NSArrayMethods) -> NSArray
-    @ObjCMethod("completePathIntoString:caseSensitive:matchesIntoArray:filterTypes:") public func completePathIntoString(_ a0: ObjCValue, caseSensitive a1: Bool, matchesIntoArray a2: ObjCValue, filterTypes a3: (some NSArrayMethods)?) -> Int
+    @ObjCMethod("completePathIntoString:caseSensitive:matchesIntoArray:filterTypes:") public func completePathIntoString(_ a0: ObjCValue, caseSensitive a1: Bool, matchesIntoArray a2: ObjCValue, filterTypes a3: NSArray?) -> Int
     @ObjCProperty(readonly: true) public var fileSystemRepresentation: ObjCValue
     @ObjCMethod("getFileSystemRepresentation:maxLength:") public func getFileSystemRepresentation(_ a0: String?, maxLength a1: Int) -> Bool
     @ObjCMethod("stringByAddingPercentEscapesUsingEncoding:") public func stringByAddingPercentEscapesUsingEncoding(_ a0: Int) -> String?
     @ObjCMethod("stringByReplacingPercentEscapesUsingEncoding:") public func stringByReplacingPercentEscapesUsingEncoding(_ a0: Int) -> String?
-    @ObjCMethod("linguisticTagsInRange:scheme:options:orthography:tokenRanges:") public func linguisticTagsInRange(_ a0: NSRange, scheme a1: String, options a2: Int, orthography a3: (some NSOrthographyMethods)?, tokenRanges a4: ObjCValue) -> NSArray
+    @ObjCMethod("linguisticTagsInRange:scheme:options:orthography:tokenRanges:") public func linguisticTagsInRange(_ a0: NSRange, scheme a1: String, options a2: Int, orthography a3: NSOrthography?, tokenRanges a4: ObjCValue) -> NSArray
 }
 
 /// The Objective-C class NSTextCheckingResult, a subclass of NSObject.
@@ -1804,11 +1804,11 @@ extension NSTimeZoneMethods {
     @ObjCProperty(readonly: true) public var daylightSavingTimeOffset: Double
     @ObjCProperty(readonly: true) public var nextDaylightSavingTimeTransition: NSDate?
     @ObjCMethod("isEqualToTimeZone:") public func isEqualToTimeZone(_ a0: some NSTimeZoneMethods) -> Bool
-    @ObjCMethod("localizedName:locale:") public func localizedName(_ a0: Int, locale a1: (some NSLocaleMethods)?) -> String?
+    @ObjCMethod("localizedName:locale:") public func localizedName(_ a0: Int, locale a1: NSLocale?) -> String?
     @ObjCMethod("timeZoneWithName:") public static func timeZoneWithName(_ a0: String) -> Self?
-    @ObjCMethod("timeZoneWithName:data:") public static func timeZoneWithName(_ a0: String, data a1: (some NSDataMethods)?) -> Self?
+    @ObjCMethod("timeZoneWithName:data:") public static func timeZoneWithName(_ a0: String, data a1: NSData?) -> Self?
     @ObjCMethod("initWithName:") public init(name a0: String)
-    @ObjCMethod("initWithName:data:") public init(name a0: String, data a1: (some NSDataMethods)?)
+    @ObjCMethod("initWithName:data:") public init(name a0: String, data a1: NSData?)
     @ObjCMethod("timeZoneForSecondsFromGMT:") public static func timeZoneForSecondsFromGMT(_ a0: Int) -> Self
     @ObjCMethod("timeZoneWithAbbreviation:") public static func timeZoneWithAbbreviation(_ a0: String) -> Self?
 }
@@ -1840,9 +1840,9 @@ extension NSURLMethods {
     @ObjCMethod("fileURLWithPath:isDirectory:") public static func fileURLWithPath(_ a0: String, isDirectory a1: Bool) -> NSURL
     @ObjCMethod("fileURLWithPath:") public static func fileURLWithPath(_ a0: String) -> NSURL
     @ObjCMethod("initWithString:") public init(string a0: String)
-    @ObjCMethod("initWithString:relativeToURL:") public init(string a0: String, relativeToURL a1: (some NSURLMethods)?)
+    @ObjCMethod("initWithString:relativeToURL:") public init(string a0: String, relativeToURL a1: NSURL?)
     @ObjCMethod("URLWithString:") public static func URLWithString(_ a0: String) -> Self?
-    @ObjCMethod("URLWithString:relativeToURL:") public static func URLWithString(_ a0: String, relativeToURL a1: (some NSURLMethods)?) -> Self?
+    @ObjCMethod("URLWithString:relativeToURL:") public static func URLWithString(_ a0: String, relativeToURL a1: NSURL?) -> Self?
     @ObjCProperty(readonly: true) public var absoluteString: String
     @ObjCProperty(readonly: true) public var relativeString: String?
     @ObjCProperty(readonly: true) public var baseURL: NSURL?
@@ -1868,9 +1868,9 @@ extension NSURLMethods {
     @ObjCMethod("resourceValuesForKeys:error:") public func resourceValuesForKeys(_ a0: some NSArrayMethods, error a1: ObjCValue) -> NSDictionary?
     @ObjCMethod("setResourceValue:forKey:error:") public func setResourceValue(_ a0: ObjCValue, forKey a1: String, error a2: ObjCValue) -> Bool
     @ObjCMethod("setResourceValues:error:") public func setResourceValues(_ a0: some NSDictionaryMethods, error a1: ObjCValue) -> Bool
-    @ObjCMethod("bookmarkDataWithOptions:includingResourceValuesForKeys:relativeToURL:error:") public func bookmarkDataWithOptions(_ a0: Int, includingResourceValuesForKeys a1: (some NSArrayMethods)?, relativeToURL a2: (some NSURLMethods)?, error a3: ObjCValue) -> NSData?
-    @ObjCMethod("initByResolvingBookmarkData:options:relativeToURL:bookmarkDataIsStale:error:") public init(byResolvingBookmarkData a0: some NSDataMethods, options a1: Int, relativeToURL a2: (some NSURLMethods)?, bookmarkDataIsStale a3: ObjCValue, error a4: ObjCValue)
-    @ObjCMethod("URLByResolvingBookmarkData:options:relativeToURL:bookmarkDataIsStale:error:") public static func URLByResolvingBookmarkData(_ a0: some NSDataMethods, options a1: Int, relativeToURL a2: (some NSURLMethods)?, bookmarkDataIsStale a3: ObjCValue, error a4: ObjCValue) -> Self?
+    @ObjCMethod("bookmarkDataWithOptions:includingResourceValuesForKeys:relativeToURL:error:") public func bookmarkDataWithOptions(_ a0: Int, includingResourceValuesForKeys a1: NSArray?, relativeToURL a2: NSURL?, error a3: ObjCValue) -> NSData?
+    @ObjCMethod("initByResolvingBookmarkData:options:relativeToURL:bookmarkDataIsStale:error:") public init(byResolvingBookmarkData a0: some NSDataMethods, options a1: Int, relativeToURL a2: NSURL?, bookmarkDataIsStale a3: ObjCValue, error a4: ObjCValue)
+    @ObjCMethod("URLByResolvingBookmarkData:options:relativeToURL:bookmarkDataIsStale:error:") public static func URLByResolvingBookmarkData(_ a0: some NSDataMethods, options a1: Int, relativeToURL a2: NSURL?, bookmarkDataIsStale a3: ObjCValue, error a4: ObjCValue) -> Self?
     @ObjCMethod("resourceValuesForKeys:fromBookmarkData:") public static func resourceValuesForKeys(_ a0: some NSArrayMethods, fromBookmarkData a1: some NSDataMethods) -> NSDictionary?
     @ObjCMethod("writeBookmarkData:toURL:options:error:") public static func writeBookmarkData(_ a0: some NSDataMethods, toURL a1: some NSURLMethods, options a2: Int, error a3: ObjCValue) -> Bool
     @ObjCMethod("bookmarkDataWithContentsOfURL:error:") public static func bookmarkDataWithContentsOfURL(_ a0: some NSURLMethods, error a1: ObjCValue) -> NSData?
@@ -1891,7 +1891,7 @@ extension NSURLMethods {
 public protocol NSURLAuthenticationChallengeMethods: NSObjectMethods {}
 @ObjC public struct NSURLAuthenticationChallenge: NSURLAuthenticationChallengeMethods {}
 extension NSURLAuthenticationChallengeMethods {
-    @ObjCMethod("initWithProtectionSpace:proposedCredential:previousFailureCount:failureResponse:error:sender:") public init(protectionSpace a0: some NSURLProtectionSpaceMethods, proposedCredential a1: (some NSURLCredentialMethods)?, previousFailureCount a2: Int, failureResponse a3: (some NSURLResponseMethods)?, error a4: (some NSErrorMethods)?, sender a5: ObjCValue)
+    @ObjCMethod("initWithProtectionSpace:proposedCredential:previousFailureCount:failureResponse:error:sender:") public init(protectionSpace a0: some NSURLProtectionSpaceMethods, proposedCredential a1: NSURLCredential?, previousFailureCount a2: Int, failureResponse a3: NSURLResponse?, error a4: NSError?, sender a5: ObjCValue)
     @ObjCMethod("initWithAuthenticationChallenge:sender:") public init(authenticationChallenge a0: some NSURLAuthenticationChallengeMethods, sender a1: ObjCValue)
     @ObjCProperty(readonly: true) public var protectionSpace: NSURLProtectionSpace
     @ObjCProperty(readonly: true) public var proposedCredential: NSURLCredential?
@@ -1931,7 +1931,7 @@ extension NSURLConnectionMethods {
     @ObjCMethod("cancel") public func cancel()
     @ObjCMethod("scheduleInRunLoop:forMode:") public func scheduleInRunLoop(_ a0: some NSRunLoopMethods, forMode a1: String)
     @ObjCMethod("unscheduleFromRunLoop:forMode:") public func unscheduleFromRunLoop(_ a0: some NSRunLoopMethods, forMode a1: String)
-    @ObjCMethod("setDelegateQueue:") public func setDelegateQueue(_ a0: (some NSOperationQueueMethods)?)
+    @ObjCMethod("setDelegateQueue:") public func setDelegateQueue(_ a0: NSOperationQueue?)
     @ObjCMethod("canHandleRequest:") public static func canHandleRequest(_ a0: some NSURLRequestMethods) -> Bool
     @ObjCMethod("sendSynchronousRequest:returningResponse:error:") public static func sendSynchronousRequest(_ a0: some NSURLRequestMethods, returningResponse a1: ObjCValue, error a2: ObjCValue) -> NSData?
 }
@@ -1946,8 +1946,8 @@ extension NSURLCredentialMethods {
     @ObjCProperty(readonly: true) public var user: String?
     @ObjCProperty(readonly: true) public var password: String?
     @ObjCProperty(readonly: true) public var hasPassword: Bool
-    @ObjCMethod("initWithIdentity:certificates:persistence:") public init(identity a0: ObjCValue, certificates a1: (some NSArrayMethods)?, persistence a2: Int)
-    @ObjCMethod("credentialWithIdentity:certificates:persistence:") public static func credentialWithIdentity(_ a0: ObjCValue, certificates a1: (some NSArrayMethods)?, persistence a2: Int) -> NSURLCredential
+    @ObjCMethod("initWithIdentity:certificates:persistence:") public init(identity a0: ObjCValue, certificates a1: NSArray?, persistence a2: Int)
+    @ObjCMethod("credentialWithIdentity:certificates:persistence:") public static func credentialWithIdentity(_ a0: ObjCValue, certificates a1: NSArray?, persistence a2: Int) -> NSURLCredential
     @ObjCProperty(readonly: true) public var identity: ObjCValue
     @ObjCProperty(readonly: true) public var certificates: NSArray?
     @ObjCMethod("initWithTrust:") public init(trust a0: ObjCValue)
@@ -1989,7 +1989,7 @@ extension NSURLProtectionSpaceMethods {
 public protocol NSURLProtocolMethods: NSObjectMethods {}
 @ObjC public struct NSURLProtocol: NSURLProtocolMethods {}
 extension NSURLProtocolMethods {
-    @ObjCMethod("initWithRequest:cachedResponse:client:") public init(request a0: some NSURLRequestMethods, cachedResponse a1: (some NSCachedURLResponseMethods)?, client a2: ObjCValue)
+    @ObjCMethod("initWithRequest:cachedResponse:client:") public init(request a0: some NSURLRequestMethods, cachedResponse a1: NSCachedURLResponse?, client a2: ObjCValue)
     @ObjCProperty(readonly: true) public var client: ObjCValue
     @ObjCProperty(readonly: true) public var request: NSURLRequest
     @ObjCProperty(readonly: true) public var cachedResponse: NSCachedURLResponse?
@@ -2068,9 +2068,9 @@ extension NSUbiquitousKeyValueStoreMethods {
     @ObjCMethod("doubleForKey:") public func doubleForKey(_ a0: String) -> Double
     @ObjCMethod("boolForKey:") public func boolForKey(_ a0: String) -> Bool
     @ObjCMethod("setString:forKey:") public func setString(_ a0: String?, forKey a1: String)
-    @ObjCMethod("setData:forKey:") public func setData(_ a0: (some NSDataMethods)?, forKey a1: String)
-    @ObjCMethod("setArray:forKey:") public func setArray(_ a0: (some NSArrayMethods)?, forKey a1: String)
-    @ObjCMethod("setDictionary:forKey:") public func setDictionary(_ a0: (some NSDictionaryMethods)?, forKey a1: String)
+    @ObjCMethod("setData:forKey:") public func setData(_ a0: NSData?, forKey a1: String)
+    @ObjCMethod("setArray:forKey:") public func setArray(_ a0: NSArray?, forKey a1: String)
+    @ObjCMethod("setDictionary:forKey:") public func setDictionary(_ a0: NSDictionary?, forKey a1: String)
     @ObjCMethod("setLongLong:forKey:") public func setLongLong(_ a0: Int64, forKey a1: String)
     @ObjCMethod("setDouble:forKey:") public func setDouble(_ a0: Double, forKey a1: String)
     @ObjCMethod("setBool:forKey:") public func setBool(_ a0: Bool, forKey a1: String)
@@ -2138,7 +2138,7 @@ extension NSUserDefaultsMethods {
     @ObjCMethod("setFloat:forKey:") public func setFloat(_ a0: Float, forKey a1: String)
     @ObjCMethod("setDouble:forKey:") public func setDouble(_ a0: Double, forKey a1: String)
     @ObjCMethod("setBool:forKey:") public func setBool(_ a0: Bool, forKey a1: String)
-    @ObjCMethod("setURL:forKey:") public func setURL(_ a0: (some NSURLMethods)?, forKey a1: String)
+    @ObjCMethod("setURL:forKey:") public func setURL(_ a0: NSURL?, forKey a1: String)
     @ObjCMethod("registerDefaults:") public func registerDefaults(_ a0: some NSDictionaryMethods)
     @ObjCMethod("addSuiteNamed:") public func addSuiteNamed(_ a0: String)
     @ObjCMethod("removeSuiteNamed:") public func removeSuiteNamed(_ a0: String)
@@ -2179,7 +2179,7 @@ extension NSValueMethods {
 public protocol NSValueTransformerMethods: NSObjectMethods {}
 @ObjC public struct NSValueTransformer: NSValueTransformerMethods {}
 extension NSValueTransformerMethods {
-    @ObjCMethod("setValueTransformer:forName:") public static func setValueTransformer(_ a0: (some NSValueTransformerMethods)?, forName a1: String)
+    @ObjCMethod("setValueTransformer:forName:") public static func setValueTransformer(_ a0: NSValueTransformer?, forName a1: String)
     @ObjCMethod("valueTransformerForName:") public static func valueTransformerForName(_ a0: String) -> NSValueTransformer?
     @ObjCMethod("valueTransformerNames") public static func valueTransformerNames() -> NSArray
     @ObjCMethod("transformedValueClass") public static func transformedValueClass() -> ObjCValue
@@ -2278,7 +2278,7 @@ extension NSDateFormatterMethods {
     @ObjCMethod("stringFromDate:") public func stringFromDate(_ a0: some NSDateMethods) -> String
     @ObjCMethod("dateFromString:") public func dateFromString(_ a0: String) -> NSDate?
     @ObjCMethod("localizedStringFromDate:dateStyle:timeStyle:") public static func localizedStringFromDate(_ a0: some NSDateMethods, dateStyle a1: Int, timeStyle a2: Int) -> String
-    @ObjCMethod("dateFormatFromTemplate:options:locale:") public static func dateFormatFromTemplate(_ a0: String, options a1: Int, locale a2: (some NSLocaleMethods)?) -> String?
+    @ObjCMethod("dateFormatFromTemplate:options:locale:") public static func dateFormatFromTemplate(_ a0: String, options a1: Int, locale a2: NSLocale?) -> String?
     @ObjCMethod("defaultFormatterBehavior") public static func defaultFormatterBehavior() -> Int
     @ObjCMethod("setDefaultFormatterBehavior:") public static func setDefaultFormatterBehavior(_ a0: Int)
     @ObjCProperty public var dateFormat: String?
@@ -2331,7 +2331,7 @@ extension NSDirectoryEnumeratorMethods {
 public protocol NSHTTPURLResponseMethods: NSURLResponseMethods {}
 @ObjC public struct NSHTTPURLResponse: NSHTTPURLResponseMethods {}
 extension NSHTTPURLResponseMethods {
-    @ObjCMethod("initWithURL:statusCode:HTTPVersion:headerFields:") public init(url a0: some NSURLMethods, statusCode a1: Int, HTTPVersion a2: String?, headerFields a3: (some NSDictionaryMethods)?)
+    @ObjCMethod("initWithURL:statusCode:HTTPVersion:headerFields:") public init(url a0: some NSURLMethods, statusCode a1: Int, HTTPVersion a2: String?, headerFields a3: NSDictionary?)
     @ObjCProperty(readonly: true) public var statusCode: Int
     @ObjCProperty(readonly: true) public var allHeaderFields: NSDictionary
     @ObjCMethod("localizedStringForStatusCode:") public static func localizedStringForStatusCode(_ a0: Int) -> String
@@ -2446,7 +2446,7 @@ public protocol NSMutableAttributedStringMethods: NSAttributedStringMethods {}
 @ObjC public struct NSMutableAttributedString: NSMutableAttributedStringMethods {}
 extension NSMutableAttributedStringMethods {
     @ObjCMethod("replaceCharactersInRange:withString:") public func replaceCharactersInRange(_ a0: NSRange, withString a1: String)
-    @ObjCMethod("setAttributes:range:") public func setAttributes(_ a0: (some NSDictionaryMethods)?, range a1: NSRange)
+    @ObjCMethod("setAttributes:range:") public func setAttributes(_ a0: NSDictionary?, range a1: NSRange)
     @ObjCProperty(readonly: true) public var mutableString: NSMutableString
     @ObjCMethod("addAttribute:value:range:") public func addAttribute(_ a0: String, value a1: ObjCValue, range a2: NSRange)
     @ObjCMethod("addAttributes:range:") public func addAttributes(_ a0: some NSDictionaryMethods, range a1: NSRange)
@@ -2631,6 +2631,7 @@ extension NSNumberMethods {
     @ObjCMethod("numberWithBool:") public static func numberWithBool(_ a0: Bool) -> NSNumber
     @ObjCMethod("numberWithInteger:") public static func numberWithInteger(_ a0: Int) -> NSNumber
     @ObjCMethod("numberWithUnsignedInteger:") public static func numberWithUnsignedInteger(_ a0: Int) -> NSNumber
+    @ObjCProperty(readonly: true) public var decimalValue: ObjCValue
 }
 
 /// The Objective-C class NSNumberFormatter, a subclass of NSFormatter.
@@ -2744,9 +2745,11 @@ public protocol NSDecimalNumberMethods: NSNumberMethods {}
 @ObjC public struct NSDecimalNumber: NSDecimalNumberMethods {}
 extension NSDecimalNumberMethods {
     @ObjCMethod("initWithMantissa:exponent:isNegative:") public init(mantissa a0: Int64, exponent a1: Int, isNegative a2: Bool)
+    @ObjCMethod("initWithDecimal:") public init(decimal a0: ObjCValue)
     @ObjCMethod("initWithString:") public init(string a0: String?)
     @ObjCMethod("initWithString:locale:") public init(string a0: String?, locale a1: ObjCValue)
     @ObjCMethod("decimalNumberWithMantissa:exponent:isNegative:") public static func decimalNumberWithMantissa(_ a0: Int64, exponent a1: Int, isNegative a2: Bool) -> NSDecimalNumber
+    @ObjCMethod("decimalNumberWithDecimal:") public static func decimalNumberWithDecimal(_ a0: ObjCValue) -> NSDecimalNumber
     @ObjCMethod("decimalNumberWithString:") public static func decimalNumberWithString(_ a0: String?) -> NSDecimalNumber
     @ObjCMethod("decimalNumberWithString:locale:") public static func decimalNumberWithString(_ a0: String?, locale a1: ObjCValue) -> NSDecimalNumber
     @ObjCMethod("zero") public static func zero() -> NSDecimalNumber

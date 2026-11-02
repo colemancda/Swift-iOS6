@@ -4,6 +4,58 @@
 import ObjCInterop
 import Foundation
 
+/// The C struct UIEdgeInsets.
+public struct UIEdgeInsets: Equatable, ObjCConvertible, ObjCResult {
+    public var top: Float
+    public var left: Float
+    public var bottom: Float
+    public var right: Float
+    public init(top: Float, left: Float, bottom: Float, right: Float) {
+        self.top = top
+        self.left = left
+        self.bottom = bottom
+        self.right = right
+    }
+    public var objcValue: ObjCValue {
+        var words: [UInt] = []
+        words.append(UInt(top.bitPattern))
+        words.append(UInt(left.bitPattern))
+        words.append(UInt(bottom.bitPattern))
+        words.append(UInt(right.bitPattern))
+        return ObjCValue(ObjCStruct(words: words))
+    }
+    public init(objcValue: ObjCValue) {
+        let words = objcValue.asStruct?.words ?? []
+        func word(_ index: Int) -> UInt { index < words.count ? words[index] : 0 }
+        top = Float(bitPattern: UInt32(truncatingIfNeeded: word(0)))
+        left = Float(bitPattern: UInt32(truncatingIfNeeded: word(1)))
+        bottom = Float(bitPattern: UInt32(truncatingIfNeeded: word(2)))
+        right = Float(bitPattern: UInt32(truncatingIfNeeded: word(3)))
+    }
+}
+
+/// The C struct UIOffset.
+public struct UIOffset: Equatable, ObjCConvertible, ObjCResult {
+    public var horizontal: Float
+    public var vertical: Float
+    public init(horizontal: Float, vertical: Float) {
+        self.horizontal = horizontal
+        self.vertical = vertical
+    }
+    public var objcValue: ObjCValue {
+        var words: [UInt] = []
+        words.append(UInt(horizontal.bitPattern))
+        words.append(UInt(vertical.bitPattern))
+        return ObjCValue(ObjCStruct(words: words))
+    }
+    public init(objcValue: ObjCValue) {
+        let words = objcValue.asStruct?.words ?? []
+        func word(_ index: Int) -> UInt { index < words.count ? words[index] : 0 }
+        horizontal = Float(bitPattern: UInt32(truncatingIfNeeded: word(0)))
+        vertical = Float(bitPattern: UInt32(truncatingIfNeeded: word(1)))
+    }
+}
+
 /// UIKit additions to NSObject.
 extension NSObjectMethods {
     @ObjCMethod("cut:") public func cut(_ a0: ObjCValue)
@@ -47,13 +99,13 @@ extension NSAttributedStringMethods {
     @ObjCMethod("size") public func size() -> CGSize
     @ObjCMethod("drawAtPoint:") public func drawAtPoint(_ a0: CGPoint)
     @ObjCMethod("drawInRect:") public func drawInRect(_ a0: CGRect)
-    @ObjCMethod("drawWithRect:options:context:") public func drawWithRect(_ a0: CGRect, options a1: Int, context a2: (some NSStringDrawingContextMethods)?)
-    @ObjCMethod("boundingRectWithSize:options:context:") public func boundingRectWithSize(_ a0: CGSize, options a1: Int, context a2: (some NSStringDrawingContextMethods)?) -> CGRect
+    @ObjCMethod("drawWithRect:options:context:") public func drawWithRect(_ a0: CGRect, options a1: Int, context a2: NSStringDrawingContext?)
+    @ObjCMethod("boundingRectWithSize:options:context:") public func boundingRectWithSize(_ a0: CGSize, options a1: Int, context a2: NSStringDrawingContext?) -> CGRect
 }
 
 /// UIKit additions to NSBundle.
 extension NSBundleMethods {
-    @ObjCMethod("loadNibNamed:owner:options:") public func loadNibNamed(_ a0: String?, owner a1: ObjCValue, options a2: (some NSDictionaryMethods)?) -> NSArray?
+    @ObjCMethod("loadNibNamed:owner:options:") public func loadNibNamed(_ a0: String?, owner a1: ObjCValue, options a2: NSDictionary?) -> NSArray?
 }
 
 /// UIKit additions to NSCoder.
@@ -63,15 +115,15 @@ extension NSCoderMethods {
     @ObjCMethod("encodeCGSize:forKey:") public func encodeCGSize(_ a0: CGSize, forKey a1: String)
     @ObjCMethod("encodeCGRect:forKey:") public func encodeCGRect(_ a0: CGRect, forKey a1: String)
     @ObjCMethod("encodeCGAffineTransform:forKey:") public func encodeCGAffineTransform(_ a0: ObjCValue, forKey a1: String)
-    @ObjCMethod("encodeUIEdgeInsets:forKey:") public func encodeUIEdgeInsets(_ a0: ObjCValue, forKey a1: String)
-    @ObjCMethod("encodeUIOffset:forKey:") public func encodeUIOffset(_ a0: ObjCValue, forKey a1: String)
+    @ObjCMethod("encodeUIEdgeInsets:forKey:") public func encodeUIEdgeInsets(_ a0: UIEdgeInsets, forKey a1: String)
+    @ObjCMethod("encodeUIOffset:forKey:") public func encodeUIOffset(_ a0: UIOffset, forKey a1: String)
     @ObjCMethod("decodeCGPointForKey:") public func decodeCGPointForKey(_ a0: String) -> CGPoint
     @ObjCMethod("decodeCGVectorForKey:") public func decodeCGVectorForKey(_ a0: String) -> ObjCValue
     @ObjCMethod("decodeCGSizeForKey:") public func decodeCGSizeForKey(_ a0: String) -> CGSize
     @ObjCMethod("decodeCGRectForKey:") public func decodeCGRectForKey(_ a0: String) -> CGRect
     @ObjCMethod("decodeCGAffineTransformForKey:") public func decodeCGAffineTransformForKey(_ a0: String) -> ObjCValue
-    @ObjCMethod("decodeUIEdgeInsetsForKey:") public func decodeUIEdgeInsetsForKey(_ a0: String) -> ObjCValue
-    @ObjCMethod("decodeUIOffsetForKey:") public func decodeUIOffsetForKey(_ a0: String) -> ObjCValue
+    @ObjCMethod("decodeUIEdgeInsetsForKey:") public func decodeUIEdgeInsetsForKey(_ a0: String) -> UIEdgeInsets
+    @ObjCMethod("decodeUIOffsetForKey:") public func decodeUIOffsetForKey(_ a0: String) -> UIOffset
 }
 
 /// UIKit additions to NSIndexPath.
@@ -87,7 +139,7 @@ extension NSIndexPathMethods {
 public protocol NSLayoutConstraintMethods: NSObjectMethods {}
 @ObjC public struct NSLayoutConstraint: NSLayoutConstraintMethods {}
 extension NSLayoutConstraintMethods {
-    @ObjCMethod("constraintsWithVisualFormat:options:metrics:views:") public static func constraintsWithVisualFormat(_ a0: String, options a1: Int, metrics a2: (some NSDictionaryMethods)?, views a3: some NSDictionaryMethods) -> NSArray
+    @ObjCMethod("constraintsWithVisualFormat:options:metrics:views:") public static func constraintsWithVisualFormat(_ a0: String, options a1: Int, metrics a2: NSDictionary?, views a3: some NSDictionaryMethods) -> NSArray
     @ObjCMethod("constraintWithItem:attribute:relatedBy:toItem:attribute:multiplier:constant:") public static func constraintWithItem(_ a0: ObjCValue, attribute a1: Int, relatedBy a2: Int, toItem a3: ObjCValue, attribute a4: Int, multiplier a5: Float, constant a6: Float) -> Self
     @ObjCProperty public var priority: Float
     @ObjCProperty public var shouldBeArchived: Bool
@@ -133,18 +185,18 @@ extension NSShadowMethods {
 
 /// UIKit additions to NSString.
 extension NSStringMethods {
-    @ObjCMethod("sizeWithFont:") public func sizeWithFont(_ a0: (some UIFontMethods)?) -> CGSize
-    @ObjCMethod("sizeWithFont:forWidth:lineBreakMode:") public func sizeWithFont(_ a0: (some UIFontMethods)?, forWidth a1: Float, lineBreakMode a2: Int) -> CGSize
-    @ObjCMethod("drawAtPoint:withFont:") public func drawAtPoint(_ a0: CGPoint, withFont a1: (some UIFontMethods)?) -> CGSize
-    @ObjCMethod("drawAtPoint:forWidth:withFont:lineBreakMode:") public func drawAtPoint(_ a0: CGPoint, forWidth a1: Float, withFont a2: (some UIFontMethods)?, lineBreakMode a3: Int) -> CGSize
-    @ObjCMethod("sizeWithFont:constrainedToSize:") public func sizeWithFont(_ a0: (some UIFontMethods)?, constrainedToSize a1: CGSize) -> CGSize
-    @ObjCMethod("sizeWithFont:constrainedToSize:lineBreakMode:") public func sizeWithFont(_ a0: (some UIFontMethods)?, constrainedToSize a1: CGSize, lineBreakMode a2: Int) -> CGSize
-    @ObjCMethod("drawInRect:withFont:") public func drawInRect(_ a0: CGRect, withFont a1: (some UIFontMethods)?) -> CGSize
-    @ObjCMethod("drawInRect:withFont:lineBreakMode:") public func drawInRect(_ a0: CGRect, withFont a1: (some UIFontMethods)?, lineBreakMode a2: Int) -> CGSize
-    @ObjCMethod("drawInRect:withFont:lineBreakMode:alignment:") public func drawInRect(_ a0: CGRect, withFont a1: (some UIFontMethods)?, lineBreakMode a2: Int, alignment a3: Int) -> CGSize
-    @ObjCMethod("sizeWithFont:minFontSize:actualFontSize:forWidth:lineBreakMode:") public func sizeWithFont(_ a0: (some UIFontMethods)?, minFontSize a1: Float, actualFontSize a2: ObjCValue, forWidth a3: Float, lineBreakMode a4: Int) -> CGSize
-    @ObjCMethod("drawAtPoint:forWidth:withFont:fontSize:lineBreakMode:baselineAdjustment:") public func drawAtPoint(_ a0: CGPoint, forWidth a1: Float, withFont a2: (some UIFontMethods)?, fontSize a3: Float, lineBreakMode a4: Int, baselineAdjustment a5: Int) -> CGSize
-    @ObjCMethod("drawAtPoint:forWidth:withFont:minFontSize:actualFontSize:lineBreakMode:baselineAdjustment:") public func drawAtPoint(_ a0: CGPoint, forWidth a1: Float, withFont a2: (some UIFontMethods)?, minFontSize a3: Float, actualFontSize a4: ObjCValue, lineBreakMode a5: Int, baselineAdjustment a6: Int) -> CGSize
+    @ObjCMethod("sizeWithFont:") public func sizeWithFont(_ a0: UIFont?) -> CGSize
+    @ObjCMethod("sizeWithFont:forWidth:lineBreakMode:") public func sizeWithFont(_ a0: UIFont?, forWidth a1: Float, lineBreakMode a2: Int) -> CGSize
+    @ObjCMethod("drawAtPoint:withFont:") public func drawAtPoint(_ a0: CGPoint, withFont a1: UIFont?) -> CGSize
+    @ObjCMethod("drawAtPoint:forWidth:withFont:lineBreakMode:") public func drawAtPoint(_ a0: CGPoint, forWidth a1: Float, withFont a2: UIFont?, lineBreakMode a3: Int) -> CGSize
+    @ObjCMethod("sizeWithFont:constrainedToSize:") public func sizeWithFont(_ a0: UIFont?, constrainedToSize a1: CGSize) -> CGSize
+    @ObjCMethod("sizeWithFont:constrainedToSize:lineBreakMode:") public func sizeWithFont(_ a0: UIFont?, constrainedToSize a1: CGSize, lineBreakMode a2: Int) -> CGSize
+    @ObjCMethod("drawInRect:withFont:") public func drawInRect(_ a0: CGRect, withFont a1: UIFont?) -> CGSize
+    @ObjCMethod("drawInRect:withFont:lineBreakMode:") public func drawInRect(_ a0: CGRect, withFont a1: UIFont?, lineBreakMode a2: Int) -> CGSize
+    @ObjCMethod("drawInRect:withFont:lineBreakMode:alignment:") public func drawInRect(_ a0: CGRect, withFont a1: UIFont?, lineBreakMode a2: Int, alignment a3: Int) -> CGSize
+    @ObjCMethod("sizeWithFont:minFontSize:actualFontSize:forWidth:lineBreakMode:") public func sizeWithFont(_ a0: UIFont?, minFontSize a1: Float, actualFontSize a2: ObjCValue, forWidth a3: Float, lineBreakMode a4: Int) -> CGSize
+    @ObjCMethod("drawAtPoint:forWidth:withFont:fontSize:lineBreakMode:baselineAdjustment:") public func drawAtPoint(_ a0: CGPoint, forWidth a1: Float, withFont a2: UIFont?, fontSize a3: Float, lineBreakMode a4: Int, baselineAdjustment a5: Int) -> CGSize
+    @ObjCMethod("drawAtPoint:forWidth:withFont:minFontSize:actualFontSize:lineBreakMode:baselineAdjustment:") public func drawAtPoint(_ a0: CGPoint, forWidth a1: Float, withFont a2: UIFont?, minFontSize a3: Float, actualFontSize a4: ObjCValue, lineBreakMode a5: Int, baselineAdjustment a6: Int) -> CGSize
 }
 
 /// The Objective-C class NSStringDrawingContext, a subclass of NSObject.
@@ -165,15 +217,15 @@ extension NSValueMethods {
     @ObjCMethod("valueWithCGSize:") public static func valueWithCGSize(_ a0: CGSize) -> NSValue
     @ObjCMethod("valueWithCGRect:") public static func valueWithCGRect(_ a0: CGRect) -> NSValue
     @ObjCMethod("valueWithCGAffineTransform:") public static func valueWithCGAffineTransform(_ a0: ObjCValue) -> NSValue
-    @ObjCMethod("valueWithUIEdgeInsets:") public static func valueWithUIEdgeInsets(_ a0: ObjCValue) -> NSValue
-    @ObjCMethod("valueWithUIOffset:") public static func valueWithUIOffset(_ a0: ObjCValue) -> NSValue
+    @ObjCMethod("valueWithUIEdgeInsets:") public static func valueWithUIEdgeInsets(_ a0: UIEdgeInsets) -> NSValue
+    @ObjCMethod("valueWithUIOffset:") public static func valueWithUIOffset(_ a0: UIOffset) -> NSValue
     @ObjCMethod("CGPointValue") public func CGPointValue() -> CGPoint
     @ObjCMethod("CGVectorValue") public func CGVectorValue() -> ObjCValue
     @ObjCMethod("CGSizeValue") public func CGSizeValue() -> CGSize
     @ObjCMethod("CGRectValue") public func CGRectValue() -> CGRect
     @ObjCMethod("CGAffineTransformValue") public func CGAffineTransformValue() -> ObjCValue
-    @ObjCMethod("UIEdgeInsetsValue") public func UIEdgeInsetsValue() -> ObjCValue
-    @ObjCMethod("UIOffsetValue") public func UIOffsetValue() -> ObjCValue
+    @ObjCMethod("UIEdgeInsetsValue") public func UIEdgeInsetsValue() -> UIEdgeInsets
+    @ObjCMethod("UIOffsetValue") public func UIOffsetValue() -> UIOffset
 }
 
 /// The Objective-C class UIAcceleration, a subclass of NSObject.
@@ -226,10 +278,10 @@ extension UIBarItemMethods {
     @ObjCProperty public var title: String?
     @ObjCProperty public var image: UIImage?
     @ObjCProperty public var landscapeImagePhone: UIImage?
-    @ObjCProperty public var imageInsets: ObjCValue
-    @ObjCProperty public var landscapeImagePhoneInsets: ObjCValue
+    @ObjCProperty public var imageInsets: UIEdgeInsets
+    @ObjCProperty public var landscapeImagePhoneInsets: UIEdgeInsets
     @ObjCProperty public var tag: Int
-    @ObjCMethod("setTitleTextAttributes:forState:") public func setTitleTextAttributes(_ a0: (some NSDictionaryMethods)?, forState a1: Int)
+    @ObjCMethod("setTitleTextAttributes:forState:") public func setTitleTextAttributes(_ a0: NSDictionary?, forState a1: Int)
     @ObjCMethod("titleTextAttributesForState:") public func titleTextAttributesForState(_ a0: Int) -> NSDictionary?
 }
 
@@ -283,7 +335,7 @@ extension UICollectionViewLayoutMethods {
     @ObjCProperty(readonly: true) public var collectionView: UICollectionView?
     @ObjCMethod("invalidateLayout") public func invalidateLayout()
     @ObjCMethod("registerClass:forDecorationViewOfKind:") public func registerClass(_ a0: ObjCValue, forDecorationViewOfKind a1: String)
-    @ObjCMethod("registerNib:forDecorationViewOfKind:") public func registerNib(_ a0: (some UINibMethods)?, forDecorationViewOfKind a1: String)
+    @ObjCMethod("registerNib:forDecorationViewOfKind:") public func registerNib(_ a0: UINib?, forDecorationViewOfKind a1: String)
     @ObjCMethod("layoutAttributesClass") public static func layoutAttributesClass() -> ObjCValue
     @ObjCMethod("prepareLayout") public func prepareLayout()
     @ObjCMethod("layoutAttributesForElementsInRect:") public func layoutAttributesForElementsInRect(_ a0: CGRect) -> NSArray?
@@ -429,8 +481,8 @@ extension UIDocumentMethods {
     @ObjCMethod("updateChangeCountWithToken:forSaveOperation:") public func updateChangeCountWithToken(_ a0: ObjCValue, forSaveOperation a1: Int)
     @ObjCMethod("savingFileType") public func savingFileType() -> String?
     @ObjCMethod("fileNameExtensionForType:saveOperation:") public func fileNameExtensionForType(_ a0: String?, saveOperation a1: Int) -> String
-    @ObjCMethod("writeContents:andAttributes:safelyToURL:forSaveOperation:error:") public func writeContents(_ a0: ObjCValue, andAttributes a1: (some NSDictionaryMethods)?, safelyToURL a2: some NSURLMethods, forSaveOperation a3: Int, error a4: ObjCValue) -> Bool
-    @ObjCMethod("writeContents:toURL:forSaveOperation:originalContentsURL:error:") public func writeContents(_ a0: ObjCValue, toURL a1: some NSURLMethods, forSaveOperation a2: Int, originalContentsURL a3: (some NSURLMethods)?, error a4: ObjCValue) -> Bool
+    @ObjCMethod("writeContents:andAttributes:safelyToURL:forSaveOperation:error:") public func writeContents(_ a0: ObjCValue, andAttributes a1: NSDictionary?, safelyToURL a2: some NSURLMethods, forSaveOperation a3: Int, error a4: ObjCValue) -> Bool
+    @ObjCMethod("writeContents:toURL:forSaveOperation:originalContentsURL:error:") public func writeContents(_ a0: ObjCValue, toURL a1: some NSURLMethods, forSaveOperation a2: Int, originalContentsURL a3: NSURL?, error a4: ObjCValue) -> Bool
     @ObjCMethod("fileAttributesToWriteToURL:forSaveOperation:error:") public func fileAttributesToWriteToURL(_ a0: some NSURLMethods, forSaveOperation a1: Int, error a2: ObjCValue) -> NSDictionary?
     @ObjCMethod("readFromURL:error:") public func readFromURL(_ a0: some NSURLMethods, error a1: ObjCValue) -> Bool
     @ObjCMethod("handleError:userInteractionPermitted:") public func handleError(_ a0: some NSErrorMethods, userInteractionPermitted a1: Bool)
@@ -513,9 +565,9 @@ extension UIGestureRecognizerMethods {
     @ObjCProperty public var delaysTouchesBegan: Bool
     @ObjCProperty public var delaysTouchesEnded: Bool
     @ObjCMethod("requireGestureRecognizerToFail:") public func requireGestureRecognizerToFail(_ a0: some UIGestureRecognizerMethods)
-    @ObjCMethod("locationInView:") public func locationInView(_ a0: (some UIViewMethods)?) -> CGPoint
+    @ObjCMethod("locationInView:") public func locationInView(_ a0: UIView?) -> CGPoint
     @ObjCMethod("numberOfTouches") public func numberOfTouches() -> Int
-    @ObjCMethod("locationOfTouch:inView:") public func locationOfTouch(_ a0: Int, inView a1: (some UIViewMethods)?) -> CGPoint
+    @ObjCMethod("locationOfTouch:inView:") public func locationOfTouch(_ a0: Int, inView a1: UIView?) -> CGPoint
 }
 
 /// The Objective-C class UIImage, a subclass of NSObject.
@@ -543,8 +595,8 @@ extension UIImageMethods {
     @ObjCProperty(readonly: true) public var imageOrientation: Int
     @ObjCProperty(readonly: true) public var scale: Float
     @ObjCMethod("animatedImageNamed:duration:") public static func animatedImageNamed(_ a0: String, duration a1: Double) -> UIImage?
-    @ObjCMethod("animatedResizableImageNamed:capInsets:duration:") public static func animatedResizableImageNamed(_ a0: String, capInsets a1: ObjCValue, duration a2: Double) -> UIImage?
-    @ObjCMethod("animatedResizableImageNamed:capInsets:resizingMode:duration:") public static func animatedResizableImageNamed(_ a0: String, capInsets a1: ObjCValue, resizingMode a2: Int, duration a3: Double) -> UIImage?
+    @ObjCMethod("animatedResizableImageNamed:capInsets:duration:") public static func animatedResizableImageNamed(_ a0: String, capInsets a1: UIEdgeInsets, duration a2: Double) -> UIImage?
+    @ObjCMethod("animatedResizableImageNamed:capInsets:resizingMode:duration:") public static func animatedResizableImageNamed(_ a0: String, capInsets a1: UIEdgeInsets, resizingMode a2: Int, duration a3: Double) -> UIImage?
     @ObjCMethod("animatedImageWithImages:duration:") public static func animatedImageWithImages(_ a0: some NSArrayMethods, duration a1: Double) -> UIImage?
     @ObjCProperty(readonly: true) public var images: NSArray?
     @ObjCProperty(readonly: true) public var duration: Double
@@ -553,12 +605,12 @@ extension UIImageMethods {
     @ObjCMethod("drawInRect:") public func drawInRect(_ a0: CGRect)
     @ObjCMethod("drawInRect:blendMode:alpha:") public func drawInRect(_ a0: CGRect, blendMode a1: Int, alpha a2: Float)
     @ObjCMethod("drawAsPatternInRect:") public func drawAsPatternInRect(_ a0: CGRect)
-    @ObjCMethod("resizableImageWithCapInsets:") public func resizableImageWithCapInsets(_ a0: ObjCValue) -> UIImage
-    @ObjCMethod("resizableImageWithCapInsets:resizingMode:") public func resizableImageWithCapInsets(_ a0: ObjCValue, resizingMode a1: Int) -> UIImage
-    @ObjCProperty(readonly: true) public var capInsets: ObjCValue
+    @ObjCMethod("resizableImageWithCapInsets:") public func resizableImageWithCapInsets(_ a0: UIEdgeInsets) -> UIImage
+    @ObjCMethod("resizableImageWithCapInsets:resizingMode:") public func resizableImageWithCapInsets(_ a0: UIEdgeInsets, resizingMode a1: Int) -> UIImage
+    @ObjCProperty(readonly: true) public var capInsets: UIEdgeInsets
     @ObjCProperty(readonly: true) public var resizingMode: Int
-    @ObjCMethod("imageWithAlignmentRectInsets:") public func imageWithAlignmentRectInsets(_ a0: ObjCValue) -> UIImage
-    @ObjCProperty(readonly: true) public var alignmentRectInsets: ObjCValue
+    @ObjCMethod("imageWithAlignmentRectInsets:") public func imageWithAlignmentRectInsets(_ a0: UIEdgeInsets) -> UIImage
+    @ObjCProperty(readonly: true) public var alignmentRectInsets: UIEdgeInsets
     @ObjCMethod("stretchableImageWithLeftCapWidth:topCapHeight:") public func stretchableImageWithLeftCapWidth(_ a0: Int, topCapHeight a1: Int) -> UIImage
     @ObjCProperty(readonly: true) public var leftCapWidth: Int
     @ObjCProperty(readonly: true) public var topCapHeight: Int
@@ -631,22 +683,22 @@ extension UINavigationItemMethods {
     @ObjCMethod("setHidesBackButton:animated:") public func setHidesBackButton(_ a0: Bool, animated a1: Bool)
     @ObjCProperty public var leftBarButtonItems: NSArray?
     @ObjCProperty public var rightBarButtonItems: NSArray?
-    @ObjCMethod("setLeftBarButtonItems:animated:") public func setLeftBarButtonItems(_ a0: (some NSArrayMethods)?, animated a1: Bool)
-    @ObjCMethod("setRightBarButtonItems:animated:") public func setRightBarButtonItems(_ a0: (some NSArrayMethods)?, animated a1: Bool)
+    @ObjCMethod("setLeftBarButtonItems:animated:") public func setLeftBarButtonItems(_ a0: NSArray?, animated a1: Bool)
+    @ObjCMethod("setRightBarButtonItems:animated:") public func setRightBarButtonItems(_ a0: NSArray?, animated a1: Bool)
     @ObjCProperty public var leftItemsSupplementBackButton: Bool
     @ObjCProperty public var leftBarButtonItem: UIBarButtonItem?
     @ObjCProperty public var rightBarButtonItem: UIBarButtonItem?
-    @ObjCMethod("setLeftBarButtonItem:animated:") public func setLeftBarButtonItem(_ a0: (some UIBarButtonItemMethods)?, animated a1: Bool)
-    @ObjCMethod("setRightBarButtonItem:animated:") public func setRightBarButtonItem(_ a0: (some UIBarButtonItemMethods)?, animated a1: Bool)
+    @ObjCMethod("setLeftBarButtonItem:animated:") public func setLeftBarButtonItem(_ a0: UIBarButtonItem?, animated a1: Bool)
+    @ObjCMethod("setRightBarButtonItem:animated:") public func setRightBarButtonItem(_ a0: UIBarButtonItem?, animated a1: Bool)
 }
 
 /// The Objective-C class UINib, a subclass of NSObject.
 public protocol UINibMethods: NSObjectMethods {}
 @ObjC public struct UINib: UINibMethods {}
 extension UINibMethods {
-    @ObjCMethod("nibWithNibName:bundle:") public static func nibWithNibName(_ a0: String, bundle a1: (some NSBundleMethods)?) -> UINib
-    @ObjCMethod("nibWithData:bundle:") public static func nibWithData(_ a0: some NSDataMethods, bundle a1: (some NSBundleMethods)?) -> UINib
-    @ObjCMethod("instantiateWithOwner:options:") public func instantiateWithOwner(_ a0: ObjCValue, options a1: (some NSDictionaryMethods)?) -> NSArray
+    @ObjCMethod("nibWithNibName:bundle:") public static func nibWithNibName(_ a0: String, bundle a1: NSBundle?) -> UINib
+    @ObjCMethod("nibWithData:bundle:") public static func nibWithData(_ a0: some NSDataMethods, bundle a1: NSBundle?) -> UINib
+    @ObjCMethod("instantiateWithOwner:options:") public func instantiateWithOwner(_ a0: ObjCValue, options a1: NSDictionary?) -> NSArray
 }
 
 /// The Objective-C class UIPasteboard, a subclass of NSObject.
@@ -667,11 +719,11 @@ extension UIPasteboardMethods {
     @ObjCMethod("setValue:forPasteboardType:") public func setValue(_ a0: ObjCValue, forPasteboardType a1: String)
     @ObjCMethod("setData:forPasteboardType:") public func setData(_ a0: some NSDataMethods, forPasteboardType a1: String)
     @ObjCProperty(readonly: true) public var numberOfItems: Int
-    @ObjCMethod("pasteboardTypesForItemSet:") public func pasteboardTypesForItemSet(_ a0: (some NSIndexSetMethods)?) -> NSArray?
-    @ObjCMethod("containsPasteboardTypes:inItemSet:") public func containsPasteboardTypes(_ a0: some NSArrayMethods, inItemSet a1: (some NSIndexSetMethods)?) -> Bool
+    @ObjCMethod("pasteboardTypesForItemSet:") public func pasteboardTypesForItemSet(_ a0: NSIndexSet?) -> NSArray?
+    @ObjCMethod("containsPasteboardTypes:inItemSet:") public func containsPasteboardTypes(_ a0: some NSArrayMethods, inItemSet a1: NSIndexSet?) -> Bool
     @ObjCMethod("itemSetWithPasteboardTypes:") public func itemSetWithPasteboardTypes(_ a0: some NSArrayMethods) -> NSIndexSet?
-    @ObjCMethod("valuesForPasteboardType:inItemSet:") public func valuesForPasteboardType(_ a0: String, inItemSet a1: (some NSIndexSetMethods)?) -> NSArray?
-    @ObjCMethod("dataForPasteboardType:inItemSet:") public func dataForPasteboardType(_ a0: String, inItemSet a1: (some NSIndexSetMethods)?) -> NSArray?
+    @ObjCMethod("valuesForPasteboardType:inItemSet:") public func valuesForPasteboardType(_ a0: String, inItemSet a1: NSIndexSet?) -> NSArray?
+    @ObjCMethod("dataForPasteboardType:inItemSet:") public func dataForPasteboardType(_ a0: String, inItemSet a1: NSIndexSet?) -> NSArray?
     @ObjCProperty public var items: NSArray
     @ObjCMethod("addItems:") public func addItems(_ a0: some NSArrayMethods)
     @ObjCProperty public var string: String?
@@ -700,7 +752,7 @@ extension UIPopoverControllerMethods {
     @ObjCMethod("presentPopoverFromRect:inView:permittedArrowDirections:animated:") public func presentPopoverFromRect(_ a0: CGRect, inView a1: some UIViewMethods, permittedArrowDirections a2: Int, animated a3: Bool)
     @ObjCMethod("presentPopoverFromBarButtonItem:permittedArrowDirections:animated:") public func presentPopoverFromBarButtonItem(_ a0: some UIBarButtonItemMethods, permittedArrowDirections a1: Int, animated a2: Bool)
     @ObjCMethod("dismissPopoverAnimated:") public func dismissPopoverAnimated(_ a0: Bool)
-    @ObjCProperty public var popoverLayoutMargins: ObjCValue
+    @ObjCProperty public var popoverLayoutMargins: UIEdgeInsets
     @ObjCProperty public var popoverBackgroundViewClass: ObjCValue
 }
 
@@ -712,8 +764,8 @@ extension UIPrintFormatterMethods {
     @ObjCMethod("removeFromPrintPageRenderer") public func removeFromPrintPageRenderer()
     @ObjCProperty public var maximumContentHeight: Float
     @ObjCProperty public var maximumContentWidth: Float
-    @ObjCProperty public var contentInsets: ObjCValue
-    @ObjCProperty public var perPageContentInsets: ObjCValue
+    @ObjCProperty public var contentInsets: UIEdgeInsets
+    @ObjCProperty public var perPageContentInsets: UIEdgeInsets
     @ObjCProperty public var startPage: Int
     @ObjCProperty(readonly: true) public var pageCount: Int
     @ObjCMethod("rectForPageAtIndex:") public func rectForPageAtIndex(_ a0: Int) -> CGRect
@@ -726,7 +778,7 @@ public protocol UIPrintInfoMethods: NSObjectMethods {}
 extension UIPrintInfoMethods {
     @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
     @ObjCMethod("printInfo") public static func printInfo() -> UIPrintInfo
-    @ObjCMethod("printInfoWithDictionary:") public static func printInfoWithDictionary(_ a0: (some NSDictionaryMethods)?) -> UIPrintInfo
+    @ObjCMethod("printInfoWithDictionary:") public static func printInfoWithDictionary(_ a0: NSDictionary?) -> UIPrintInfo
     @ObjCMethod("dictionaryRepresentation") public func dictionaryRepresentation() -> NSDictionary
     @ObjCProperty public var printerID: String?
     @ObjCProperty public var jobName: String
@@ -795,14 +847,14 @@ extension UIResponderMethods {
     @ObjCMethod("canResignFirstResponder") public func canResignFirstResponder() -> Bool
     @ObjCMethod("resignFirstResponder") public func resignFirstResponder() -> Bool
     @ObjCMethod("isFirstResponder") public func isFirstResponder() -> Bool
-    @ObjCMethod("touchesBegan:withEvent:") public func touchesBegan(_ a0: some NSSetMethods, withEvent a1: (some UIEventMethods)?)
-    @ObjCMethod("touchesMoved:withEvent:") public func touchesMoved(_ a0: some NSSetMethods, withEvent a1: (some UIEventMethods)?)
-    @ObjCMethod("touchesEnded:withEvent:") public func touchesEnded(_ a0: some NSSetMethods, withEvent a1: (some UIEventMethods)?)
-    @ObjCMethod("touchesCancelled:withEvent:") public func touchesCancelled(_ a0: (some NSSetMethods)?, withEvent a1: (some UIEventMethods)?)
-    @ObjCMethod("motionBegan:withEvent:") public func motionBegan(_ a0: Int, withEvent a1: (some UIEventMethods)?)
-    @ObjCMethod("motionEnded:withEvent:") public func motionEnded(_ a0: Int, withEvent a1: (some UIEventMethods)?)
-    @ObjCMethod("motionCancelled:withEvent:") public func motionCancelled(_ a0: Int, withEvent a1: (some UIEventMethods)?)
-    @ObjCMethod("remoteControlReceivedWithEvent:") public func remoteControlReceivedWithEvent(_ a0: (some UIEventMethods)?)
+    @ObjCMethod("touchesBegan:withEvent:") public func touchesBegan(_ a0: some NSSetMethods, withEvent a1: UIEvent?)
+    @ObjCMethod("touchesMoved:withEvent:") public func touchesMoved(_ a0: some NSSetMethods, withEvent a1: UIEvent?)
+    @ObjCMethod("touchesEnded:withEvent:") public func touchesEnded(_ a0: some NSSetMethods, withEvent a1: UIEvent?)
+    @ObjCMethod("touchesCancelled:withEvent:") public func touchesCancelled(_ a0: NSSet?, withEvent a1: UIEvent?)
+    @ObjCMethod("motionBegan:withEvent:") public func motionBegan(_ a0: Int, withEvent a1: UIEvent?)
+    @ObjCMethod("motionEnded:withEvent:") public func motionEnded(_ a0: Int, withEvent a1: UIEvent?)
+    @ObjCMethod("motionCancelled:withEvent:") public func motionCancelled(_ a0: Int, withEvent a1: UIEvent?)
+    @ObjCMethod("remoteControlReceivedWithEvent:") public func remoteControlReceivedWithEvent(_ a0: UIEvent?)
     @ObjCMethod("canPerformAction:withSender:") public func canPerformAction(_ a0: ObjCValue, withSender a1: ObjCValue) -> Bool
     @ObjCProperty(readonly: true) public var undoManager: NSUndoManager?
     @ObjCProperty(readonly: true) public var inputView: UIView?
@@ -857,7 +909,7 @@ extension UISearchDisplayControllerMethods {
 public protocol UIStoryboardMethods: NSObjectMethods {}
 @ObjC public struct UIStoryboard: UIStoryboardMethods {}
 extension UIStoryboardMethods {
-    @ObjCMethod("storyboardWithName:bundle:") public static func storyboardWithName(_ a0: String, bundle a1: (some NSBundleMethods)?) -> UIStoryboard
+    @ObjCMethod("storyboardWithName:bundle:") public static func storyboardWithName(_ a0: String, bundle a1: NSBundle?) -> UIStoryboard
     @ObjCMethod("instantiateInitialViewController") public func instantiateInitialViewController() -> UIViewController?
     @ObjCMethod("instantiateViewControllerWithIdentifier:") public func instantiateViewControllerWithIdentifier(_ a0: String) -> UIViewController
 }
@@ -882,7 +934,7 @@ extension UITextCheckerMethods {
     @ObjCMethod("completionsForPartialWordRange:inString:language:") public func completionsForPartialWordRange(_ a0: NSRange, inString a1: String?, language a2: String) -> NSArray?
     @ObjCMethod("ignoreWord:") public func ignoreWord(_ a0: String)
     @ObjCMethod("ignoredWords") public func ignoredWords() -> NSArray?
-    @ObjCMethod("setIgnoredWords:") public func setIgnoredWords(_ a0: (some NSArrayMethods)?)
+    @ObjCMethod("setIgnoredWords:") public func setIgnoredWords(_ a0: NSArray?)
     @ObjCMethod("learnWord:") public static func learnWord(_ a0: String)
     @ObjCMethod("hasLearnedWord:") public static func hasLearnedWord(_ a0: String) -> Bool
     @ObjCMethod("unlearnWord:") public static func unlearnWord(_ a0: String)
@@ -939,8 +991,8 @@ extension UITouchMethods {
     @ObjCProperty(readonly: true) public var window: UIWindow?
     @ObjCProperty(readonly: true) public var view: UIView?
     @ObjCProperty(readonly: true) public var gestureRecognizers: NSArray?
-    @ObjCMethod("locationInView:") public func locationInView(_ a0: (some UIViewMethods)?) -> CGPoint
-    @ObjCMethod("previousLocationInView:") public func previousLocationInView(_ a0: (some UIViewMethods)?) -> CGPoint
+    @ObjCMethod("locationInView:") public func locationInView(_ a0: UIView?) -> CGPoint
+    @ObjCMethod("previousLocationInView:") public func previousLocationInView(_ a0: UIView?) -> CGPoint
 }
 
 /// The Objective-C class NSMutableParagraphStyle, a subclass of NSParagraphStyle.
@@ -972,12 +1024,12 @@ extension UIApplicationMethods {
     @ObjCMethod("sendEvent:") public func sendEvent(_ a0: some UIEventMethods)
     @ObjCProperty(readonly: true) public var keyWindow: UIWindow?
     @ObjCProperty(readonly: true) public var windows: NSArray
-    @ObjCMethod("sendAction:to:from:forEvent:") public func sendAction(_ a0: ObjCValue, to a1: ObjCValue, from a2: ObjCValue, forEvent a3: (some UIEventMethods)?) -> Bool
+    @ObjCMethod("sendAction:to:from:forEvent:") public func sendAction(_ a0: ObjCValue, to a1: ObjCValue, from a2: ObjCValue, forEvent a3: UIEvent?) -> Bool
     @ObjCProperty(getter: "isNetworkActivityIndicatorVisible") public var networkActivityIndicatorVisible: Bool
     @ObjCProperty(readonly: true) public var statusBarStyle: Int
     @ObjCProperty(getter: "isStatusBarHidden", readonly: true) public var statusBarHidden: Bool
     @ObjCProperty(readonly: true) public var statusBarOrientation: Int
-    @ObjCMethod("supportedInterfaceOrientationsForWindow:") public func supportedInterfaceOrientationsForWindow(_ a0: (some UIWindowMethods)?) -> Int
+    @ObjCMethod("supportedInterfaceOrientationsForWindow:") public func supportedInterfaceOrientationsForWindow(_ a0: UIWindow?) -> Int
     @ObjCProperty(readonly: true) public var statusBarOrientationAnimationDuration: Double
     @ObjCProperty(readonly: true) public var statusBarFrame: CGRect
     @ObjCProperty public var applicationIconBadgeNumber: Int
@@ -1011,8 +1063,8 @@ extension UIApplicationMethods {
 public protocol UIBarButtonItemMethods: UIBarItemMethods {}
 @ObjC public struct UIBarButtonItem: UIBarButtonItemMethods {}
 extension UIBarButtonItemMethods {
-    @ObjCMethod("initWithImage:style:target:action:") public init(image a0: (some UIImageMethods)?, style a1: Int, target a2: ObjCValue, action a3: ObjCValue)
-    @ObjCMethod("initWithImage:landscapeImagePhone:style:target:action:") public init(image a0: (some UIImageMethods)?, landscapeImagePhone a1: (some UIImageMethods)?, style a2: Int, target a3: ObjCValue, action a4: ObjCValue)
+    @ObjCMethod("initWithImage:style:target:action:") public init(image a0: UIImage?, style a1: Int, target a2: ObjCValue, action a3: ObjCValue)
+    @ObjCMethod("initWithImage:landscapeImagePhone:style:target:action:") public init(image a0: UIImage?, landscapeImagePhone a1: UIImage?, style a2: Int, target a3: ObjCValue, action a4: ObjCValue)
     @ObjCMethod("initWithTitle:style:target:action:") public init(title a0: String?, style a1: Int, target a2: ObjCValue, action a3: ObjCValue)
     @ObjCMethod("initWithBarButtonSystemItem:target:action:") public init(barButtonSystemItem a0: Int, target a1: ObjCValue, action a2: ObjCValue)
     @ObjCMethod("initWithCustomView:") public init(customView a0: some UIViewMethods)
@@ -1022,19 +1074,19 @@ extension UIBarButtonItemMethods {
     @ObjCProperty public var customView: UIView?
     @ObjCProperty public var action: ObjCValue
     @ObjCProperty public var target: ObjCValue
-    @ObjCMethod("setBackgroundImage:forState:barMetrics:") public func setBackgroundImage(_ a0: (some UIImageMethods)?, forState a1: Int, barMetrics a2: Int)
+    @ObjCMethod("setBackgroundImage:forState:barMetrics:") public func setBackgroundImage(_ a0: UIImage?, forState a1: Int, barMetrics a2: Int)
     @ObjCMethod("backgroundImageForState:barMetrics:") public func backgroundImageForState(_ a0: Int, barMetrics a1: Int) -> UIImage?
-    @ObjCMethod("setBackgroundImage:forState:style:barMetrics:") public func setBackgroundImage(_ a0: (some UIImageMethods)?, forState a1: Int, style a2: Int, barMetrics a3: Int)
+    @ObjCMethod("setBackgroundImage:forState:style:barMetrics:") public func setBackgroundImage(_ a0: UIImage?, forState a1: Int, style a2: Int, barMetrics a3: Int)
     @ObjCMethod("backgroundImageForState:style:barMetrics:") public func backgroundImageForState(_ a0: Int, style a1: Int, barMetrics a2: Int) -> UIImage?
     @ObjCProperty public var tintColor: UIColor?
     @ObjCMethod("setBackgroundVerticalPositionAdjustment:forBarMetrics:") public func setBackgroundVerticalPositionAdjustment(_ a0: Float, forBarMetrics a1: Int)
     @ObjCMethod("backgroundVerticalPositionAdjustmentForBarMetrics:") public func backgroundVerticalPositionAdjustmentForBarMetrics(_ a0: Int) -> Float
-    @ObjCMethod("setTitlePositionAdjustment:forBarMetrics:") public func setTitlePositionAdjustment(_ a0: ObjCValue, forBarMetrics a1: Int)
-    @ObjCMethod("titlePositionAdjustmentForBarMetrics:") public func titlePositionAdjustmentForBarMetrics(_ a0: Int) -> ObjCValue
-    @ObjCMethod("setBackButtonBackgroundImage:forState:barMetrics:") public func setBackButtonBackgroundImage(_ a0: (some UIImageMethods)?, forState a1: Int, barMetrics a2: Int)
+    @ObjCMethod("setTitlePositionAdjustment:forBarMetrics:") public func setTitlePositionAdjustment(_ a0: UIOffset, forBarMetrics a1: Int)
+    @ObjCMethod("titlePositionAdjustmentForBarMetrics:") public func titlePositionAdjustmentForBarMetrics(_ a0: Int) -> UIOffset
+    @ObjCMethod("setBackButtonBackgroundImage:forState:barMetrics:") public func setBackButtonBackgroundImage(_ a0: UIImage?, forState a1: Int, barMetrics a2: Int)
     @ObjCMethod("backButtonBackgroundImageForState:barMetrics:") public func backButtonBackgroundImageForState(_ a0: Int, barMetrics a1: Int) -> UIImage?
-    @ObjCMethod("setBackButtonTitlePositionAdjustment:forBarMetrics:") public func setBackButtonTitlePositionAdjustment(_ a0: ObjCValue, forBarMetrics a1: Int)
-    @ObjCMethod("backButtonTitlePositionAdjustmentForBarMetrics:") public func backButtonTitlePositionAdjustmentForBarMetrics(_ a0: Int) -> ObjCValue
+    @ObjCMethod("setBackButtonTitlePositionAdjustment:forBarMetrics:") public func setBackButtonTitlePositionAdjustment(_ a0: UIOffset, forBarMetrics a1: Int)
+    @ObjCMethod("backButtonTitlePositionAdjustmentForBarMetrics:") public func backButtonTitlePositionAdjustmentForBarMetrics(_ a0: Int) -> UIOffset
     @ObjCMethod("setBackButtonBackgroundVerticalPositionAdjustment:forBarMetrics:") public func setBackButtonBackgroundVerticalPositionAdjustment(_ a0: Float, forBarMetrics a1: Int)
     @ObjCMethod("backButtonBackgroundVerticalPositionAdjustmentForBarMetrics:") public func backButtonBackgroundVerticalPositionAdjustmentForBarMetrics(_ a0: Int) -> Float
 }
@@ -1049,7 +1101,7 @@ extension UICollectionViewFlowLayoutMethods {
     @ObjCProperty public var scrollDirection: Int
     @ObjCProperty public var headerReferenceSize: CGSize
     @ObjCProperty public var footerReferenceSize: CGSize
-    @ObjCProperty public var sectionInset: ObjCValue
+    @ObjCProperty public var sectionInset: UIEdgeInsets
 }
 
 /// The Objective-C class UILongPressGestureRecognizer, a subclass of UIGestureRecognizer.
@@ -1071,11 +1123,11 @@ extension UIManagedDocumentMethods {
     @ObjCProperty(readonly: true) public var managedObjectModel: ObjCValue
     @ObjCProperty public var persistentStoreOptions: NSDictionary?
     @ObjCProperty public var modelConfiguration: String?
-    @ObjCMethod("configurePersistentStoreCoordinatorForURL:ofType:modelConfiguration:storeOptions:error:") public func configurePersistentStoreCoordinatorForURL(_ a0: some NSURLMethods, ofType a1: String, modelConfiguration a2: String?, storeOptions a3: (some NSDictionaryMethods)?, error a4: ObjCValue) -> Bool
+    @ObjCMethod("configurePersistentStoreCoordinatorForURL:ofType:modelConfiguration:storeOptions:error:") public func configurePersistentStoreCoordinatorForURL(_ a0: some NSURLMethods, ofType a1: String, modelConfiguration a2: String?, storeOptions a3: NSDictionary?, error a4: ObjCValue) -> Bool
     @ObjCMethod("persistentStoreTypeForFileType:") public func persistentStoreTypeForFileType(_ a0: String) -> String
     @ObjCMethod("readAdditionalContentFromURL:error:") public func readAdditionalContentFromURL(_ a0: some NSURLMethods, error a1: ObjCValue) -> Bool
     @ObjCMethod("additionalContentForURL:error:") public func additionalContentForURL(_ a0: some NSURLMethods, error a1: ObjCValue) -> ObjCValue
-    @ObjCMethod("writeAdditionalContent:toURL:originalContentsURL:error:") public func writeAdditionalContent(_ a0: ObjCValue, toURL a1: some NSURLMethods, originalContentsURL a2: (some NSURLMethods)?, error a3: ObjCValue) -> Bool
+    @ObjCMethod("writeAdditionalContent:toURL:originalContentsURL:error:") public func writeAdditionalContent(_ a0: ObjCValue, toURL a1: some NSURLMethods, originalContentsURL a2: NSURL?, error a3: ObjCValue) -> Bool
 }
 
 /// The Objective-C class UIMarkupTextPrintFormatter, a subclass of UIPrintFormatter.
@@ -1092,9 +1144,9 @@ public protocol UIPanGestureRecognizerMethods: UIGestureRecognizerMethods {}
 extension UIPanGestureRecognizerMethods {
     @ObjCProperty public var minimumNumberOfTouches: Int
     @ObjCProperty public var maximumNumberOfTouches: Int
-    @ObjCMethod("translationInView:") public func translationInView(_ a0: (some UIViewMethods)?) -> CGPoint
-    @ObjCMethod("setTranslation:inView:") public func setTranslation(_ a0: CGPoint, inView a1: (some UIViewMethods)?)
-    @ObjCMethod("velocityInView:") public func velocityInView(_ a0: (some UIViewMethods)?) -> CGPoint
+    @ObjCMethod("translationInView:") public func translationInView(_ a0: UIView?) -> CGPoint
+    @ObjCMethod("setTranslation:inView:") public func setTranslation(_ a0: CGPoint, inView a1: UIView?)
+    @ObjCMethod("velocityInView:") public func velocityInView(_ a0: UIView?) -> CGPoint
 }
 
 /// The Objective-C class UIPinchGestureRecognizer, a subclass of UIGestureRecognizer.
@@ -1143,13 +1195,13 @@ extension UISwipeGestureRecognizerMethods {
 public protocol UITabBarItemMethods: UIBarItemMethods {}
 @ObjC public struct UITabBarItem: UITabBarItemMethods {}
 extension UITabBarItemMethods {
-    @ObjCMethod("initWithTitle:image:tag:") public init(title a0: String?, image a1: (some UIImageMethods)?, tag a2: Int)
+    @ObjCMethod("initWithTitle:image:tag:") public init(title a0: String?, image a1: UIImage?, tag a2: Int)
     @ObjCMethod("initWithTabBarSystemItem:tag:") public init(tabBarSystemItem a0: Int, tag a1: Int)
     @ObjCProperty public var badgeValue: String?
-    @ObjCMethod("setFinishedSelectedImage:withFinishedUnselectedImage:") public func setFinishedSelectedImage(_ a0: (some UIImageMethods)?, withFinishedUnselectedImage a1: (some UIImageMethods)?)
+    @ObjCMethod("setFinishedSelectedImage:withFinishedUnselectedImage:") public func setFinishedSelectedImage(_ a0: UIImage?, withFinishedUnselectedImage a1: UIImage?)
     @ObjCMethod("finishedSelectedImage") public func finishedSelectedImage() -> UIImage?
     @ObjCMethod("finishedUnselectedImage") public func finishedUnselectedImage() -> UIImage?
-    @ObjCProperty public var titlePositionAdjustment: ObjCValue
+    @ObjCProperty public var titlePositionAdjustment: UIOffset
 }
 
 /// The Objective-C class UITapGestureRecognizer, a subclass of UIGestureRecognizer.
@@ -1177,12 +1229,12 @@ extension UIViewMethods {
     @ObjCProperty public var contentScaleFactor: Float
     @ObjCProperty(getter: "isMultipleTouchEnabled") public var multipleTouchEnabled: Bool
     @ObjCProperty(getter: "isExclusiveTouch") public var exclusiveTouch: Bool
-    @ObjCMethod("hitTest:withEvent:") public func hitTest(_ a0: CGPoint, withEvent a1: (some UIEventMethods)?) -> UIView?
-    @ObjCMethod("pointInside:withEvent:") public func pointInside(_ a0: CGPoint, withEvent a1: (some UIEventMethods)?) -> Bool
-    @ObjCMethod("convertPoint:toView:") public func convertPoint(_ a0: CGPoint, toView a1: (some UIViewMethods)?) -> CGPoint
-    @ObjCMethod("convertPoint:fromView:") public func convertPoint(_ a0: CGPoint, fromView a1: (some UIViewMethods)?) -> CGPoint
-    @ObjCMethod("convertRect:toView:") public func convertRect(_ a0: CGRect, toView a1: (some UIViewMethods)?) -> CGRect
-    @ObjCMethod("convertRect:fromView:") public func convertRect(_ a0: CGRect, fromView a1: (some UIViewMethods)?) -> CGRect
+    @ObjCMethod("hitTest:withEvent:") public func hitTest(_ a0: CGPoint, withEvent a1: UIEvent?) -> UIView?
+    @ObjCMethod("pointInside:withEvent:") public func pointInside(_ a0: CGPoint, withEvent a1: UIEvent?) -> Bool
+    @ObjCMethod("convertPoint:toView:") public func convertPoint(_ a0: CGPoint, toView a1: UIView?) -> CGPoint
+    @ObjCMethod("convertPoint:fromView:") public func convertPoint(_ a0: CGPoint, fromView a1: UIView?) -> CGPoint
+    @ObjCMethod("convertRect:toView:") public func convertRect(_ a0: CGRect, toView a1: UIView?) -> CGRect
+    @ObjCMethod("convertRect:fromView:") public func convertRect(_ a0: CGRect, fromView a1: UIView?) -> CGRect
     @ObjCProperty public var autoresizesSubviews: Bool
     @ObjCProperty public var autoresizingMask: Int
     @ObjCMethod("sizeThatFits:") public func sizeThatFits(_ a0: CGSize) -> CGSize
@@ -1200,9 +1252,9 @@ extension UIViewMethods {
     @ObjCMethod("sendSubviewToBack:") public func sendSubviewToBack(_ a0: some UIViewMethods)
     @ObjCMethod("didAddSubview:") public func didAddSubview(_ a0: some UIViewMethods)
     @ObjCMethod("willRemoveSubview:") public func willRemoveSubview(_ a0: some UIViewMethods)
-    @ObjCMethod("willMoveToSuperview:") public func willMoveToSuperview(_ a0: (some UIViewMethods)?)
+    @ObjCMethod("willMoveToSuperview:") public func willMoveToSuperview(_ a0: UIView?)
     @ObjCMethod("didMoveToSuperview") public func didMoveToSuperview()
-    @ObjCMethod("willMoveToWindow:") public func willMoveToWindow(_ a0: (some UIWindowMethods)?)
+    @ObjCMethod("willMoveToWindow:") public func willMoveToWindow(_ a0: UIWindow?)
     @ObjCMethod("didMoveToWindow") public func didMoveToWindow()
     @ObjCMethod("isDescendantOfView:") public func isDescendantOfView(_ a0: some UIViewMethods) -> Bool
     @ObjCMethod("viewWithTag:") public func viewWithTag(_ a0: Int) -> UIView?
@@ -1252,7 +1304,7 @@ extension UIViewMethods {
     @ObjCMethod("requiresConstraintBasedLayout") public static func requiresConstraintBasedLayout() -> Bool
     @ObjCMethod("alignmentRectForFrame:") public func alignmentRectForFrame(_ a0: CGRect) -> CGRect
     @ObjCMethod("frameForAlignmentRect:") public func frameForAlignmentRect(_ a0: CGRect) -> CGRect
-    @ObjCMethod("alignmentRectInsets") public func alignmentRectInsets() -> ObjCValue
+    @ObjCMethod("alignmentRectInsets") public func alignmentRectInsets() -> UIEdgeInsets
     @ObjCMethod("viewForBaselineLayout") public func viewForBaselineLayout() -> UIView
     @ObjCMethod("intrinsicContentSize") public func intrinsicContentSize() -> CGSize
     @ObjCMethod("invalidateIntrinsicContentSize") public func invalidateIntrinsicContentSize()
@@ -1276,7 +1328,7 @@ extension UIViewMethods {
 public protocol UIViewControllerMethods: UIResponderMethods {}
 @ObjC public struct UIViewController: UIViewControllerMethods {}
 extension UIViewControllerMethods {
-    @ObjCMethod("initWithNibName:bundle:") public init(nibName a0: String?, bundle a1: (some NSBundleMethods)?)
+    @ObjCMethod("initWithNibName:bundle:") public init(nibName a0: String?, bundle a1: NSBundle?)
     @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
     @ObjCProperty public var view: UIView?
     @ObjCMethod("loadView") public func loadView()
@@ -1343,8 +1395,8 @@ extension UIViewControllerMethods {
     @ObjCMethod("automaticallyForwardAppearanceAndRotationMethodsToChildViewControllers") public func automaticallyForwardAppearanceAndRotationMethodsToChildViewControllers() -> Bool
     @ObjCMethod("shouldAutomaticallyForwardRotationMethods") public func shouldAutomaticallyForwardRotationMethods() -> Bool
     @ObjCMethod("shouldAutomaticallyForwardAppearanceMethods") public func shouldAutomaticallyForwardAppearanceMethods() -> Bool
-    @ObjCMethod("willMoveToParentViewController:") public func willMoveToParentViewController(_ a0: (some UIViewControllerMethods)?)
-    @ObjCMethod("didMoveToParentViewController:") public func didMoveToParentViewController(_ a0: (some UIViewControllerMethods)?)
+    @ObjCMethod("willMoveToParentViewController:") public func willMoveToParentViewController(_ a0: UIViewController?)
+    @ObjCMethod("didMoveToParentViewController:") public func didMoveToParentViewController(_ a0: UIViewController?)
     @ObjCProperty public var restorationIdentifier: String?
     @ObjCProperty public var restorationClass: ObjCValue
     @ObjCMethod("encodeRestorableStateWithCoder:") public func encodeRestorableStateWithCoder(_ a0: some NSCoderMethods)
@@ -1354,7 +1406,7 @@ extension UIViewControllerMethods {
     @ObjCProperty public var hidesBottomBarWhenPushed: Bool
     @ObjCProperty(readonly: true) public var navigationController: UINavigationController?
     @ObjCProperty public var toolbarItems: NSArray?
-    @ObjCMethod("setToolbarItems:animated:") public func setToolbarItems(_ a0: (some NSArrayMethods)?, animated a1: Bool)
+    @ObjCMethod("setToolbarItems:animated:") public func setToolbarItems(_ a0: NSArray?, animated a1: Bool)
     @ObjCProperty(getter: "isModalInPopover") public var modalInPopover: Bool
     @ObjCProperty public var contentSizeForViewInPopover: CGSize
     @ObjCProperty(readonly: true) public var splitViewController: UISplitViewController?
@@ -1408,7 +1460,7 @@ extension UIActivityIndicatorViewMethods {
 public protocol UIActivityViewControllerMethods: UIViewControllerMethods {}
 @ObjC public struct UIActivityViewController: UIActivityViewControllerMethods {}
 extension UIActivityViewControllerMethods {
-    @ObjCMethod("initWithActivityItems:applicationActivities:") public init(activityItems a0: some NSArrayMethods, applicationActivities a1: (some NSArrayMethods)?)
+    @ObjCMethod("initWithActivityItems:applicationActivities:") public init(activityItems a0: some NSArrayMethods, applicationActivities a1: NSArray?)
     @ObjCProperty public var excludedActivityTypes: NSArray?
 }
 
@@ -1463,16 +1515,16 @@ extension UIControlMethods {
     @ObjCProperty(readonly: true) public var state: Int
     @ObjCProperty(getter: "isTracking", readonly: true) public var tracking: Bool
     @ObjCProperty(getter: "isTouchInside", readonly: true) public var touchInside: Bool
-    @ObjCMethod("beginTrackingWithTouch:withEvent:") public func beginTrackingWithTouch(_ a0: some UITouchMethods, withEvent a1: (some UIEventMethods)?) -> Bool
-    @ObjCMethod("continueTrackingWithTouch:withEvent:") public func continueTrackingWithTouch(_ a0: some UITouchMethods, withEvent a1: (some UIEventMethods)?) -> Bool
-    @ObjCMethod("endTrackingWithTouch:withEvent:") public func endTrackingWithTouch(_ a0: (some UITouchMethods)?, withEvent a1: (some UIEventMethods)?)
-    @ObjCMethod("cancelTrackingWithEvent:") public func cancelTrackingWithEvent(_ a0: (some UIEventMethods)?)
+    @ObjCMethod("beginTrackingWithTouch:withEvent:") public func beginTrackingWithTouch(_ a0: some UITouchMethods, withEvent a1: UIEvent?) -> Bool
+    @ObjCMethod("continueTrackingWithTouch:withEvent:") public func continueTrackingWithTouch(_ a0: some UITouchMethods, withEvent a1: UIEvent?) -> Bool
+    @ObjCMethod("endTrackingWithTouch:withEvent:") public func endTrackingWithTouch(_ a0: UITouch?, withEvent a1: UIEvent?)
+    @ObjCMethod("cancelTrackingWithEvent:") public func cancelTrackingWithEvent(_ a0: UIEvent?)
     @ObjCMethod("addTarget:action:forControlEvents:") public func addTarget(_ a0: ObjCValue, action a1: ObjCValue, forControlEvents a2: Int)
     @ObjCMethod("removeTarget:action:forControlEvents:") public func removeTarget(_ a0: ObjCValue, action a1: ObjCValue, forControlEvents a2: Int)
     @ObjCMethod("allTargets") public func allTargets() -> NSSet
     @ObjCMethod("allControlEvents") public func allControlEvents() -> Int
     @ObjCMethod("actionsForTarget:forControlEvent:") public func actionsForTarget(_ a0: ObjCValue, forControlEvent a1: Int) -> NSArray?
-    @ObjCMethod("sendAction:to:forEvent:") public func sendAction(_ a0: ObjCValue, to a1: ObjCValue, forEvent a2: (some UIEventMethods)?)
+    @ObjCMethod("sendAction:to:forEvent:") public func sendAction(_ a0: ObjCValue, to a1: ObjCValue, forEvent a2: UIEvent?)
     @ObjCMethod("sendActionsForControlEvents:") public func sendActionsForControlEvents(_ a0: Int)
 }
 
@@ -1480,8 +1532,8 @@ extension UIControlMethods {
 public protocol UIImageViewMethods: UIViewMethods {}
 @ObjC public struct UIImageView: UIImageViewMethods {}
 extension UIImageViewMethods {
-    @ObjCMethod("initWithImage:") public init(image a0: (some UIImageMethods)?)
-    @ObjCMethod("initWithImage:highlightedImage:") public init(image a0: (some UIImageMethods)?, highlightedImage a1: (some UIImageMethods)?)
+    @ObjCMethod("initWithImage:") public init(image a0: UIImage?)
+    @ObjCMethod("initWithImage:highlightedImage:") public init(image a0: UIImage?, highlightedImage a1: UIImage?)
     @ObjCProperty public var image: UIImage?
     @ObjCProperty public var highlightedImage: UIImage?
     @ObjCProperty(getter: "isHighlighted") public var highlighted: Bool
@@ -1532,9 +1584,9 @@ extension UINavigationBarMethods {
     @ObjCProperty(readonly: true) public var topItem: UINavigationItem?
     @ObjCProperty(readonly: true) public var backItem: UINavigationItem?
     @ObjCProperty public var items: NSArray?
-    @ObjCMethod("setItems:animated:") public func setItems(_ a0: (some NSArrayMethods)?, animated a1: Bool)
+    @ObjCMethod("setItems:animated:") public func setItems(_ a0: NSArray?, animated a1: Bool)
     @ObjCProperty public var tintColor: UIColor?
-    @ObjCMethod("setBackgroundImage:forBarMetrics:") public func setBackgroundImage(_ a0: (some UIImageMethods)?, forBarMetrics a1: Int)
+    @ObjCMethod("setBackgroundImage:forBarMetrics:") public func setBackgroundImage(_ a0: UIImage?, forBarMetrics a1: Int)
     @ObjCMethod("backgroundImageForBarMetrics:") public func backgroundImageForBarMetrics(_ a0: Int) -> UIImage?
     @ObjCProperty public var shadowImage: UIImage?
     @ObjCProperty public var titleTextAttributes: NSDictionary?
@@ -1569,7 +1621,7 @@ extension UINavigationControllerMethods {
 public protocol UIPageViewControllerMethods: UIViewControllerMethods {}
 @ObjC public struct UIPageViewController: UIPageViewControllerMethods {}
 extension UIPageViewControllerMethods {
-    @ObjCMethod("initWithTransitionStyle:navigationOrientation:options:") public init(transitionStyle a0: Int, navigationOrientation a1: Int, options a2: (some NSDictionaryMethods)?)
+    @ObjCMethod("initWithTransitionStyle:navigationOrientation:options:") public init(transitionStyle a0: Int, navigationOrientation a1: Int, options a2: NSDictionary?)
     @ObjCProperty public var delegate: ObjCValue
     @ObjCProperty public var dataSource: ObjCValue
     @ObjCProperty(readonly: true) public var transitionStyle: Int
@@ -1634,7 +1686,7 @@ public protocol UIScrollViewMethods: UIViewMethods {}
 extension UIScrollViewMethods {
     @ObjCProperty public var contentOffset: CGPoint
     @ObjCProperty public var contentSize: CGSize
-    @ObjCProperty public var contentInset: ObjCValue
+    @ObjCProperty public var contentInset: UIEdgeInsets
     @ObjCProperty public var delegate: ObjCValue
     @ObjCProperty(getter: "isDirectionalLockEnabled") public var directionalLockEnabled: Bool
     @ObjCProperty public var bounces: Bool
@@ -1644,7 +1696,7 @@ extension UIScrollViewMethods {
     @ObjCProperty(getter: "isScrollEnabled") public var scrollEnabled: Bool
     @ObjCProperty public var showsHorizontalScrollIndicator: Bool
     @ObjCProperty public var showsVerticalScrollIndicator: Bool
-    @ObjCProperty public var scrollIndicatorInsets: ObjCValue
+    @ObjCProperty public var scrollIndicatorInsets: UIEdgeInsets
     @ObjCProperty public var indicatorStyle: Int
     @ObjCProperty public var decelerationRate: Float
     @ObjCMethod("setContentOffset:animated:") public func setContentOffset(_ a0: CGPoint, animated a1: Bool)
@@ -1655,7 +1707,7 @@ extension UIScrollViewMethods {
     @ObjCProperty(getter: "isDecelerating", readonly: true) public var decelerating: Bool
     @ObjCProperty public var delaysContentTouches: Bool
     @ObjCProperty public var canCancelContentTouches: Bool
-    @ObjCMethod("touchesShouldBegin:withEvent:inContentView:") public func touchesShouldBegin(_ a0: some NSSetMethods, withEvent a1: (some UIEventMethods)?, inContentView a2: some UIViewMethods) -> Bool
+    @ObjCMethod("touchesShouldBegin:withEvent:inContentView:") public func touchesShouldBegin(_ a0: some NSSetMethods, withEvent a1: UIEvent?, inContentView a2: some UIViewMethods) -> Bool
     @ObjCMethod("touchesShouldCancelInContentView:") public func touchesShouldCancelInContentView(_ a0: some UIViewMethods) -> Bool
     @ObjCProperty public var minimumZoomScale: Float
     @ObjCProperty public var maximumZoomScale: Float
@@ -1691,20 +1743,20 @@ extension UISearchBarMethods {
     @ObjCProperty public var showsScopeBar: Bool
     @ObjCProperty public var backgroundImage: UIImage?
     @ObjCProperty public var scopeBarBackgroundImage: UIImage?
-    @ObjCMethod("setSearchFieldBackgroundImage:forState:") public func setSearchFieldBackgroundImage(_ a0: (some UIImageMethods)?, forState a1: Int)
+    @ObjCMethod("setSearchFieldBackgroundImage:forState:") public func setSearchFieldBackgroundImage(_ a0: UIImage?, forState a1: Int)
     @ObjCMethod("searchFieldBackgroundImageForState:") public func searchFieldBackgroundImageForState(_ a0: Int) -> UIImage?
-    @ObjCMethod("setImage:forSearchBarIcon:state:") public func setImage(_ a0: (some UIImageMethods)?, forSearchBarIcon a1: Int, state a2: Int)
+    @ObjCMethod("setImage:forSearchBarIcon:state:") public func setImage(_ a0: UIImage?, forSearchBarIcon a1: Int, state a2: Int)
     @ObjCMethod("imageForSearchBarIcon:state:") public func imageForSearchBarIcon(_ a0: Int, state a1: Int) -> UIImage?
-    @ObjCMethod("setScopeBarButtonBackgroundImage:forState:") public func setScopeBarButtonBackgroundImage(_ a0: (some UIImageMethods)?, forState a1: Int)
+    @ObjCMethod("setScopeBarButtonBackgroundImage:forState:") public func setScopeBarButtonBackgroundImage(_ a0: UIImage?, forState a1: Int)
     @ObjCMethod("scopeBarButtonBackgroundImageForState:") public func scopeBarButtonBackgroundImageForState(_ a0: Int) -> UIImage?
-    @ObjCMethod("setScopeBarButtonDividerImage:forLeftSegmentState:rightSegmentState:") public func setScopeBarButtonDividerImage(_ a0: (some UIImageMethods)?, forLeftSegmentState a1: Int, rightSegmentState a2: Int)
+    @ObjCMethod("setScopeBarButtonDividerImage:forLeftSegmentState:rightSegmentState:") public func setScopeBarButtonDividerImage(_ a0: UIImage?, forLeftSegmentState a1: Int, rightSegmentState a2: Int)
     @ObjCMethod("scopeBarButtonDividerImageForLeftSegmentState:rightSegmentState:") public func scopeBarButtonDividerImageForLeftSegmentState(_ a0: Int, rightSegmentState a1: Int) -> UIImage?
-    @ObjCMethod("setScopeBarButtonTitleTextAttributes:forState:") public func setScopeBarButtonTitleTextAttributes(_ a0: (some NSDictionaryMethods)?, forState a1: Int)
+    @ObjCMethod("setScopeBarButtonTitleTextAttributes:forState:") public func setScopeBarButtonTitleTextAttributes(_ a0: NSDictionary?, forState a1: Int)
     @ObjCMethod("scopeBarButtonTitleTextAttributesForState:") public func scopeBarButtonTitleTextAttributesForState(_ a0: Int) -> NSDictionary?
-    @ObjCProperty public var searchFieldBackgroundPositionAdjustment: ObjCValue
-    @ObjCProperty public var searchTextPositionAdjustment: ObjCValue
-    @ObjCMethod("setPositionAdjustment:forSearchBarIcon:") public func setPositionAdjustment(_ a0: ObjCValue, forSearchBarIcon a1: Int)
-    @ObjCMethod("positionAdjustmentForSearchBarIcon:") public func positionAdjustmentForSearchBarIcon(_ a0: Int) -> ObjCValue
+    @ObjCProperty public var searchFieldBackgroundPositionAdjustment: UIOffset
+    @ObjCProperty public var searchTextPositionAdjustment: UIOffset
+    @ObjCMethod("setPositionAdjustment:forSearchBarIcon:") public func setPositionAdjustment(_ a0: UIOffset, forSearchBarIcon a1: Int)
+    @ObjCMethod("positionAdjustmentForSearchBarIcon:") public func positionAdjustmentForSearchBarIcon(_ a0: Int) -> UIOffset
 }
 
 /// The Objective-C class UISplitViewController, a subclass of UIViewController.
@@ -1723,7 +1775,7 @@ extension UITabBarMethods {
     @ObjCProperty public var delegate: ObjCValue
     @ObjCProperty public var items: NSArray?
     @ObjCProperty public var selectedItem: UITabBarItem?
-    @ObjCMethod("setItems:animated:") public func setItems(_ a0: (some NSArrayMethods)?, animated a1: Bool)
+    @ObjCMethod("setItems:animated:") public func setItems(_ a0: NSArray?, animated a1: Bool)
     @ObjCMethod("beginCustomizingItems:") public func beginCustomizingItems(_ a0: some NSArrayMethods)
     @ObjCMethod("endCustomizingAnimated:") public func endCustomizingAnimated(_ a0: Bool) -> Bool
     @ObjCMethod("isCustomizing") public func isCustomizing() -> Bool
@@ -1739,7 +1791,7 @@ public protocol UITabBarControllerMethods: UIViewControllerMethods {}
 @ObjC public struct UITabBarController: UITabBarControllerMethods {}
 extension UITabBarControllerMethods {
     @ObjCProperty public var viewControllers: NSArray?
-    @ObjCMethod("setViewControllers:animated:") public func setViewControllers(_ a0: (some NSArrayMethods)?, animated a1: Bool)
+    @ObjCMethod("setViewControllers:animated:") public func setViewControllers(_ a0: NSArray?, animated a1: Bool)
     @ObjCProperty public var selectedViewController: UIViewController?
     @ObjCProperty public var selectedIndex: Int
     @ObjCProperty(readonly: true) public var moreNavigationController: UINavigationController?
@@ -1827,7 +1879,7 @@ extension UIToolbarMethods {
     @ObjCProperty public var barStyle: Int
     @ObjCProperty public var items: NSArray?
     @ObjCProperty(getter: "isTranslucent") public var translucent: Bool
-    @ObjCMethod("setItems:animated:") public func setItems(_ a0: (some NSArrayMethods)?, animated a1: Bool)
+    @ObjCMethod("setItems:animated:") public func setItems(_ a0: NSArray?, animated a1: Bool)
     @ObjCProperty public var tintColor: UIColor?
 }
 
@@ -1838,7 +1890,7 @@ extension UIWebViewMethods {
     @ObjCProperty public var delegate: ObjCValue
     @ObjCProperty(readonly: true) public var scrollView: UIScrollView?
     @ObjCMethod("loadRequest:") public func loadRequest(_ a0: some NSURLRequestMethods)
-    @ObjCMethod("loadHTMLString:baseURL:") public func loadHTMLString(_ a0: String, baseURL a1: (some NSURLMethods)?)
+    @ObjCMethod("loadHTMLString:baseURL:") public func loadHTMLString(_ a0: String, baseURL a1: NSURL?)
     @ObjCMethod("loadData:MIMEType:textEncodingName:baseURL:") public func loadData(_ a0: some NSDataMethods, MIMEType a1: String, textEncodingName a2: String, baseURL a3: some NSURLMethods)
     @ObjCProperty(readonly: true) public var request: NSURLRequest?
     @ObjCMethod("reload") public func reload()
@@ -1872,10 +1924,10 @@ extension UIWindowMethods {
     @ObjCMethod("makeKeyAndVisible") public func makeKeyAndVisible()
     @ObjCProperty public var rootViewController: UIViewController?
     @ObjCMethod("sendEvent:") public func sendEvent(_ a0: some UIEventMethods)
-    @ObjCMethod("convertPoint:toWindow:") public func convertPoint(_ a0: CGPoint, toWindow a1: (some UIWindowMethods)?) -> CGPoint
-    @ObjCMethod("convertPoint:fromWindow:") public func convertPoint(_ a0: CGPoint, fromWindow a1: (some UIWindowMethods)?) -> CGPoint
-    @ObjCMethod("convertRect:toWindow:") public func convertRect(_ a0: CGRect, toWindow a1: (some UIWindowMethods)?) -> CGRect
-    @ObjCMethod("convertRect:fromWindow:") public func convertRect(_ a0: CGRect, fromWindow a1: (some UIWindowMethods)?) -> CGRect
+    @ObjCMethod("convertPoint:toWindow:") public func convertPoint(_ a0: CGPoint, toWindow a1: UIWindow?) -> CGPoint
+    @ObjCMethod("convertPoint:fromWindow:") public func convertPoint(_ a0: CGPoint, fromWindow a1: UIWindow?) -> CGPoint
+    @ObjCMethod("convertRect:toWindow:") public func convertRect(_ a0: CGRect, toWindow a1: UIWindow?) -> CGRect
+    @ObjCMethod("convertRect:fromWindow:") public func convertRect(_ a0: CGRect, fromWindow a1: UIWindow?) -> CGRect
 }
 
 /// The Objective-C class UIButton, a subclass of UIControl.
@@ -1883,21 +1935,21 @@ public protocol UIButtonMethods: UIControlMethods {}
 @ObjC public struct UIButton: UIButtonMethods {}
 extension UIButtonMethods {
     @ObjCMethod("buttonWithType:") public static func buttonWithType(_ a0: Int) -> Self
-    @ObjCProperty public var contentEdgeInsets: ObjCValue
-    @ObjCProperty public var titleEdgeInsets: ObjCValue
+    @ObjCProperty public var contentEdgeInsets: UIEdgeInsets
+    @ObjCProperty public var titleEdgeInsets: UIEdgeInsets
     @ObjCProperty public var reversesTitleShadowWhenHighlighted: Bool
-    @ObjCProperty public var imageEdgeInsets: ObjCValue
+    @ObjCProperty public var imageEdgeInsets: UIEdgeInsets
     @ObjCProperty public var adjustsImageWhenHighlighted: Bool
     @ObjCProperty public var adjustsImageWhenDisabled: Bool
     @ObjCProperty public var showsTouchWhenHighlighted: Bool
     @ObjCProperty public var tintColor: UIColor?
     @ObjCProperty(readonly: true) public var buttonType: Int
     @ObjCMethod("setTitle:forState:") public func setTitle(_ a0: String?, forState a1: Int)
-    @ObjCMethod("setTitleColor:forState:") public func setTitleColor(_ a0: (some UIColorMethods)?, forState a1: Int)
-    @ObjCMethod("setTitleShadowColor:forState:") public func setTitleShadowColor(_ a0: (some UIColorMethods)?, forState a1: Int)
-    @ObjCMethod("setImage:forState:") public func setImage(_ a0: (some UIImageMethods)?, forState a1: Int)
-    @ObjCMethod("setBackgroundImage:forState:") public func setBackgroundImage(_ a0: (some UIImageMethods)?, forState a1: Int)
-    @ObjCMethod("setAttributedTitle:forState:") public func setAttributedTitle(_ a0: (some NSAttributedStringMethods)?, forState a1: Int)
+    @ObjCMethod("setTitleColor:forState:") public func setTitleColor(_ a0: UIColor?, forState a1: Int)
+    @ObjCMethod("setTitleShadowColor:forState:") public func setTitleShadowColor(_ a0: UIColor?, forState a1: Int)
+    @ObjCMethod("setImage:forState:") public func setImage(_ a0: UIImage?, forState a1: Int)
+    @ObjCMethod("setBackgroundImage:forState:") public func setBackgroundImage(_ a0: UIImage?, forState a1: Int)
+    @ObjCMethod("setAttributedTitle:forState:") public func setAttributedTitle(_ a0: NSAttributedString?, forState a1: Int)
     @ObjCMethod("titleForState:") public func titleForState(_ a0: Int) -> String?
     @ObjCMethod("titleColorForState:") public func titleColorForState(_ a0: Int) -> UIColor?
     @ObjCMethod("titleShadowColorForState:") public func titleShadowColorForState(_ a0: Int) -> UIColor?
@@ -1930,15 +1982,15 @@ extension UICollectionViewMethods {
     @ObjCProperty public var dataSource: ObjCValue
     @ObjCProperty public var backgroundView: UIView?
     @ObjCMethod("registerClass:forCellWithReuseIdentifier:") public func registerClass(_ a0: ObjCValue, forCellWithReuseIdentifier a1: String)
-    @ObjCMethod("registerNib:forCellWithReuseIdentifier:") public func registerNib(_ a0: (some UINibMethods)?, forCellWithReuseIdentifier a1: String)
+    @ObjCMethod("registerNib:forCellWithReuseIdentifier:") public func registerNib(_ a0: UINib?, forCellWithReuseIdentifier a1: String)
     @ObjCMethod("registerClass:forSupplementaryViewOfKind:withReuseIdentifier:") public func registerClass(_ a0: ObjCValue, forSupplementaryViewOfKind a1: String, withReuseIdentifier a2: String)
-    @ObjCMethod("registerNib:forSupplementaryViewOfKind:withReuseIdentifier:") public func registerNib(_ a0: (some UINibMethods)?, forSupplementaryViewOfKind a1: String, withReuseIdentifier a2: String)
+    @ObjCMethod("registerNib:forSupplementaryViewOfKind:withReuseIdentifier:") public func registerNib(_ a0: UINib?, forSupplementaryViewOfKind a1: String, withReuseIdentifier a2: String)
     @ObjCMethod("dequeueReusableCellWithReuseIdentifier:forIndexPath:") public func dequeueReusableCellWithReuseIdentifier(_ a0: String, forIndexPath a1: some NSIndexPathMethods) -> UICollectionViewCell
     @ObjCMethod("dequeueReusableSupplementaryViewOfKind:withReuseIdentifier:forIndexPath:") public func dequeueReusableSupplementaryViewOfKind(_ a0: String, withReuseIdentifier a1: String, forIndexPath a2: some NSIndexPathMethods) -> UICollectionReusableView
     @ObjCProperty public var allowsSelection: Bool
     @ObjCProperty public var allowsMultipleSelection: Bool
     @ObjCMethod("indexPathsForSelectedItems") public func indexPathsForSelectedItems() -> NSArray?
-    @ObjCMethod("selectItemAtIndexPath:animated:scrollPosition:") public func selectItemAtIndexPath(_ a0: (some NSIndexPathMethods)?, animated a1: Bool, scrollPosition a2: Int)
+    @ObjCMethod("selectItemAtIndexPath:animated:scrollPosition:") public func selectItemAtIndexPath(_ a0: NSIndexPath?, animated a1: Bool, scrollPosition a2: Int)
     @ObjCMethod("deselectItemAtIndexPath:animated:") public func deselectItemAtIndexPath(_ a0: some NSIndexPathMethods, animated a1: Bool)
     @ObjCMethod("reloadData") public func reloadData()
     @ObjCMethod("setCollectionViewLayout:animated:") public func setCollectionViewLayout(_ a0: some UICollectionViewLayoutMethods, animated a1: Bool)
@@ -2044,18 +2096,18 @@ extension UIRefreshControlMethods {
 public protocol UISegmentedControlMethods: UIControlMethods {}
 @ObjC public struct UISegmentedControl: UISegmentedControlMethods {}
 extension UISegmentedControlMethods {
-    @ObjCMethod("initWithItems:") public init(items a0: (some NSArrayMethods)?)
+    @ObjCMethod("initWithItems:") public init(items a0: NSArray?)
     @ObjCProperty public var segmentedControlStyle: Int
     @ObjCProperty(getter: "isMomentary") public var momentary: Bool
     @ObjCProperty(readonly: true) public var numberOfSegments: Int
     @ObjCProperty public var apportionsSegmentWidthsByContent: Bool
     @ObjCMethod("insertSegmentWithTitle:atIndex:animated:") public func insertSegmentWithTitle(_ a0: String?, atIndex a1: Int, animated a2: Bool)
-    @ObjCMethod("insertSegmentWithImage:atIndex:animated:") public func insertSegmentWithImage(_ a0: (some UIImageMethods)?, atIndex a1: Int, animated a2: Bool)
+    @ObjCMethod("insertSegmentWithImage:atIndex:animated:") public func insertSegmentWithImage(_ a0: UIImage?, atIndex a1: Int, animated a2: Bool)
     @ObjCMethod("removeSegmentAtIndex:animated:") public func removeSegmentAtIndex(_ a0: Int, animated a1: Bool)
     @ObjCMethod("removeAllSegments") public func removeAllSegments()
     @ObjCMethod("setTitle:forSegmentAtIndex:") public func setTitle(_ a0: String?, forSegmentAtIndex a1: Int)
     @ObjCMethod("titleForSegmentAtIndex:") public func titleForSegmentAtIndex(_ a0: Int) -> String?
-    @ObjCMethod("setImage:forSegmentAtIndex:") public func setImage(_ a0: (some UIImageMethods)?, forSegmentAtIndex a1: Int)
+    @ObjCMethod("setImage:forSegmentAtIndex:") public func setImage(_ a0: UIImage?, forSegmentAtIndex a1: Int)
     @ObjCMethod("imageForSegmentAtIndex:") public func imageForSegmentAtIndex(_ a0: Int) -> UIImage?
     @ObjCMethod("setWidth:forSegmentAtIndex:") public func setWidth(_ a0: Float, forSegmentAtIndex a1: Int)
     @ObjCMethod("widthForSegmentAtIndex:") public func widthForSegmentAtIndex(_ a0: Int) -> Float
@@ -2065,14 +2117,14 @@ extension UISegmentedControlMethods {
     @ObjCMethod("isEnabledForSegmentAtIndex:") public func isEnabledForSegmentAtIndex(_ a0: Int) -> Bool
     @ObjCProperty public var selectedSegmentIndex: Int
     @ObjCProperty public var tintColor: UIColor?
-    @ObjCMethod("setBackgroundImage:forState:barMetrics:") public func setBackgroundImage(_ a0: (some UIImageMethods)?, forState a1: Int, barMetrics a2: Int)
+    @ObjCMethod("setBackgroundImage:forState:barMetrics:") public func setBackgroundImage(_ a0: UIImage?, forState a1: Int, barMetrics a2: Int)
     @ObjCMethod("backgroundImageForState:barMetrics:") public func backgroundImageForState(_ a0: Int, barMetrics a1: Int) -> UIImage?
-    @ObjCMethod("setDividerImage:forLeftSegmentState:rightSegmentState:barMetrics:") public func setDividerImage(_ a0: (some UIImageMethods)?, forLeftSegmentState a1: Int, rightSegmentState a2: Int, barMetrics a3: Int)
+    @ObjCMethod("setDividerImage:forLeftSegmentState:rightSegmentState:barMetrics:") public func setDividerImage(_ a0: UIImage?, forLeftSegmentState a1: Int, rightSegmentState a2: Int, barMetrics a3: Int)
     @ObjCMethod("dividerImageForLeftSegmentState:rightSegmentState:barMetrics:") public func dividerImageForLeftSegmentState(_ a0: Int, rightSegmentState a1: Int, barMetrics a2: Int) -> UIImage?
-    @ObjCMethod("setTitleTextAttributes:forState:") public func setTitleTextAttributes(_ a0: (some NSDictionaryMethods)?, forState a1: Int)
+    @ObjCMethod("setTitleTextAttributes:forState:") public func setTitleTextAttributes(_ a0: NSDictionary?, forState a1: Int)
     @ObjCMethod("titleTextAttributesForState:") public func titleTextAttributesForState(_ a0: Int) -> NSDictionary?
-    @ObjCMethod("setContentPositionAdjustment:forSegmentType:barMetrics:") public func setContentPositionAdjustment(_ a0: ObjCValue, forSegmentType a1: Int, barMetrics a2: Int)
-    @ObjCMethod("contentPositionAdjustmentForSegmentType:barMetrics:") public func contentPositionAdjustmentForSegmentType(_ a0: Int, barMetrics a1: Int) -> ObjCValue
+    @ObjCMethod("setContentPositionAdjustment:forSegmentType:barMetrics:") public func setContentPositionAdjustment(_ a0: UIOffset, forSegmentType a1: Int, barMetrics a2: Int)
+    @ObjCMethod("contentPositionAdjustmentForSegmentType:barMetrics:") public func contentPositionAdjustmentForSegmentType(_ a0: Int, barMetrics a1: Int) -> UIOffset
 }
 
 /// The Objective-C class UISlider, a subclass of UIControl.
@@ -2089,9 +2141,9 @@ extension UISliderMethods {
     @ObjCProperty public var maximumTrackTintColor: UIColor?
     @ObjCProperty public var thumbTintColor: UIColor?
     @ObjCMethod("setValue:animated:") public func setValue(_ a0: Float, animated a1: Bool)
-    @ObjCMethod("setThumbImage:forState:") public func setThumbImage(_ a0: (some UIImageMethods)?, forState a1: Int)
-    @ObjCMethod("setMinimumTrackImage:forState:") public func setMinimumTrackImage(_ a0: (some UIImageMethods)?, forState a1: Int)
-    @ObjCMethod("setMaximumTrackImage:forState:") public func setMaximumTrackImage(_ a0: (some UIImageMethods)?, forState a1: Int)
+    @ObjCMethod("setThumbImage:forState:") public func setThumbImage(_ a0: UIImage?, forState a1: Int)
+    @ObjCMethod("setMinimumTrackImage:forState:") public func setMinimumTrackImage(_ a0: UIImage?, forState a1: Int)
+    @ObjCMethod("setMaximumTrackImage:forState:") public func setMaximumTrackImage(_ a0: UIImage?, forState a1: Int)
     @ObjCMethod("thumbImageForState:") public func thumbImageForState(_ a0: Int) -> UIImage?
     @ObjCMethod("minimumTrackImageForState:") public func minimumTrackImageForState(_ a0: Int) -> UIImage?
     @ObjCMethod("maximumTrackImageForState:") public func maximumTrackImageForState(_ a0: Int) -> UIImage?
@@ -2116,13 +2168,13 @@ extension UIStepperMethods {
     @ObjCProperty public var maximumValue: Double
     @ObjCProperty public var stepValue: Double
     @ObjCProperty public var tintColor: UIColor?
-    @ObjCMethod("setBackgroundImage:forState:") public func setBackgroundImage(_ a0: (some UIImageMethods)?, forState a1: Int)
+    @ObjCMethod("setBackgroundImage:forState:") public func setBackgroundImage(_ a0: UIImage?, forState a1: Int)
     @ObjCMethod("backgroundImageForState:") public func backgroundImageForState(_ a0: Int) -> UIImage?
-    @ObjCMethod("setDividerImage:forLeftSegmentState:rightSegmentState:") public func setDividerImage(_ a0: (some UIImageMethods)?, forLeftSegmentState a1: Int, rightSegmentState a2: Int)
+    @ObjCMethod("setDividerImage:forLeftSegmentState:rightSegmentState:") public func setDividerImage(_ a0: UIImage?, forLeftSegmentState a1: Int, rightSegmentState a2: Int)
     @ObjCMethod("dividerImageForLeftSegmentState:rightSegmentState:") public func dividerImageForLeftSegmentState(_ a0: Int, rightSegmentState a1: Int) -> UIImage?
-    @ObjCMethod("setIncrementImage:forState:") public func setIncrementImage(_ a0: (some UIImageMethods)?, forState a1: Int)
+    @ObjCMethod("setIncrementImage:forState:") public func setIncrementImage(_ a0: UIImage?, forState a1: Int)
     @ObjCMethod("incrementImageForState:") public func incrementImageForState(_ a0: Int) -> UIImage?
-    @ObjCMethod("setDecrementImage:forState:") public func setDecrementImage(_ a0: (some UIImageMethods)?, forState a1: Int)
+    @ObjCMethod("setDecrementImage:forState:") public func setDecrementImage(_ a0: UIImage?, forState a1: Int)
     @ObjCMethod("decrementImageForState:") public func decrementImageForState(_ a0: Int) -> UIImage?
 }
 
@@ -2186,7 +2238,7 @@ extension UITableViewMethods {
     @ObjCProperty public var allowsMultipleSelectionDuringEditing: Bool
     @ObjCProperty(readonly: true) public var indexPathForSelectedRow: NSIndexPath?
     @ObjCProperty(readonly: true) public var indexPathsForSelectedRows: NSArray?
-    @ObjCMethod("selectRowAtIndexPath:animated:scrollPosition:") public func selectRowAtIndexPath(_ a0: (some NSIndexPathMethods)?, animated a1: Bool, scrollPosition a2: Int)
+    @ObjCMethod("selectRowAtIndexPath:animated:scrollPosition:") public func selectRowAtIndexPath(_ a0: NSIndexPath?, animated a1: Bool, scrollPosition a2: Int)
     @ObjCMethod("deselectRowAtIndexPath:animated:") public func deselectRowAtIndexPath(_ a0: some NSIndexPathMethods, animated a1: Bool)
     @ObjCProperty public var sectionIndexMinimumDisplayRowCount: Int
     @ObjCProperty public var sectionIndexColor: UIColor?
@@ -2198,9 +2250,9 @@ extension UITableViewMethods {
     @ObjCMethod("dequeueReusableCellWithIdentifier:") public func dequeueReusableCellWithIdentifier(_ a0: String) -> UITableViewCell?
     @ObjCMethod("dequeueReusableCellWithIdentifier:forIndexPath:") public func dequeueReusableCellWithIdentifier(_ a0: String, forIndexPath a1: some NSIndexPathMethods) -> UITableViewCell
     @ObjCMethod("dequeueReusableHeaderFooterViewWithIdentifier:") public func dequeueReusableHeaderFooterViewWithIdentifier(_ a0: String) -> UITableViewHeaderFooterView?
-    @ObjCMethod("registerNib:forCellReuseIdentifier:") public func registerNib(_ a0: (some UINibMethods)?, forCellReuseIdentifier a1: String)
+    @ObjCMethod("registerNib:forCellReuseIdentifier:") public func registerNib(_ a0: UINib?, forCellReuseIdentifier a1: String)
     @ObjCMethod("registerClass:forCellReuseIdentifier:") public func registerClass(_ a0: ObjCValue, forCellReuseIdentifier a1: String)
-    @ObjCMethod("registerNib:forHeaderFooterViewReuseIdentifier:") public func registerNib(_ a0: (some UINibMethods)?, forHeaderFooterViewReuseIdentifier a1: String)
+    @ObjCMethod("registerNib:forHeaderFooterViewReuseIdentifier:") public func registerNib(_ a0: UINib?, forHeaderFooterViewReuseIdentifier a1: String)
     @ObjCMethod("registerClass:forHeaderFooterViewReuseIdentifier:") public func registerClass(_ a0: ObjCValue, forHeaderFooterViewReuseIdentifier a1: String)
 }
 
