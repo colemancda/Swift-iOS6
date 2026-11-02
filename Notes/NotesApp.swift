@@ -100,11 +100,16 @@ final class NoteStore: ObservableObject {
         notes = found
     }
 
-    func add() {
+    func add(_ title: String) {
         let object = NSEntityDescription.insertNewObjectForEntityForName("Note", inManagedObjectContext: context)
-        object.setValue(ObjCValue(NoteStore.titles[notes.count % NoteStore.titles.count]), forKey: "title")
+        object.setValue(ObjCValue(title), forKey: "title")
         object.setValue(NSDate.date().object, forKey: "created")
         object.setValue(NSNumber.numberWithBool(false).object, forKey: "done")
+        save()
+    }
+
+    func rename(_ note: Note, _ title: String) {
+        objects[note.id]?.setValue(ObjCValue(title), forKey: "title")
         save()
     }
 
@@ -129,9 +134,6 @@ final class NoteStore: ObservableObject {
         if let failure = withError({ !context.save($0) }) { error = "Couldn't save: \(failure)" }
         reload()
     }
-
-    static let titles = ["Buy milk", "Call the bank", "Charge the iPod", "Water the plants", "Back up the 4S",
-                         "Read about Core Data", "Try the BLE scanner", "Write a new SwiftUI app"]
 }
 
 /// Runs `body` with an NSError ** argument; if it reports failure, returns
@@ -147,12 +149,16 @@ func withError(_ body: (ObjCValue) -> Bool) -> String? {
 
 struct NoteList: View {
     @EnvironmentObject var store: NoteStore
+    @State var draft = ""
 
     var body: some View {
         List {
-            HStack(spacing: 24) {
-                Button("Add note") { store.add() }
-                Spacer()
+            HStack(spacing: 12) {
+                TextField("New note", text: $draft)
+                    .onSubmit { add() }
+                Button("Add") { add() }
+            }
+            if store.notes.contains(where: { $0.done }) {
                 Button("Delete done") { store.deleteDone() }
             }
             if let error = store.error {
@@ -181,6 +187,20 @@ struct NoteList: View {
         }
         .navigationTitle("Notes")
     }
+
+    func add() {
+        let title = trimmed(draft)
+        guard !title.isEmpty else { return }
+        store.add(title)
+        draft = ""
+    }
+}
+
+/// Text without the spaces around it.
+func trimmed(_ text: String) -> String {
+    let bytes = Array(text.utf8)
+    guard let first = bytes.firstIndex(where: { $0 != 32 }), let last = bytes.lastIndex(where: { $0 != 32 }) else { return "" }
+    return String(decoding: bytes[first...last], as: UTF8.self)
 }
 
 struct NoteDetail: View {
@@ -191,8 +211,10 @@ struct NoteDetail: View {
         // The note as it is now, which a toggle may have changed.
         let current = store.notes.first { $0.id == note.id } ?? note
         List {
-            Text(current.title)
-                .font(.headline)
+            // Renames the note as it's typed.
+            TextField("Title", text: Binding(get: { current.title }, set: { title in
+                if !trimmed(title).isEmpty { store.rename(current, title) }
+            }))
             HStack {
                 Text("Created")
                 Spacer()
