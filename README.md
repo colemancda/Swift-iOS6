@@ -21,7 +21,8 @@ CoreBluetooth and CoreData as typed Swift modules (`UILabel(frame:)`,
 `ObjC/tools/objcgen.py` and limited to iOS 6.0's API. Example apps use them:
 [Location/](Location/README.md) (Core Location),
 [BLEScanner/](BLEScanner/README.md) (Core Bluetooth) and
-[Notes/](Notes/README.md) (Core Data).
+[Notes/](Notes/README.md) (Core Data) and [Motion/](Motion/README.md)
+(Core Motion). ObjCInterop also turns Swift closures into Objective-C blocks.
 [XML/](XML/README.md) parses XML with NSXMLParser into Swift events or a
 document tree, and [XMLBrowser/](XMLBrowser/README.md) browses XML files and
 plists with it.

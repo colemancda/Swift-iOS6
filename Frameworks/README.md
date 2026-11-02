@@ -1,7 +1,7 @@
 # Frameworks
 
-Foundation, UIKit, CoreLocation, CoreBluetooth and CoreData for Embedded
-Swift on iOS 6. These are typed Swift
+Foundation, UIKit, CoreLocation, CoreBluetooth, CoreData and CoreMotion for
+Embedded Swift on iOS 6. These are typed Swift
 wrappers generated from the iOS SDK's headers by
 [../ObjC/tools/objcgen.py](../ObjC/README.md#generating-wrappers-from-headers),
 with the API limited to what iOS 6.0 has. Each is a Swift module of the same
@@ -23,16 +23,17 @@ if let url = NSURL.URLWithString("http://www.apple.com") {
 
 | Module | Classes | Methods | Properties |
 |---|---|---|---|
-| Foundation | 127 | 1,430 | 601 |
-| UIKit | 109 | 833 | 755 |
-| CoreLocation | 6 | 26 | 48 |
+| Foundation | 127 | 1,503 | 601 |
+| UIKit | 109 | 859 | 755 |
+| CoreLocation | 6 | 32 | 48 |
 | CoreBluetooth | 12 | 30 | 29 |
-| CoreData | 28 | 141 | 158 |
+| CoreData | 28 | 143 | 158 |
+| CoreMotion | 7 | 26 | 32 |
 
 UIKit's counts include its additions to Foundation classes, such as
 NSString's drawing methods.
 
-1,670 APIs newer than iOS 6.0 and 113 newer classes are left out. Each
+1,806 APIs newer than iOS 6.0 and 123 newer classes are left out. Each
 framework only uses the wrapper types of frameworks listed before it, and
 imports just the ones it refers to (CoreData uses Foundation's, not
 UIKit's). A type from a later framework is `ObjCValue` instead: for example,
@@ -42,6 +43,7 @@ Example apps:
 - [../Location](../Location/README.md) uses CoreLocation.
 - [../BLEScanner](../BLEScanner/README.md) uses CoreBluetooth.
 - [../Notes](../Notes/README.md) uses CoreData.
+- [../Motion](../Motion/README.md) uses CoreMotion, with a block handler.
 - `../SwiftUI/Examples/Interop` uses UIKit.
 
 ## What the declarations look like
@@ -79,9 +81,20 @@ Example apps:
     converts to and from the runtime's words.
   - Everything else is `ObjCValue`: `id`, `SEL`, `Class`, other structs,
     pointers, and objects of classes from other frameworks.
+- **Blocks** are Swift closures.
+  - `enumerateObjectsUsingBlock:` takes
+    `(ObjCValue, Int, ObjCValue) -> Void`.
+  - `animateWithDuration:animations:completion:` takes `() -> Void` and
+    `((Bool) -> Void)?`.
+  - CoreMotion's handlers take `(CMDeviceMotion?, NSError?) -> Void`.
+
+  The generated method wraps the closure in an `ObjCBlock` whose type
+  encoding comes from the C block type, typedefs (`NSComparator`) included.
+  `BOOL *stop` arrives as an `ObjCValue`: `stop.setPointee(true)`.
 - **Left out:**
-  - Methods that take blocks, function pointers, C arrays or variable
-    arguments.
+  - Methods that take function pointers, C arrays or variable arguments, or
+    blocks that take blocks.
+  - Class properties (`+[NSDate timeIntervalSinceReferenceDate]`).
   - Protocols and constants. Write delegates with `@ObjCImplementation`, as
     the example apps do, and pass a constant's value, such as `"SQLite"` for
     `NSSQLiteStoreType`.
@@ -98,7 +111,7 @@ and is 238 KB.
   against each listed framework.
 - **Regenerating:** `make frameworks` in `../ObjC` regenerates them all
   (the list is `FRAMEWORKS` in `../ObjC/Makefile`). Don't edit them by hand.
-- **Tests:** `make test-frameworks` in `../ObjC` runs 31 checks of the
+- **Tests:** `make test-frameworks` in `../ObjC` runs 36 checks of the
   generated Foundation on the device. They cover factories, initializers,
   inheritance, subclass arguments, nullable results, numbers, files, URLs,
-  dates, data and NSUUID.
+  dates, data, NSUUID, and closures for block parameters.

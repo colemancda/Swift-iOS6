@@ -155,6 +155,18 @@ extension NSArrayMethods {
     @ObjCMethod("makeObjectsPerformSelector:withObject:") public func makeObjectsPerformSelector(_ a0: ObjCValue, withObject a1: ObjCValue)
     @ObjCMethod("objectsAtIndexes:") public func objectsAtIndexes(_ a0: some NSIndexSetMethods) -> NSArray
     @ObjCMethod("objectAtIndexedSubscript:") public func objectAtIndexedSubscript(_ a0: Int) -> ObjCValue
+    public func enumerateObjectsUsingBlock(_ a0: @escaping (ObjCValue, Int, ObjCValue) -> Void) { _ = self.object.send("enumerateObjectsUsingBlock:", ObjCBlock(types: "v@L^v") { call in a0(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])); return nil }) }
+    public func enumerateObjectsWithOptions(_ a0: Int, usingBlock a1: @escaping (ObjCValue, Int, ObjCValue) -> Void) { _ = self.object.send("enumerateObjectsWithOptions:usingBlock:", a0, ObjCBlock(types: "v@L^v") { call in a1(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])); return nil }) }
+    public func enumerateObjectsAtIndexes(_ a0: some NSIndexSetMethods, options a1: Int, usingBlock a2: @escaping (ObjCValue, Int, ObjCValue) -> Void) { _ = self.object.send("enumerateObjectsAtIndexes:options:usingBlock:", a0, a1, ObjCBlock(types: "v@L^v") { call in a2(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])); return nil }) }
+    public func indexOfObjectPassingTest(_ a0: @escaping (ObjCValue, Int, ObjCValue) -> Bool) -> Int { return objcResult(self.object.send("indexOfObjectPassingTest:", ObjCBlock(types: "c@L^v") { call in return a0(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])).objcValue })) }
+    public func indexOfObjectWithOptions(_ a0: Int, passingTest a1: @escaping (ObjCValue, Int, ObjCValue) -> Bool) -> Int { return objcResult(self.object.send("indexOfObjectWithOptions:passingTest:", a0, ObjCBlock(types: "c@L^v") { call in return a1(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])).objcValue })) }
+    public func indexOfObjectAtIndexes(_ a0: some NSIndexSetMethods, options a1: Int, passingTest a2: @escaping (ObjCValue, Int, ObjCValue) -> Bool) -> Int { return objcResult(self.object.send("indexOfObjectAtIndexes:options:passingTest:", a0, a1, ObjCBlock(types: "c@L^v") { call in return a2(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])).objcValue })) }
+    public func indexesOfObjectsPassingTest(_ a0: @escaping (ObjCValue, Int, ObjCValue) -> Bool) -> NSIndexSet { return objcResult(self.object.send("indexesOfObjectsPassingTest:", ObjCBlock(types: "c@L^v") { call in return a0(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])).objcValue })) }
+    public func indexesOfObjectsWithOptions(_ a0: Int, passingTest a1: @escaping (ObjCValue, Int, ObjCValue) -> Bool) -> NSIndexSet { return objcResult(self.object.send("indexesOfObjectsWithOptions:passingTest:", a0, ObjCBlock(types: "c@L^v") { call in return a1(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])).objcValue })) }
+    public func indexesOfObjectsAtIndexes(_ a0: some NSIndexSetMethods, options a1: Int, passingTest a2: @escaping (ObjCValue, Int, ObjCValue) -> Bool) -> NSIndexSet { return objcResult(self.object.send("indexesOfObjectsAtIndexes:options:passingTest:", a0, a1, ObjCBlock(types: "c@L^v") { call in return a2(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])).objcValue })) }
+    public func sortedArrayUsingComparator(_ a0: @escaping (ObjCValue, ObjCValue) -> Int) -> NSArray { return objcResult(self.object.send("sortedArrayUsingComparator:", ObjCBlock(types: "l@@") { call in return a0(objcResult(call[0]), objcResult(call[1])).objcValue })) }
+    public func sortedArrayWithOptions(_ a0: Int, usingComparator a1: @escaping (ObjCValue, ObjCValue) -> Int) -> NSArray { return objcResult(self.object.send("sortedArrayWithOptions:usingComparator:", a0, ObjCBlock(types: "l@@") { call in return a1(objcResult(call[0]), objcResult(call[1])).objcValue })) }
+    public func indexOfObject(_ a0: ObjCValue, inSortedRange a1: NSRange, options a2: Int, usingComparator a3: @escaping (ObjCValue, ObjCValue) -> Int) -> Int { return objcResult(self.object.send("indexOfObject:inSortedRange:options:usingComparator:", a0, a1, a2, ObjCBlock(types: "l@@") { call in return a3(objcResult(call[0]), objcResult(call[1])).objcValue })) }
     @ObjCMethod("array") public static func array() -> Self
     @ObjCMethod("arrayWithObject:") public static func arrayWithObject(_ a0: ObjCValue) -> Self
     @ObjCMethod("arrayWithObjects:count:") public static func arrayWithObjects(_ a0: ObjCValue, count a1: Int) -> Self
@@ -194,6 +206,8 @@ extension NSAttributedStringMethods {
     @ObjCMethod("initWithString:") public init(string a0: String)
     @ObjCMethod("initWithString:attributes:") public init(string a0: String, attributes a1: NSDictionary?)
     @ObjCMethod("initWithAttributedString:") public init(attributedString a0: some NSAttributedStringMethods)
+    public func enumerateAttributesInRange(_ a0: NSRange, options a1: Int, usingBlock a2: @escaping (NSDictionary, NSRange, ObjCValue) -> Void) { _ = self.object.send("enumerateAttributesInRange:options:usingBlock:", a0, a1, ObjCBlock(types: "v@{_NSRange=II}^v") { call in a2(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])); return nil }) }
+    public func enumerateAttribute(_ a0: String, inRange a1: NSRange, options a2: Int, usingBlock a3: @escaping (ObjCValue, NSRange, ObjCValue) -> Void) { _ = self.object.send("enumerateAttribute:inRange:options:usingBlock:", a0, a1, a2, ObjCBlock(types: "v@{_NSRange=II}^v") { call in a3(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])); return nil }) }
 }
 
 /// The Objective-C class NSAutoreleasePool, a subclass of NSObject.
@@ -573,6 +587,12 @@ extension NSDictionaryMethods {
     @ObjCMethod("keysSortedByValueUsingSelector:") public func keysSortedByValueUsingSelector(_ a0: ObjCValue) -> NSArray
     @ObjCMethod("getObjects:andKeys:count:") public func getObjects(_ a0: ObjCValue, andKeys a1: ObjCValue, count a2: Int)
     @ObjCMethod("objectForKeyedSubscript:") public func objectForKeyedSubscript(_ a0: ObjCValue) -> ObjCValue
+    public func enumerateKeysAndObjectsUsingBlock(_ a0: @escaping (ObjCValue, ObjCValue, ObjCValue) -> Void) { _ = self.object.send("enumerateKeysAndObjectsUsingBlock:", ObjCBlock(types: "v@@^v") { call in a0(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])); return nil }) }
+    public func enumerateKeysAndObjectsWithOptions(_ a0: Int, usingBlock a1: @escaping (ObjCValue, ObjCValue, ObjCValue) -> Void) { _ = self.object.send("enumerateKeysAndObjectsWithOptions:usingBlock:", a0, ObjCBlock(types: "v@@^v") { call in a1(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])); return nil }) }
+    public func keysSortedByValueUsingComparator(_ a0: @escaping (ObjCValue, ObjCValue) -> Int) -> NSArray { return objcResult(self.object.send("keysSortedByValueUsingComparator:", ObjCBlock(types: "l@@") { call in return a0(objcResult(call[0]), objcResult(call[1])).objcValue })) }
+    public func keysSortedByValueWithOptions(_ a0: Int, usingComparator a1: @escaping (ObjCValue, ObjCValue) -> Int) -> NSArray { return objcResult(self.object.send("keysSortedByValueWithOptions:usingComparator:", a0, ObjCBlock(types: "l@@") { call in return a1(objcResult(call[0]), objcResult(call[1])).objcValue })) }
+    public func keysOfEntriesPassingTest(_ a0: @escaping (ObjCValue, ObjCValue, ObjCValue) -> Bool) -> NSSet { return objcResult(self.object.send("keysOfEntriesPassingTest:", ObjCBlock(types: "c@@^v") { call in return a0(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])).objcValue })) }
+    public func keysOfEntriesWithOptions(_ a0: Int, passingTest a1: @escaping (ObjCValue, ObjCValue, ObjCValue) -> Bool) -> NSSet { return objcResult(self.object.send("keysOfEntriesWithOptions:passingTest:", a0, ObjCBlock(types: "c@@^v") { call in return a1(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])).objcValue })) }
     @ObjCMethod("getObjects:andKeys:") public func getObjects(_ a0: ObjCValue, andKeys a1: ObjCValue)
     @ObjCMethod("dictionary") public static func dictionary() -> Self
     @ObjCMethod("dictionaryWithObject:forKey:") public static func dictionaryWithObject(_ a0: ObjCValue, forKey a1: ObjCValue) -> Self
@@ -660,6 +680,7 @@ extension NSExpressionMethods {
     @ObjCMethod("expressionForMinusSet:with:") public static func expressionForMinusSet(_ a0: some NSExpressionMethods, with a1: some NSExpressionMethods) -> NSExpression
     @ObjCMethod("expressionForSubquery:usingIteratorVariable:predicate:") public static func expressionForSubquery(_ a0: some NSExpressionMethods, usingIteratorVariable a1: String, predicate a2: ObjCValue) -> NSExpression
     @ObjCMethod("expressionForFunction:selectorName:arguments:") public static func expressionForFunction(_ a0: some NSExpressionMethods, selectorName a1: String, arguments a2: NSArray?) -> NSExpression
+    public static func expressionForBlock(_ a0: @escaping (ObjCValue, NSArray, NSMutableDictionary?) -> ObjCValue, arguments a1: NSArray?) -> NSExpression { return objcResult(Self.objcClass.send("expressionForBlock:arguments:", ObjCBlock(types: "@@@@") { call in return a0(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])).objcValue }, a1)) }
     @ObjCMethod("initWithExpressionType:") public init(expressionType a0: Int)
     @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
     @ObjCProperty(readonly: true) public var expressionType: Int
@@ -685,6 +706,10 @@ extension NSFileCoordinatorMethods {
     @ObjCMethod("filePresenters") public static func filePresenters() -> NSArray
     @ObjCMethod("initWithFilePresenter:") public init(filePresenter a0: ObjCValue)
     @ObjCProperty public var purposeIdentifier: String?
+    public func coordinateReadingItemAtURL(_ a0: some NSURLMethods, options a1: Int, error a2: ObjCValue, byAccessor a3: @escaping (NSURL) -> Void) { _ = self.object.send("coordinateReadingItemAtURL:options:error:byAccessor:", a0, a1, a2, ObjCBlock(types: "v@") { call in a3(objcResult(call[0])); return nil }) }
+    public func coordinateWritingItemAtURL(_ a0: some NSURLMethods, options a1: Int, error a2: ObjCValue, byAccessor a3: @escaping (NSURL) -> Void) { _ = self.object.send("coordinateWritingItemAtURL:options:error:byAccessor:", a0, a1, a2, ObjCBlock(types: "v@") { call in a3(objcResult(call[0])); return nil }) }
+    public func coordinateReadingItemAtURL(_ a0: some NSURLMethods, options a1: Int, writingItemAtURL a2: some NSURLMethods, options a3: Int, error a4: ObjCValue, byAccessor a5: @escaping (NSURL, NSURL) -> Void) { _ = self.object.send("coordinateReadingItemAtURL:options:writingItemAtURL:options:error:byAccessor:", a0, a1, a2, a3, a4, ObjCBlock(types: "v@@") { call in a5(objcResult(call[0]), objcResult(call[1])); return nil }) }
+    public func coordinateWritingItemAtURL(_ a0: some NSURLMethods, options a1: Int, writingItemAtURL a2: some NSURLMethods, options a3: Int, error a4: ObjCValue, byAccessor a5: @escaping (NSURL, NSURL) -> Void) { _ = self.object.send("coordinateWritingItemAtURL:options:writingItemAtURL:options:error:byAccessor:", a0, a1, a2, a3, a4, ObjCBlock(types: "v@@") { call in a5(objcResult(call[0]), objcResult(call[1])); return nil }) }
     @ObjCMethod("itemAtURL:willMoveToURL:") public func itemAtURL(_ a0: some NSURLMethods, willMoveToURL a1: some NSURLMethods)
     @ObjCMethod("itemAtURL:didMoveToURL:") public func itemAtURL(_ a0: some NSURLMethods, didMoveToURL a1: some NSURLMethods)
     @ObjCMethod("cancel") public func cancel()
@@ -775,6 +800,7 @@ extension NSFileManagerMethods {
     @ObjCMethod("displayNameAtPath:") public func displayNameAtPath(_ a0: String) -> String
     @ObjCMethod("componentsToDisplayForPath:") public func componentsToDisplayForPath(_ a0: String) -> NSArray?
     @ObjCMethod("enumeratorAtPath:") public func enumeratorAtPath(_ a0: String) -> NSDirectoryEnumerator?
+    public func enumeratorAtURL(_ a0: some NSURLMethods, includingPropertiesForKeys a1: NSArray?, options a2: Int, errorHandler a3: ((NSURL, NSError) -> Bool)?) -> NSDirectoryEnumerator? { return objcResult(self.object.send("enumeratorAtURL:includingPropertiesForKeys:options:errorHandler:", a0, a1, a2, a3.map { body in ObjCBlock(types: "c@@") { call in return body(objcResult(call[0]), objcResult(call[1])).objcValue } })) }
     @ObjCMethod("subpathsAtPath:") public func subpathsAtPath(_ a0: String) -> NSArray?
     @ObjCMethod("contentsAtPath:") public func contentsAtPath(_ a0: String) -> NSData?
     @ObjCMethod("createFileAtPath:contents:attributes:") public func createFileAtPath(_ a0: String, contents a1: NSData?, attributes a2: NSDictionary?) -> Bool
@@ -962,6 +988,18 @@ extension NSIndexSetMethods {
     @ObjCMethod("containsIndexesInRange:") public func containsIndexesInRange(_ a0: NSRange) -> Bool
     @ObjCMethod("containsIndexes:") public func containsIndexes(_ a0: some NSIndexSetMethods) -> Bool
     @ObjCMethod("intersectsIndexesInRange:") public func intersectsIndexesInRange(_ a0: NSRange) -> Bool
+    public func enumerateIndexesUsingBlock(_ a0: @escaping (Int, ObjCValue) -> Void) { _ = self.object.send("enumerateIndexesUsingBlock:", ObjCBlock(types: "vL^v") { call in a0(objcResult(call[0]), objcResult(call[1])); return nil }) }
+    public func enumerateIndexesWithOptions(_ a0: Int, usingBlock a1: @escaping (Int, ObjCValue) -> Void) { _ = self.object.send("enumerateIndexesWithOptions:usingBlock:", a0, ObjCBlock(types: "vL^v") { call in a1(objcResult(call[0]), objcResult(call[1])); return nil }) }
+    public func enumerateIndexesInRange(_ a0: NSRange, options a1: Int, usingBlock a2: @escaping (Int, ObjCValue) -> Void) { _ = self.object.send("enumerateIndexesInRange:options:usingBlock:", a0, a1, ObjCBlock(types: "vL^v") { call in a2(objcResult(call[0]), objcResult(call[1])); return nil }) }
+    public func indexPassingTest(_ a0: @escaping (Int, ObjCValue) -> Bool) -> Int { return objcResult(self.object.send("indexPassingTest:", ObjCBlock(types: "cL^v") { call in return a0(objcResult(call[0]), objcResult(call[1])).objcValue })) }
+    public func indexWithOptions(_ a0: Int, passingTest a1: @escaping (Int, ObjCValue) -> Bool) -> Int { return objcResult(self.object.send("indexWithOptions:passingTest:", a0, ObjCBlock(types: "cL^v") { call in return a1(objcResult(call[0]), objcResult(call[1])).objcValue })) }
+    public func indexInRange(_ a0: NSRange, options a1: Int, passingTest a2: @escaping (Int, ObjCValue) -> Bool) -> Int { return objcResult(self.object.send("indexInRange:options:passingTest:", a0, a1, ObjCBlock(types: "cL^v") { call in return a2(objcResult(call[0]), objcResult(call[1])).objcValue })) }
+    public func indexesPassingTest(_ a0: @escaping (Int, ObjCValue) -> Bool) -> NSIndexSet { return objcResult(self.object.send("indexesPassingTest:", ObjCBlock(types: "cL^v") { call in return a0(objcResult(call[0]), objcResult(call[1])).objcValue })) }
+    public func indexesWithOptions(_ a0: Int, passingTest a1: @escaping (Int, ObjCValue) -> Bool) -> NSIndexSet { return objcResult(self.object.send("indexesWithOptions:passingTest:", a0, ObjCBlock(types: "cL^v") { call in return a1(objcResult(call[0]), objcResult(call[1])).objcValue })) }
+    public func indexesInRange(_ a0: NSRange, options a1: Int, passingTest a2: @escaping (Int, ObjCValue) -> Bool) -> NSIndexSet { return objcResult(self.object.send("indexesInRange:options:passingTest:", a0, a1, ObjCBlock(types: "cL^v") { call in return a2(objcResult(call[0]), objcResult(call[1])).objcValue })) }
+    public func enumerateRangesUsingBlock(_ a0: @escaping (NSRange, ObjCValue) -> Void) { _ = self.object.send("enumerateRangesUsingBlock:", ObjCBlock(types: "v{_NSRange=II}^v") { call in a0(objcResult(call[0]), objcResult(call[1])); return nil }) }
+    public func enumerateRangesWithOptions(_ a0: Int, usingBlock a1: @escaping (NSRange, ObjCValue) -> Void) { _ = self.object.send("enumerateRangesWithOptions:usingBlock:", a0, ObjCBlock(types: "v{_NSRange=II}^v") { call in a1(objcResult(call[0]), objcResult(call[1])); return nil }) }
+    public func enumerateRangesInRange(_ a0: NSRange, options a1: Int, usingBlock a2: @escaping (NSRange, ObjCValue) -> Void) { _ = self.object.send("enumerateRangesInRange:options:usingBlock:", a0, a1, ObjCBlock(types: "v{_NSRange=II}^v") { call in a2(objcResult(call[0]), objcResult(call[1])); return nil }) }
 }
 
 /// The Objective-C class NSInvocation, a subclass of NSObject.
@@ -1004,6 +1042,7 @@ extension NSLinguisticTaggerMethods {
     @ObjCMethod("setOrthography:range:") public func setOrthography(_ a0: NSOrthography?, range a1: NSRange)
     @ObjCMethod("orthographyAtIndex:effectiveRange:") public func orthographyAtIndex(_ a0: Int, effectiveRange a1: ObjCValue) -> NSOrthography?
     @ObjCMethod("stringEditedInRange:changeInLength:") public func stringEditedInRange(_ a0: NSRange, changeInLength a1: Int)
+    public func enumerateTagsInRange(_ a0: NSRange, scheme a1: String, options a2: Int, usingBlock a3: @escaping (String, NSRange, NSRange, ObjCValue) -> Void) { _ = self.object.send("enumerateTagsInRange:scheme:options:usingBlock:", a0, a1, a2, ObjCBlock(types: "v@{_NSRange=II}{_NSRange=II}^v") { call in a3(objcResult(call[0]), objcResult(call[1]), objcResult(call[2]), objcResult(call[3])); return nil }) }
     @ObjCMethod("sentenceRangeForRange:") public func sentenceRangeForRange(_ a0: NSRange) -> NSRange
     @ObjCMethod("tagAtIndex:scheme:tokenRange:sentenceRange:") public func tagAtIndex(_ a0: Int, scheme a1: String, tokenRange a2: ObjCValue, sentenceRange a3: ObjCValue) -> String?
     @ObjCMethod("tagsInRange:scheme:options:tokenRanges:") public func tagsInRange(_ a0: NSRange, scheme a1: String, options a2: Int, tokenRanges a3: ObjCValue) -> NSArray
@@ -1206,6 +1245,7 @@ extension NSNotificationCenterMethods {
     @ObjCMethod("postNotificationName:object:userInfo:") public func postNotificationName(_ a0: String, object a1: ObjCValue, userInfo a2: NSDictionary?)
     @ObjCMethod("removeObserver:") public func removeObserver(_ a0: ObjCValue)
     @ObjCMethod("removeObserver:name:object:") public func removeObserver(_ a0: ObjCValue, name a1: String?, object a2: ObjCValue)
+    public func addObserverForName(_ a0: String?, object a1: ObjCValue, queue a2: NSOperationQueue?, usingBlock a3: @escaping (NSNotification) -> Void) -> ObjCValue { return objcResult(self.object.send("addObserverForName:object:queue:usingBlock:", a0, a1, a2, ObjCBlock(types: "v@") { call in a3(objcResult(call[0])); return nil })) }
 }
 
 /// The Objective-C class NSNotificationQueue, a subclass of NSObject.
@@ -1252,6 +1292,7 @@ public protocol NSOperationQueueMethods: NSObjectMethods {}
 extension NSOperationQueueMethods {
     @ObjCMethod("addOperation:") public func addOperation(_ a0: some NSOperationMethods)
     @ObjCMethod("addOperations:waitUntilFinished:") public func addOperations(_ a0: some NSArrayMethods, waitUntilFinished a1: Bool)
+    public func addOperationWithBlock(_ a0: @escaping () -> Void) { _ = self.object.send("addOperationWithBlock:", ObjCBlock(types: "v") { call in a0(); return nil }) }
     @ObjCProperty(readonly: true) public var operations: NSArray
     @ObjCProperty(readonly: true) public var operationCount: Int
     @ObjCProperty public var maxConcurrentOperationCount: Int
@@ -1288,6 +1329,18 @@ extension NSOrderedSetMethods {
     @ObjCProperty(readonly: true) public var reversedOrderedSet: NSOrderedSet
     @ObjCProperty(readonly: true) public var array: NSArray
     @ObjCProperty(readonly: true) public var set: NSSet
+    public func enumerateObjectsUsingBlock(_ a0: @escaping (ObjCValue, Int, ObjCValue) -> Void) { _ = self.object.send("enumerateObjectsUsingBlock:", ObjCBlock(types: "v@L^v") { call in a0(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])); return nil }) }
+    public func enumerateObjectsWithOptions(_ a0: Int, usingBlock a1: @escaping (ObjCValue, Int, ObjCValue) -> Void) { _ = self.object.send("enumerateObjectsWithOptions:usingBlock:", a0, ObjCBlock(types: "v@L^v") { call in a1(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])); return nil }) }
+    public func enumerateObjectsAtIndexes(_ a0: some NSIndexSetMethods, options a1: Int, usingBlock a2: @escaping (ObjCValue, Int, ObjCValue) -> Void) { _ = self.object.send("enumerateObjectsAtIndexes:options:usingBlock:", a0, a1, ObjCBlock(types: "v@L^v") { call in a2(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])); return nil }) }
+    public func indexOfObjectPassingTest(_ a0: @escaping (ObjCValue, Int, ObjCValue) -> Bool) -> Int { return objcResult(self.object.send("indexOfObjectPassingTest:", ObjCBlock(types: "c@L^v") { call in return a0(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])).objcValue })) }
+    public func indexOfObjectWithOptions(_ a0: Int, passingTest a1: @escaping (ObjCValue, Int, ObjCValue) -> Bool) -> Int { return objcResult(self.object.send("indexOfObjectWithOptions:passingTest:", a0, ObjCBlock(types: "c@L^v") { call in return a1(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])).objcValue })) }
+    public func indexOfObjectAtIndexes(_ a0: some NSIndexSetMethods, options a1: Int, passingTest a2: @escaping (ObjCValue, Int, ObjCValue) -> Bool) -> Int { return objcResult(self.object.send("indexOfObjectAtIndexes:options:passingTest:", a0, a1, ObjCBlock(types: "c@L^v") { call in return a2(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])).objcValue })) }
+    public func indexesOfObjectsPassingTest(_ a0: @escaping (ObjCValue, Int, ObjCValue) -> Bool) -> NSIndexSet { return objcResult(self.object.send("indexesOfObjectsPassingTest:", ObjCBlock(types: "c@L^v") { call in return a0(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])).objcValue })) }
+    public func indexesOfObjectsWithOptions(_ a0: Int, passingTest a1: @escaping (ObjCValue, Int, ObjCValue) -> Bool) -> NSIndexSet { return objcResult(self.object.send("indexesOfObjectsWithOptions:passingTest:", a0, ObjCBlock(types: "c@L^v") { call in return a1(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])).objcValue })) }
+    public func indexesOfObjectsAtIndexes(_ a0: some NSIndexSetMethods, options a1: Int, passingTest a2: @escaping (ObjCValue, Int, ObjCValue) -> Bool) -> NSIndexSet { return objcResult(self.object.send("indexesOfObjectsAtIndexes:options:passingTest:", a0, a1, ObjCBlock(types: "c@L^v") { call in return a2(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])).objcValue })) }
+    public func indexOfObject(_ a0: ObjCValue, inSortedRange a1: NSRange, options a2: Int, usingComparator a3: @escaping (ObjCValue, ObjCValue) -> Int) -> Int { return objcResult(self.object.send("indexOfObject:inSortedRange:options:usingComparator:", a0, a1, a2, ObjCBlock(types: "l@@") { call in return a3(objcResult(call[0]), objcResult(call[1])).objcValue })) }
+    public func sortedArrayUsingComparator(_ a0: @escaping (ObjCValue, ObjCValue) -> Int) -> NSArray { return objcResult(self.object.send("sortedArrayUsingComparator:", ObjCBlock(types: "l@@") { call in return a0(objcResult(call[0]), objcResult(call[1])).objcValue })) }
+    public func sortedArrayWithOptions(_ a0: Int, usingComparator a1: @escaping (ObjCValue, ObjCValue) -> Int) -> NSArray { return objcResult(self.object.send("sortedArrayWithOptions:usingComparator:", a0, ObjCBlock(types: "l@@") { call in return a1(objcResult(call[0]), objcResult(call[1])).objcValue })) }
     @ObjCMethod("descriptionWithLocale:") public func descriptionWithLocale(_ a0: ObjCValue) -> String
     @ObjCMethod("descriptionWithLocale:indent:") public func descriptionWithLocale(_ a0: ObjCValue, indent a1: Int) -> String
     @ObjCMethod("orderedSet") public static func orderedSet() -> Self
@@ -1391,6 +1444,7 @@ extension NSPredicateMethods {
     @ObjCMethod("predicateWithFormat:argumentArray:") public static func predicateWithFormat(_ a0: String, argumentArray a1: NSArray?) -> NSPredicate
     @ObjCMethod("predicateWithFormat:arguments:") public static func predicateWithFormat(_ a0: String, arguments a1: ObjCValue) -> NSPredicate
     @ObjCMethod("predicateWithValue:") public static func predicateWithValue(_ a0: Bool) -> NSPredicate
+    public static func predicateWithBlock(_ a0: @escaping (ObjCValue, NSDictionary?) -> Bool) -> NSPredicate { return objcResult(Self.objcClass.send("predicateWithBlock:", ObjCBlock(types: "c@@") { call in return a0(objcResult(call[0]), objcResult(call[1])).objcValue })) }
     @ObjCProperty(readonly: true) public var predicateFormat: String
     @ObjCMethod("predicateWithSubstitutionVariables:") public func predicateWithSubstitutionVariables(_ a0: some NSDictionaryMethods) -> Self
     @ObjCMethod("evaluateWithObject:") public func evaluateWithObject(_ a0: ObjCValue) -> Bool
@@ -1449,6 +1503,7 @@ extension NSRegularExpressionMethods {
     @ObjCProperty(readonly: true) public var options: Int
     @ObjCProperty(readonly: true) public var numberOfCaptureGroups: Int
     @ObjCMethod("escapedPatternForString:") public static func escapedPatternForString(_ a0: String) -> String
+    public func enumerateMatchesInString(_ a0: String, options a1: Int, range a2: NSRange, usingBlock a3: @escaping (NSTextCheckingResult?, Int, ObjCValue) -> Void) { _ = self.object.send("enumerateMatchesInString:options:range:usingBlock:", a0, a1, a2, ObjCBlock(types: "v@l^v") { call in a3(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])); return nil }) }
     @ObjCMethod("matchesInString:options:range:") public func matchesInString(_ a0: String, options a1: Int, range a2: NSRange) -> NSArray
     @ObjCMethod("numberOfMatchesInString:options:range:") public func numberOfMatchesInString(_ a0: String, options a1: Int, range a2: NSRange) -> Int
     @ObjCMethod("firstMatchInString:options:range:") public func firstMatchInString(_ a0: String, options a1: Int, range a2: NSRange) -> NSTextCheckingResult?
@@ -1530,6 +1585,10 @@ extension NSSetMethods {
     @ObjCMethod("setByAddingObject:") public func setByAddingObject(_ a0: ObjCValue) -> NSSet
     @ObjCMethod("setByAddingObjectsFromSet:") public func setByAddingObjectsFromSet(_ a0: some NSSetMethods) -> NSSet
     @ObjCMethod("setByAddingObjectsFromArray:") public func setByAddingObjectsFromArray(_ a0: some NSArrayMethods) -> NSSet
+    public func enumerateObjectsUsingBlock(_ a0: @escaping (ObjCValue, ObjCValue) -> Void) { _ = self.object.send("enumerateObjectsUsingBlock:", ObjCBlock(types: "v@^v") { call in a0(objcResult(call[0]), objcResult(call[1])); return nil }) }
+    public func enumerateObjectsWithOptions(_ a0: Int, usingBlock a1: @escaping (ObjCValue, ObjCValue) -> Void) { _ = self.object.send("enumerateObjectsWithOptions:usingBlock:", a0, ObjCBlock(types: "v@^v") { call in a1(objcResult(call[0]), objcResult(call[1])); return nil }) }
+    public func objectsPassingTest(_ a0: @escaping (ObjCValue, ObjCValue) -> Bool) -> NSSet { return objcResult(self.object.send("objectsPassingTest:", ObjCBlock(types: "c@^v") { call in return a0(objcResult(call[0]), objcResult(call[1])).objcValue })) }
+    public func objectsWithOptions(_ a0: Int, passingTest a1: @escaping (ObjCValue, ObjCValue) -> Bool) -> NSSet { return objcResult(self.object.send("objectsWithOptions:passingTest:", a0, ObjCBlock(types: "c@^v") { call in return a1(objcResult(call[0]), objcResult(call[1])).objcValue })) }
     @ObjCMethod("set") public static func set() -> Self
     @ObjCMethod("setWithObject:") public static func setWithObject(_ a0: ObjCValue) -> Self
     @ObjCMethod("setWithObjects:count:") public static func setWithObjects(_ a0: ObjCValue, count a1: Int) -> Self
@@ -1554,6 +1613,8 @@ extension NSSortDescriptorMethods {
     @ObjCProperty(readonly: true) public var key: String?
     @ObjCProperty(readonly: true) public var ascending: Bool
     @ObjCProperty(readonly: true) public var selector: ObjCValue
+    public static func sortDescriptorWithKey(_ a0: String?, ascending a1: Bool, comparator a2: @escaping (ObjCValue, ObjCValue) -> Int) -> Self { return objcResult(Self.objcClass.send("sortDescriptorWithKey:ascending:comparator:", a0, a1, ObjCBlock(types: "l@@") { call in return a2(objcResult(call[0]), objcResult(call[1])).objcValue })) }
+    public init(key a0: String?, ascending a1: Bool, comparator a2: @escaping (ObjCValue, ObjCValue) -> Int) { self.init(Self.objcClass.alloc().send("initWithKey:ascending:comparator:", a0, a1, ObjCBlock(types: "l@@") { call in return a2(objcResult(call[0]), objcResult(call[1])).objcValue })) }
     @ObjCMethod("compareObject:toObject:") public func compareObject(_ a0: ObjCValue, toObject a1: ObjCValue) -> Int
     @ObjCProperty(readonly: true) public var reversedSortDescriptor: ObjCValue
 }
@@ -1622,6 +1683,8 @@ extension NSStringMethods {
     @ObjCMethod("lineRangeForRange:") public func lineRangeForRange(_ a0: NSRange) -> NSRange
     @ObjCMethod("getParagraphStart:end:contentsEnd:forRange:") public func getParagraphStart(_ a0: ObjCValue, end a1: ObjCValue, contentsEnd a2: ObjCValue, forRange a3: NSRange)
     @ObjCMethod("paragraphRangeForRange:") public func paragraphRangeForRange(_ a0: NSRange) -> NSRange
+    public func enumerateSubstringsInRange(_ a0: NSRange, options a1: Int, usingBlock a2: @escaping (String?, NSRange, NSRange, ObjCValue) -> Void) { _ = self.object.send("enumerateSubstringsInRange:options:usingBlock:", a0, a1, ObjCBlock(types: "v@{_NSRange=II}{_NSRange=II}^v") { call in a2(objcResult(call[0]), objcResult(call[1]), objcResult(call[2]), objcResult(call[3])); return nil }) }
+    public func enumerateLinesUsingBlock(_ a0: @escaping (String, ObjCValue) -> Void) { _ = self.object.send("enumerateLinesUsingBlock:", ObjCBlock(types: "v@^v") { call in a0(objcResult(call[0]), objcResult(call[1])); return nil }) }
     @ObjCProperty(readonly: true) public var UTF8String: ObjCValue
     @ObjCProperty(readonly: true) public var fastestEncoding: Int
     @ObjCProperty(readonly: true) public var smallestEncoding: Int
@@ -1713,6 +1776,7 @@ extension NSStringMethods {
     @ObjCMethod("stringByAddingPercentEscapesUsingEncoding:") public func stringByAddingPercentEscapesUsingEncoding(_ a0: Int) -> String?
     @ObjCMethod("stringByReplacingPercentEscapesUsingEncoding:") public func stringByReplacingPercentEscapesUsingEncoding(_ a0: Int) -> String?
     @ObjCMethod("linguisticTagsInRange:scheme:options:orthography:tokenRanges:") public func linguisticTagsInRange(_ a0: NSRange, scheme a1: String, options a2: Int, orthography a3: NSOrthography?, tokenRanges a4: ObjCValue) -> NSArray
+    public func enumerateLinguisticTagsInRange(_ a0: NSRange, scheme a1: String, options a2: Int, orthography a3: NSOrthography?, usingBlock a4: @escaping (String, NSRange, NSRange, ObjCValue) -> Void) { _ = self.object.send("enumerateLinguisticTagsInRange:scheme:options:orthography:usingBlock:", a0, a1, a2, a3, ObjCBlock(types: "v@{_NSRange=II}{_NSRange=II}^v") { call in a4(objcResult(call[0]), objcResult(call[1]), objcResult(call[2]), objcResult(call[3])); return nil }) }
 }
 
 /// The Objective-C class NSTextCheckingResult, a subclass of NSObject.
@@ -1934,6 +1998,7 @@ extension NSURLConnectionMethods {
     @ObjCMethod("setDelegateQueue:") public func setDelegateQueue(_ a0: NSOperationQueue?)
     @ObjCMethod("canHandleRequest:") public static func canHandleRequest(_ a0: some NSURLRequestMethods) -> Bool
     @ObjCMethod("sendSynchronousRequest:returningResponse:error:") public static func sendSynchronousRequest(_ a0: some NSURLRequestMethods, returningResponse a1: ObjCValue, error a2: ObjCValue) -> NSData?
+    public static func sendAsynchronousRequest(_ a0: some NSURLRequestMethods, queue a1: some NSOperationQueueMethods, completionHandler a2: @escaping (NSURLResponse?, NSData?, NSError?) -> Void) { _ = Self.objcClass.send("sendAsynchronousRequest:queue:completionHandler:", a0, a1, ObjCBlock(types: "v@@@") { call in a2(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])); return nil }) }
 }
 
 /// The Objective-C class NSURLCredential, a subclass of NSObject.
@@ -2212,6 +2277,8 @@ extension NSXMLParserMethods {
 public protocol NSBlockOperationMethods: NSOperationMethods {}
 @ObjC public struct NSBlockOperation: NSBlockOperationMethods {}
 extension NSBlockOperationMethods {
+    public static func blockOperationWithBlock(_ a0: @escaping () -> Void) -> Self { return objcResult(Self.objcClass.send("blockOperationWithBlock:", ObjCBlock(types: "v") { call in a0(); return nil })) }
+    public func addExecutionBlock(_ a0: @escaping () -> Void) { _ = self.object.send("addExecutionBlock:", ObjCBlock(types: "v") { call in a0(); return nil }) }
     @ObjCProperty(readonly: true) public var executionBlocks: NSArray
 }
 
@@ -2436,6 +2503,8 @@ extension NSMutableArrayMethods {
     @ObjCMethod("removeObjectsAtIndexes:") public func removeObjectsAtIndexes(_ a0: some NSIndexSetMethods)
     @ObjCMethod("replaceObjectsAtIndexes:withObjects:") public func replaceObjectsAtIndexes(_ a0: some NSIndexSetMethods, withObjects a1: some NSArrayMethods)
     @ObjCMethod("setObject:atIndexedSubscript:") public func setObject(_ a0: ObjCValue, atIndexedSubscript a1: Int)
+    public func sortUsingComparator(_ a0: @escaping (ObjCValue, ObjCValue) -> Int) { _ = self.object.send("sortUsingComparator:", ObjCBlock(types: "l@@") { call in return a0(objcResult(call[0]), objcResult(call[1])).objcValue }) }
+    public func sortWithOptions(_ a0: Int, usingComparator a1: @escaping (ObjCValue, ObjCValue) -> Int) { _ = self.object.send("sortWithOptions:usingComparator:", a0, ObjCBlock(types: "l@@") { call in return a1(objcResult(call[0]), objcResult(call[1])).objcValue }) }
     @ObjCMethod("arrayWithCapacity:") public static func arrayWithCapacity(_ a0: Int) -> Self
     @ObjCMethod("sortUsingDescriptors:") public func sortUsingDescriptors(_ a0: some NSArrayMethods)
     @ObjCMethod("filterUsingPredicate:") public func filterUsingPredicate(_ a0: some NSPredicateMethods)
@@ -2550,6 +2619,9 @@ extension NSMutableOrderedSetMethods {
     @ObjCMethod("intersectSet:") public func intersectSet(_ a0: some NSSetMethods)
     @ObjCMethod("minusSet:") public func minusSet(_ a0: some NSSetMethods)
     @ObjCMethod("unionSet:") public func unionSet(_ a0: some NSSetMethods)
+    public func sortUsingComparator(_ a0: @escaping (ObjCValue, ObjCValue) -> Int) { _ = self.object.send("sortUsingComparator:", ObjCBlock(types: "l@@") { call in return a0(objcResult(call[0]), objcResult(call[1])).objcValue }) }
+    public func sortWithOptions(_ a0: Int, usingComparator a1: @escaping (ObjCValue, ObjCValue) -> Int) { _ = self.object.send("sortWithOptions:usingComparator:", a0, ObjCBlock(types: "l@@") { call in return a1(objcResult(call[0]), objcResult(call[1])).objcValue }) }
+    public func sortRange(_ a0: NSRange, options a1: Int, usingComparator a2: @escaping (ObjCValue, ObjCValue) -> Int) { _ = self.object.send("sortRange:options:usingComparator:", a0, a1, ObjCBlock(types: "l@@") { call in return a2(objcResult(call[0]), objcResult(call[1])).objcValue }) }
     @ObjCMethod("orderedSetWithCapacity:") public static func orderedSetWithCapacity(_ a0: Int) -> Self
     @ObjCMethod("sortUsingDescriptors:") public func sortUsingDescriptors(_ a0: some NSArrayMethods)
     @ObjCMethod("filterUsingPredicate:") public func filterUsingPredicate(_ a0: some NSPredicateMethods)
@@ -2728,6 +2800,9 @@ public protocol NSURLSessionDataTaskMethods: ObjCWrapper {}
 /// The Objective-C class NSURLSessionDownloadTask, a subclass of NSURLSessionTask.
 public protocol NSURLSessionDownloadTaskMethods: ObjCWrapper {}
 @ObjC public struct NSURLSessionDownloadTask: NSURLSessionDownloadTaskMethods {}
+extension NSURLSessionDownloadTaskMethods {
+    public func cancelByProducingResumeData(_ a0: @escaping (NSData?) -> Void) { _ = self.object.send("cancelByProducingResumeData:", ObjCBlock(types: "v@") { call in a0(objcResult(call[0])); return nil }) }
+}
 
 /// The Objective-C class NSConstantString, a subclass of NSSimpleCString.
 public protocol NSConstantStringMethods: NSSimpleCStringMethods {}

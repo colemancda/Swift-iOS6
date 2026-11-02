@@ -33,6 +33,10 @@ public protocol CLGeocoderMethods: NSObjectMethods {}
 @ObjC public struct CLGeocoder: CLGeocoderMethods {}
 extension CLGeocoderMethods {
     @ObjCProperty(getter: "isGeocoding", readonly: true) public var geocoding: Bool
+    public func reverseGeocodeLocation(_ a0: some CLLocationMethods, completionHandler a1: @escaping (NSArray?, NSError?) -> Void) { _ = self.object.send("reverseGeocodeLocation:completionHandler:", a0, ObjCBlock(types: "v@@") { call in a1(objcResult(call[0]), objcResult(call[1])); return nil }) }
+    public func geocodeAddressDictionary(_ a0: some NSDictionaryMethods, completionHandler a1: @escaping (NSArray?, NSError?) -> Void) { _ = self.object.send("geocodeAddressDictionary:completionHandler:", a0, ObjCBlock(types: "v@@") { call in a1(objcResult(call[0]), objcResult(call[1])); return nil }) }
+    public func geocodeAddressString(_ a0: String, completionHandler a1: @escaping (NSArray?, NSError?) -> Void) { _ = self.object.send("geocodeAddressString:completionHandler:", a0, ObjCBlock(types: "v@@") { call in a1(objcResult(call[0]), objcResult(call[1])); return nil }) }
+    public func geocodeAddressString(_ a0: String, inRegion a1: CLRegion?, completionHandler a2: @escaping (NSArray?, NSError?) -> Void) { _ = self.object.send("geocodeAddressString:inRegion:completionHandler:", a0, a1, ObjCBlock(types: "v@@") { call in a2(objcResult(call[0]), objcResult(call[1])); return nil }) }
     @ObjCMethod("cancelGeocode") public func cancelGeocode()
 }
 

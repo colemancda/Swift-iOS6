@@ -470,6 +470,8 @@ extension UIDocumentMethods {
     @ObjCProperty(readonly: true) public var fileType: String?
     @ObjCProperty public var fileModificationDate: NSDate?
     @ObjCProperty(readonly: true) public var documentState: Int
+    public func openWithCompletionHandler(_ a0: ((Bool) -> Void)?) { _ = self.object.send("openWithCompletionHandler:", a0.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
+    public func closeWithCompletionHandler(_ a0: ((Bool) -> Void)?) { _ = self.object.send("closeWithCompletionHandler:", a0.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
     @ObjCMethod("loadFromContents:ofType:error:") public func loadFromContents(_ a0: ObjCValue, ofType a1: String?, error a2: ObjCValue) -> Bool
     @ObjCMethod("contentsForType:error:") public func contentsForType(_ a0: String, error a1: ObjCValue) -> ObjCValue
     @ObjCMethod("disableEditing") public func disableEditing()
@@ -479,15 +481,19 @@ extension UIDocumentMethods {
     @ObjCMethod("updateChangeCount:") public func updateChangeCount(_ a0: Int)
     @ObjCMethod("changeCountTokenForSaveOperation:") public func changeCountTokenForSaveOperation(_ a0: Int) -> ObjCValue
     @ObjCMethod("updateChangeCountWithToken:forSaveOperation:") public func updateChangeCountWithToken(_ a0: ObjCValue, forSaveOperation a1: Int)
+    public func saveToURL(_ a0: some NSURLMethods, forSaveOperation a1: Int, completionHandler a2: ((Bool) -> Void)?) { _ = self.object.send("saveToURL:forSaveOperation:completionHandler:", a0, a1, a2.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
+    public func autosaveWithCompletionHandler(_ a0: ((Bool) -> Void)?) { _ = self.object.send("autosaveWithCompletionHandler:", a0.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
     @ObjCMethod("savingFileType") public func savingFileType() -> String?
     @ObjCMethod("fileNameExtensionForType:saveOperation:") public func fileNameExtensionForType(_ a0: String?, saveOperation a1: Int) -> String
     @ObjCMethod("writeContents:andAttributes:safelyToURL:forSaveOperation:error:") public func writeContents(_ a0: ObjCValue, andAttributes a1: NSDictionary?, safelyToURL a2: some NSURLMethods, forSaveOperation a3: Int, error a4: ObjCValue) -> Bool
     @ObjCMethod("writeContents:toURL:forSaveOperation:originalContentsURL:error:") public func writeContents(_ a0: ObjCValue, toURL a1: some NSURLMethods, forSaveOperation a2: Int, originalContentsURL a3: NSURL?, error a4: ObjCValue) -> Bool
     @ObjCMethod("fileAttributesToWriteToURL:forSaveOperation:error:") public func fileAttributesToWriteToURL(_ a0: some NSURLMethods, forSaveOperation a1: Int, error a2: ObjCValue) -> NSDictionary?
     @ObjCMethod("readFromURL:error:") public func readFromURL(_ a0: some NSURLMethods, error a1: ObjCValue) -> Bool
+    public func performAsynchronousFileAccessUsingBlock(_ a0: @escaping () -> Void) { _ = self.object.send("performAsynchronousFileAccessUsingBlock:", ObjCBlock(types: "v") { call in a0(); return nil }) }
     @ObjCMethod("handleError:userInteractionPermitted:") public func handleError(_ a0: some NSErrorMethods, userInteractionPermitted a1: Bool)
     @ObjCMethod("finishedHandlingError:recovered:") public func finishedHandlingError(_ a0: some NSErrorMethods, recovered a1: Bool)
     @ObjCMethod("userInteractionNoLongerPermittedForError:") public func userInteractionNoLongerPermittedForError(_ a0: some NSErrorMethods)
+    public func revertToContentsOfURL(_ a0: some NSURLMethods, completionHandler a1: ((Bool) -> Void)?) { _ = self.object.send("revertToContentsOfURL:completionHandler:", a0, a1.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
 }
 
 /// The Objective-C class UIDocumentInteractionController, a subclass of NSObject.
@@ -804,6 +810,9 @@ extension UIPrintInteractionControllerMethods {
     @ObjCProperty public var printFormatter: UIPrintFormatter?
     @ObjCProperty public var printingItem: ObjCValue
     @ObjCProperty public var printingItems: NSArray?
+    public func presentAnimated(_ a0: Bool, completionHandler a1: ((UIPrintInteractionController, Bool, NSError?) -> Void)?) -> Bool { return objcResult(self.object.send("presentAnimated:completionHandler:", a0, a1.map { body in ObjCBlock(types: "v@c@") { call in body(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])); return nil } })) }
+    public func presentFromRect(_ a0: CGRect, inView a1: some UIViewMethods, animated a2: Bool, completionHandler a3: ((UIPrintInteractionController, Bool, NSError?) -> Void)?) -> Bool { return objcResult(self.object.send("presentFromRect:inView:animated:completionHandler:", a0, a1, a2, a3.map { body in ObjCBlock(types: "v@c@") { call in body(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])); return nil } })) }
+    public func presentFromBarButtonItem(_ a0: some UIBarButtonItemMethods, animated a1: Bool, completionHandler a2: ((UIPrintInteractionController, Bool, NSError?) -> Void)?) -> Bool { return objcResult(self.object.send("presentFromBarButtonItem:animated:completionHandler:", a0, a1, a2.map { body in ObjCBlock(types: "v@c@") { call in body(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])); return nil } })) }
     @ObjCMethod("dismissAnimated:") public func dismissAnimated(_ a0: Bool)
 }
 
@@ -918,6 +927,7 @@ extension UIStoryboardMethods {
 public protocol UIStoryboardSegueMethods: NSObjectMethods {}
 @ObjC public struct UIStoryboardSegue: UIStoryboardSegueMethods {}
 extension UIStoryboardSegueMethods {
+    public static func segueWithIdentifier(_ a0: String?, source a1: some UIViewControllerMethods, destination a2: some UIViewControllerMethods, performHandler a3: @escaping () -> Void) -> Self { return objcResult(Self.objcClass.send("segueWithIdentifier:source:destination:performHandler:", a0, a1, a2, ObjCBlock(types: "v") { call in a3(); return nil })) }
     @ObjCMethod("initWithIdentifier:source:destination:") public init(identifier a0: String?, source a1: some UIViewControllerMethods, destination a2: some UIViewControllerMethods)
     @ObjCProperty(readonly: true) public var identifier: String?
     @ObjCProperty(readonly: true) public var sourceViewController: UIViewController
@@ -1036,6 +1046,7 @@ extension UIApplicationMethods {
     @ObjCProperty public var applicationSupportsShakeToEdit: Bool
     @ObjCProperty(readonly: true) public var applicationState: Int
     @ObjCProperty(readonly: true) public var backgroundTimeRemaining: Double
+    public func beginBackgroundTaskWithExpirationHandler(_ a0: (() -> Void)?) -> Int { return objcResult(self.object.send("beginBackgroundTaskWithExpirationHandler:", a0.map { body in ObjCBlock(types: "v") { call in body(); return nil } })) }
     @ObjCMethod("endBackgroundTask:") public func endBackgroundTask(_ a0: Int)
     @ObjCProperty(getter: "isProtectedDataAvailable", readonly: true) public var protectedDataAvailable: Bool
     @ObjCProperty(readonly: true) public var userInterfaceLayoutDirection: Int
@@ -1056,6 +1067,7 @@ extension UIApplicationMethods {
     @ObjCMethod("setStatusBarOrientation:animated:") public func setStatusBarOrientation(_ a0: Int, animated a1: Bool)
     @ObjCMethod("setStatusBarStyle:animated:") public func setStatusBarStyle(_ a0: Int, animated a1: Bool)
     @ObjCMethod("setStatusBarHidden:withAnimation:") public func setStatusBarHidden(_ a0: Bool, withAnimation a1: Int)
+    public func setKeepAliveTimeout(_ a0: Double, handler a1: (() -> Void)?) -> Bool { return objcResult(self.object.send("setKeepAliveTimeout:handler:", a0, a1.map { body in ObjCBlock(types: "v") { call in body(); return nil } })) }
     @ObjCMethod("clearKeepAliveTimeout") public func clearKeepAliveTimeout()
 }
 
@@ -1287,6 +1299,11 @@ extension UIViewMethods {
     @ObjCMethod("setAnimationTransition:forView:cache:") public static func setAnimationTransition(_ a0: Int, forView a1: some UIViewMethods, cache a2: Bool)
     @ObjCMethod("setAnimationsEnabled:") public static func setAnimationsEnabled(_ a0: Bool)
     @ObjCMethod("areAnimationsEnabled") public static func areAnimationsEnabled() -> Bool
+    public static func animateWithDuration(_ a0: Double, delay a1: Double, options a2: Int, animations a3: @escaping () -> Void, completion a4: ((Bool) -> Void)?) { _ = Self.objcClass.send("animateWithDuration:delay:options:animations:completion:", a0, a1, a2, ObjCBlock(types: "v") { call in a3(); return nil }, a4.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
+    public static func animateWithDuration(_ a0: Double, animations a1: @escaping () -> Void, completion a2: ((Bool) -> Void)?) { _ = Self.objcClass.send("animateWithDuration:animations:completion:", a0, ObjCBlock(types: "v") { call in a1(); return nil }, a2.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
+    public static func animateWithDuration(_ a0: Double, animations a1: @escaping () -> Void) { _ = Self.objcClass.send("animateWithDuration:animations:", a0, ObjCBlock(types: "v") { call in a1(); return nil }) }
+    public static func transitionWithView(_ a0: some UIViewMethods, duration a1: Double, options a2: Int, animations a3: (() -> Void)?, completion a4: ((Bool) -> Void)?) { _ = Self.objcClass.send("transitionWithView:duration:options:animations:completion:", a0, a1, a2, a3.map { body in ObjCBlock(types: "v") { call in body(); return nil } }, a4.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
+    public static func transitionFromView(_ a0: some UIViewMethods, toView a1: some UIViewMethods, duration a2: Double, options a3: Int, completion a4: ((Bool) -> Void)?) { _ = Self.objcClass.send("transitionFromView:toView:duration:options:completion:", a0, a1, a2, a3, a4.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
     @ObjCProperty public var gestureRecognizers: NSArray?
     @ObjCMethod("addGestureRecognizer:") public func addGestureRecognizer(_ a0: some UIGestureRecognizerMethods)
     @ObjCMethod("removeGestureRecognizer:") public func removeGestureRecognizer(_ a0: some UIGestureRecognizerMethods)
@@ -1363,6 +1380,8 @@ extension UIViewControllerMethods {
     @ObjCMethod("isBeingDismissed") public func isBeingDismissed() -> Bool
     @ObjCMethod("isMovingToParentViewController") public func isMovingToParentViewController() -> Bool
     @ObjCMethod("isMovingFromParentViewController") public func isMovingFromParentViewController() -> Bool
+    public func presentViewController(_ a0: some UIViewControllerMethods, animated a1: Bool, completion a2: (() -> Void)?) { _ = self.object.send("presentViewController:animated:completion:", a0, a1, a2.map { body in ObjCBlock(types: "v") { call in body(); return nil } }) }
+    public func dismissViewControllerAnimated(_ a0: Bool, completion a1: (() -> Void)?) { _ = self.object.send("dismissViewControllerAnimated:completion:", a0, a1.map { body in ObjCBlock(types: "v") { call in body(); return nil } }) }
     @ObjCMethod("presentModalViewController:animated:") public func presentModalViewController(_ a0: some UIViewControllerMethods, animated a1: Bool)
     @ObjCMethod("dismissModalViewControllerAnimated:") public func dismissModalViewControllerAnimated(_ a0: Bool)
     @ObjCProperty public var modalTransitionStyle: Int
@@ -1390,6 +1409,7 @@ extension UIViewControllerMethods {
     @ObjCProperty(readonly: true) public var childViewControllers: NSArray?
     @ObjCMethod("addChildViewController:") public func addChildViewController(_ a0: some UIViewControllerMethods)
     @ObjCMethod("removeFromParentViewController") public func removeFromParentViewController()
+    public func transitionFromViewController(_ a0: some UIViewControllerMethods, toViewController a1: some UIViewControllerMethods, duration a2: Double, options a3: Int, animations a4: (() -> Void)?, completion a5: ((Bool) -> Void)?) { _ = self.object.send("transitionFromViewController:toViewController:duration:options:animations:completion:", a0, a1, a2, a3, a4.map { body in ObjCBlock(types: "v") { call in body(); return nil } }, a5.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
     @ObjCMethod("beginAppearanceTransition:animated:") public func beginAppearanceTransition(_ a0: Bool, animated a1: Bool)
     @ObjCMethod("endAppearanceTransition") public func endAppearanceTransition()
     @ObjCMethod("automaticallyForwardAppearanceAndRotationMethodsToChildViewControllers") public func automaticallyForwardAppearanceAndRotationMethodsToChildViewControllers() -> Bool
@@ -1630,6 +1650,7 @@ extension UIPageViewControllerMethods {
     @ObjCProperty(getter: "isDoubleSided") public var doubleSided: Bool
     @ObjCProperty(readonly: true) public var gestureRecognizers: NSArray
     @ObjCProperty(readonly: true) public var viewControllers: NSArray?
+    public func setViewControllers(_ a0: NSArray?, direction a1: Int, animated a2: Bool, completion a3: ((Bool) -> Void)?) { _ = self.object.send("setViewControllers:direction:animated:completion:", a0, a1, a2, a3.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
 }
 
 /// The Objective-C class UIPickerView, a subclass of UIView.
@@ -2012,6 +2033,7 @@ extension UICollectionViewMethods {
     @ObjCMethod("deleteItemsAtIndexPaths:") public func deleteItemsAtIndexPaths(_ a0: some NSArrayMethods)
     @ObjCMethod("reloadItemsAtIndexPaths:") public func reloadItemsAtIndexPaths(_ a0: some NSArrayMethods)
     @ObjCMethod("moveItemAtIndexPath:toIndexPath:") public func moveItemAtIndexPath(_ a0: some NSIndexPathMethods, toIndexPath a1: some NSIndexPathMethods)
+    public func performBatchUpdates(_ a0: (() -> Void)?, completion a1: ((Bool) -> Void)?) { _ = self.object.send("performBatchUpdates:completion:", a0.map { body in ObjCBlock(types: "v") { call in body(); return nil } }, a1.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
 }
 
 /// The Objective-C class UICollectionViewCell, a subclass of UICollectionReusableView.

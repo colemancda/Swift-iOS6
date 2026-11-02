@@ -110,6 +110,24 @@ const char *objcrt_protocol_method_types(const char *protocol, void *selector);
 void objcrt_set_associated(void *object, const void *key, void *value);
 void *objcrt_get_associated(void *object, const void *key);
 
+#pragma mark - Blocks
+
+/// The types in an encoding such as "v@Q^c": the result first, then each
+/// argument, with no receiver or selector. Returns 0, or 1 if it can't be parsed.
+long objcrt_parse_types(const char *types, ObjCRTSignature *signature);
+
+/// Runs a block made by objcrt_block_create: `words` holds its arguments; its
+/// result goes in `result` (two words), or, for struct results larger than
+/// 4 bytes, `result` points to the struct to fill.
+typedef void (*ObjCRTBlockHandler)(void *context, const unsigned long *words, unsigned long *result);
+typedef void (*ObjCRTBlockRelease)(void *context);
+
+/// A heap block (+1, like Block_copy) whose invocation calls `handler` with
+/// `context`. `types` is its type encoding as for objcrt_parse_types. When
+/// the last copy of the block is released, `release(context)` runs. Both run
+/// through objcrt_call_aligned.
+void *objcrt_block_create(ObjCRTBlockHandler handler, void *context, ObjCRTBlockRelease release, const char *types);
+
 #pragma mark - Calling Swift from iOS code
 
 /// Calls `function` (Swift or other bare-metal code) with up to five word

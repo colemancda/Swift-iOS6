@@ -83,6 +83,32 @@ ObjC.autoreleasepool {
     let uuid = NSUUID.UUID()
     check("NSUUID (iOS 6)", uuid.UUIDString.utf8.count == 36, uuid.UUIDString)
 
+    // Methods that take blocks take Swift closures.
+    let numbers = NSMutableArray(capacity: 4)
+    for value in [5, 3, 9, 1] { numbers.addObject(NSNumber.numberWithInt(value).object) }
+    var seen: [Int] = []
+    numbers.enumerateObjectsUsingBlock { object, index, stop in
+        seen.append(NSNumber(object).intValue)
+        if index == 2 { stop.setPointee(true) }
+    }
+    check("closure: enumerate with stop", seen == [5, 3, 9])
+    let sorted = numbers.sortedArrayUsingComparator { a, b in
+        let x = NSNumber(a).intValue, y = NSNumber(b).intValue
+        return x < y ? -1 : (x > y ? 1 : 0)
+    }
+    check("closure: comparator", sorted.componentsJoinedByString(",") == "1,3,5,9")
+    check("closure: Bool result", numbers.indexesOfObjectsPassingTest { object, _, _ in NSNumber(object).intValue > 4 }.count == 2)
+    var words: [String] = []
+    NSString.stringWithString("Blocks from generated wrappers")
+        .enumerateSubstringsInRange(NSRange(location: 0, length: 30), options: 3) { word, range, _, _ in
+            words.append("\(word ?? "?")@\(range.location)")
+        }
+    check("closure: String? and NSRange arguments", words == ["Blocks@0", "from@7", "generated@12", "wrappers@22"],
+          words.joined(separator: " "))
+    var ran = false
+    NSBlockOperation.blockOperationWithBlock { ran = true }.start()
+    check("closure: kept and run later", ran)
+
     // UIKit types exist and inherit, without running UIKit.
     check("UIKit class names", UILabel.objcClass.isNil == ObjC.UILabel.isNil)
 }

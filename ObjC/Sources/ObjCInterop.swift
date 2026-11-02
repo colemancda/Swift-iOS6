@@ -264,6 +264,12 @@ public struct ObjCValue: ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral,
         return ObjCValue.send(selector, to: self, values, superclass: cls.asObject?.pointer)
     }
 
+    /// Stores a BOOL through a `BOOL *` argument, such as an enumeration
+    /// block's `stop`: `stop.setPointee(true)`.
+    public func setPointee(_ value: Bool) {
+        if case .pointer(let pointer?) = storage { pointer.storeBytes(of: value ? 1 : 0, as: Int8.self) }
+    }
+
     /// objc_setAssociatedObject (retained): keeps `value` alive as long as this object.
     public func setAssociated(_ value: ObjCValue, for key: ObjCAssociationKey) {
         guard let object = asObject else { return }
@@ -589,6 +595,74 @@ struct ObjCSignature {
     let returnSize: Int
     let types: [CChar]
     let sizes: [Int]
+
+    init(_ raw: ObjCRTSignature) {
+        var types: [CChar] = []
+        var sizes: [Int] = []
+        for index in 0..<raw.argumentCount {
+            types.append(byte(raw.argumentTypes, index))
+            sizes.append(long(raw.argumentSizes, index))
+        }
+        self.returnType = raw.returnType
+        self.returnSize = raw.returnSize
+        self.types = types
+        self.sizes = sizes
+    }
+
+    /// From a type encoding with the result first: "v@I^c".
+    init?(types: String) {
+        var raw = ObjCRTSignature()
+        guard withCString(types, { objcrt_parse_types($0, &raw) }) == 0 else { return nil }
+        self.init(raw)
+    }
+
+    /// Struct results larger than 4 bytes are written through a hidden pointer.
+    var returnsStructInMemory: Bool { returnType == ascii("{") && returnSize > 4 }
+
+    /// The arguments in `words`, as a method or block received them.
+    func arguments(_ words: UnsafePointer<UInt>) -> [ObjCValue] {
+        var arguments: [ObjCValue] = []
+        var index = 0
+        arguments.reserveCapacity(types.count)
+        for argument in 0..<types.count {
+            let type = types[argument]
+            let size = sizes[argument]
+            let count = min(ObjCValue.wordCount(type: type, size: size), ObjCRTMaxWords - index)
+            guard count > 0 else { break }
+            let low = words[index]
+            let high = count > 1 ? words[index + 1] : 0
+            // Only structs need their words as an array.
+            var structWords: [UInt]?
+            if type == ascii("{") || type == ascii("(") {
+                structWords = Array(UnsafeBufferPointer(start: words + index, count: count))
+            }
+            index += count
+            arguments.append(ObjCValue(returnType: type, size: size, result: (low, high), structWords: structWords, owned: false))
+        }
+        return arguments
+    }
+
+    /// Hands `value` back to Objective-C as this method's or block's result.
+    /// Returned objects outlive `value`: owned (+1) for the alloc, new, copy
+    /// and init families, autoreleased otherwise (and from blocks).
+    func storeResult(_ value: ObjCValue, owned: Bool, name: String,
+                     result: UnsafeMutablePointer<UInt>?, structResult: UnsafeMutableRawPointer?) {
+        if returnType == ascii("v") { return }
+        if returnType == ascii("@"), let returned = value.asObject {
+            _ = objcrt_retain(returned.pointer)
+            if !owned { objcrt_autorelease(returned.pointer) }
+        }
+        var buffers: [UnsafeMutablePointer<CChar>] = []
+        var resultWords: [UInt] = []
+        value.appendWords(to: &resultWords, type: returnType, size: returnSize, buffers: &buffers, selector: name)
+        if let structResult {
+            let bytes = structResult.assumingMemoryBound(to: UInt.self)
+            for (offset, word) in resultWords.enumerated() { bytes[offset] = word }
+        } else if let result {
+            result[0] = resultWords.first ?? 0
+            result[1] = resultWords.count > 1 ? resultWords[1] : 0
+        }
+    }
 }
 
 /// Selectors, classes and method signatures, looked up once: layout code
@@ -624,13 +698,7 @@ enum ObjCCache {
         if let signature = signatures[cacheKey] { return signature }
         var raw = ObjCRTSignature()
         guard objcrt_signature(object, selector, &raw) == 0 else { return nil }
-        var types: [CChar] = []
-        var sizes: [Int] = []
-        for index in 0..<raw.argumentCount {
-            types.append(byte(raw.argumentTypes, index))
-            sizes.append(long(raw.argumentSizes, index))
-        }
-        let signature = ObjCSignature(returnType: raw.returnType, returnSize: raw.returnSize, types: types, sizes: sizes)
+        let signature = ObjCSignature(raw)
         signatures[cacheKey] = signature
         return signature
     }
@@ -790,49 +858,89 @@ enum ObjCMethods {
         }
         guard let handler, let signature = ObjCCache.signature(object, selector) else { return }
 
-        var arguments: [ObjCValue] = []
-        var index = 0
-        arguments.reserveCapacity(signature.types.count)
-        for argument in 0..<signature.types.count {
-            let type = signature.types[argument]
-            let size = signature.sizes[argument]
-            let count = min(ObjCValue.wordCount(type: type, size: size), ObjCRTMaxWords - index)
-            guard count > 0 else { break }
-            let low = words[index]
-            let high = count > 1 ? words[index + 1] : 0
-            // Only structs need their words as an array.
-            var structWords: [UInt]?
-            if type == ascii("{") || type == ascii("(") {
-                structWords = Array(UnsafeBufferPointer(start: words + index, count: count))
-            }
-            index += count
-            arguments.append(ObjCValue(returnType: type, size: size, result: (low, high), structWords: structWords, owned: false))
-        }
+        let arguments = signature.arguments(words)
 
         // self isn't retained during dealloc, where it can't be revived.
         let this = handler.selector == "dealloc" ? ObjCObject(borrowing: object) : ObjCObject(retaining: object)
         let value = handler.body(ObjCMethodCall(this: ObjCValue(this), arguments: arguments, selector: handler.selector,
                                                 definingClass: handler.definingClass))
 
-        let returnType = signature.returnType
-        if returnType == ascii("v") { return }
-        if returnType == ascii("@"), let returned = value.asObject {
-            // Returned objects outlive `value`: owned (+1) for the alloc, new,
-            // copy and init families, autoreleased otherwise.
-            _ = objcrt_retain(returned.pointer)
-            if MethodFamily(handler.selector) == .other { objcrt_autorelease(returned.pointer) }
+        signature.storeResult(value, owned: MethodFamily(handler.selector) != .other, name: handler.selector,
+                              result: result, structResult: structResult)
+    }
+}
+
+// MARK: - Blocks
+
+/// An Objective-C block that runs a Swift closure, for methods that take
+/// blocks: completion handlers, enumeration, animations.
+///
+///     let block = ObjCBlock(types: "v@I^c") { call in   // void (^)(id, NSUInteger, BOOL *)
+///         print(call[0].asString ?? "?", call[1].asInt ?? 0)
+///         return nil
+///     }
+///     array.enumerateObjectsUsingBlock(block)
+///
+/// The block is a heap block that keeps the closure alive for as long as
+/// Objective-C holds a copy. It runs on whichever thread calls it, which for
+/// some completion handlers isn't the main thread.
+public struct ObjCBlock: ObjCConvertible {
+    /// The block object.
+    public let object: ObjCValue
+    public var objcValue: ObjCValue { object }
+
+    /// A block with these types: the result's type encoding, then each
+    /// argument's, as in a method's types without self and _cmd. "v@I^c" is
+    /// `void (^)(id, NSUInteger, BOOL *)`. The closure gets the arguments
+    /// decoded like message results, and returns the result (nil for void).
+    public init(types: String, _ body: @escaping (ObjCBlockCall) -> ObjCValue) {
+        guard let signature = ObjCSignature(types: types) else {
+            fatalError("ObjCBlock: can't read the types \"\(types)\"")
         }
-        var buffers: [UnsafeMutablePointer<CChar>] = []
-        var resultWords: [UInt] = []
-        value.appendWords(to: &resultWords, type: returnType, size: signature.returnSize, buffers: &buffers,
-                          selector: handler.selector)
-        if let structResult {
-            let bytes = structResult.assumingMemoryBound(to: UInt.self)
-            for (offset, word) in resultWords.enumerated() { bytes[offset] = word }
-        } else if let result {
-            result[0] = resultWords.first ?? 0
-            result[1] = resultWords.count > 1 ? resultWords[1] : 0
+        let context = Unmanaged.passRetained(ObjCBlockBody(signature: signature, body: body)).toOpaque()
+        let block = withCString(types) { encoding in
+            objcrt_block_create({ context, words, result in
+                guard let context, let words else { return }
+                let block = Unmanaged<ObjCBlockBody>.fromOpaque(context).takeUnretainedValue()
+                let value = block.body(ObjCBlockCall(arguments: block.signature.arguments(words)))
+                let inMemory = block.signature.returnsStructInMemory
+                block.signature.storeResult(value, owned: false, name: "block",
+                                            result: inMemory ? nil : result,
+                                            structResult: inMemory ? UnsafeMutableRawPointer(result) : nil)
+            }, context, { context in
+                if let context { Unmanaged<ObjCBlockBody>.fromOpaque(context).release() }
+            }, encoding)
         }
+        guard let block else { fatalError("ObjCBlock: can't make a block with types \"\(types)\"") }
+        object = ObjCValue(ObjCObject(adopting: block))
+    }
+
+    /// A block that takes and returns nothing: `void (^)(void)`.
+    public init(_ body: @escaping () -> Void) {
+        self.init(types: "v") { _ in
+            body()
+            return nil
+        }
+    }
+}
+
+/// One call of a block made from Swift.
+public struct ObjCBlockCall {
+    public let arguments: [ObjCValue]
+
+    /// An argument, or nil past the end.
+    public subscript(index: Int) -> ObjCValue {
+        index < arguments.count ? arguments[index] : nil
+    }
+}
+
+final class ObjCBlockBody {
+    let signature: ObjCSignature
+    let body: (ObjCBlockCall) -> ObjCValue
+
+    init(signature: ObjCSignature, body: @escaping (ObjCBlockCall) -> ObjCValue) {
+        self.signature = signature
+        self.body = body
     }
 }
 

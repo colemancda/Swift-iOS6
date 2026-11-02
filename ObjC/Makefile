@@ -39,7 +39,7 @@ all: build/objc-tests
 macros: $(MACROS)
 
 # Typed wrappers generated from the SDK's headers: one module per framework.
-FRAMEWORKS     := Foundation UIKit CoreLocation CoreBluetooth CoreData
+FRAMEWORKS     := Foundation UIKit CoreLocation CoreBluetooth CoreData CoreMotion
 FRAMEWORKS_DIR := ../Frameworks
 frameworks:
 	python3 tools/objcgen.py $(addprefix --framework ,$(FRAMEWORKS)) --out $(FRAMEWORKS_DIR) --sdk $(SDK) --min-ios $(MIN_IOS)

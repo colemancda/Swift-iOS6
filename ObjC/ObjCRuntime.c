@@ -180,6 +180,136 @@ void *objcrt_superclass(void *cls) {
     return cls ? (void *)class_getSuperclass(cls) : NULL;
 }
 
+#pragma mark - Blocks
+
+#include <Block.h>
+
+extern void *_NSConcreteStackBlock[32];
+
+long objcrt_parse_types(const char *types, ObjCRTSignature *signature) {
+    if (!types || !*types) return 1;
+    const char *next = NSGetSizeAndAlignment(types, NULL, NULL);
+    if (!next || next == types) return 1;
+    signature->returnType = ObjCRTKind(types);
+    signature->returnSize = ObjCRTSize(types);
+    signature->argumentCount = 0;
+    while (*next && signature->argumentCount < ObjCRTMaxArguments) {
+        const char *after = NSGetSizeAndAlignment(next, NULL, NULL);
+        if (!after || after == next) return 1;
+        signature->argumentTypes[signature->argumentCount] = ObjCRTKind(next);
+        signature->argumentSizes[signature->argumentCount] = ObjCRTSize(next);
+        signature->argumentCount++;
+        next = after;
+    }
+    return 0;
+}
+
+enum {
+    ObjCRTBlockHasCopyDispose = 1 << 25,
+    ObjCRTBlockUsesStret = 1 << 29,
+    ObjCRTBlockHasSignature = 1 << 30,
+};
+
+/// What every copy of a block shares: the Swift side and a reference count.
+typedef struct {
+    long references;
+    ObjCRTBlockHandler handler;
+    void *context;
+    ObjCRTBlockRelease release;
+    /// The block's own descriptor and signature, freed with the box.
+    void *descriptor;
+} ObjCRTBlockBox;
+
+typedef struct {
+    unsigned long reserved;
+    unsigned long size;
+    void (*copy)(void *destination, const void *source);
+    void (*dispose)(const void *block);
+    const char *signature;
+} ObjCRTBlockDescriptor;
+
+/// The block literal ABI (Block-ABI-Apple), with one captured pointer.
+typedef struct {
+    void *isa;
+    int flags;
+    int reserved;
+    void *invoke;
+    ObjCRTBlockDescriptor *descriptor;
+    ObjCRTBlockBox *box;
+} ObjCRTBlock;
+
+static void ObjCRTBlockCopy(void *destination, const void *source) {
+    ObjCRTBlock *copy = destination;
+    copy->box = ((const ObjCRTBlock *)source)->box;
+    __sync_fetch_and_add(&copy->box->references, 1);
+}
+
+static void ObjCRTBlockDispose(const void *block) {
+    ObjCRTBlockBox *box = ((const ObjCRTBlock *)block)->box;
+    if (__sync_sub_and_fetch(&box->references, 1) == 0) {
+        if (box->release) objcrt_call_aligned(box->release, (W)box->context, 0, 0, 0, 0);
+        ObjCRTBlockDescriptor *descriptor = box->descriptor;
+        free((void *)descriptor->signature);
+        free(descriptor);
+        free(box);
+    }
+}
+
+// Like ObjCRTMethod: reads 16 words whatever the block takes.
+static uint64_t ObjCRTBlockInvoke(ObjCRTBlock *block, W w0, W w1, W w2, W w3, W w4, W w5, W w6, W w7,
+                                  W w8, W w9, W w10, W w11, W w12, W w13, W w14, W w15) {
+    W words[ObjCRTMaxWords] = {w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15};
+    W result[2] = {0, 0};
+    objcrt_call_aligned(block->box->handler, (W)block->box->context, (W)words, (W)result, 0, 0);
+    return (uint64_t)result[1] << 32 | result[0];
+}
+
+static void ObjCRTBlockInvokeStret(void *structResult, ObjCRTBlock *block, W w0, W w1, W w2, W w3, W w4, W w5,
+                                   W w6, W w7, W w8, W w9, W w10, W w11, W w12, W w13, W w14, W w15) {
+    W words[ObjCRTMaxWords] = {w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15};
+    objcrt_call_aligned(block->box->handler, (W)block->box->context, (W)words, (W)structResult, 0, 0);
+}
+
+void *objcrt_block_create(ObjCRTBlockHandler handler, void *context, ObjCRTBlockRelease release, const char *types) {
+    ObjCRTSignature signature;
+    if (objcrt_parse_types(types, &signature) != 0) return NULL;
+    int stret = signature.returnType == '{' && signature.returnSize > 4;
+
+    // The block's signature: the result, the block itself ("@?"), then the arguments.
+    const char *arguments = NSGetSizeAndAlignment(types, NULL, NULL);
+    size_t resultLength = (size_t)(arguments - types);
+    char *blockSignature = malloc(strlen(types) + 3);
+    memcpy(blockSignature, types, resultLength);
+    strcpy(blockSignature + resultLength, "@?");
+    strcat(blockSignature, arguments);
+
+    // Each block gets its own descriptor, freed with it, since the signature
+    // differs from block to block.
+    ObjCRTBlockDescriptor *descriptor = malloc(sizeof *descriptor);
+    descriptor->reserved = 0;
+    descriptor->size = sizeof(ObjCRTBlock);
+    descriptor->copy = ObjCRTBlockCopy;
+    descriptor->dispose = ObjCRTBlockDispose;
+    descriptor->signature = blockSignature;
+
+    ObjCRTBlockBox *box = malloc(sizeof *box);
+    box->references = 0;  // ObjCRTBlockCopy counts the heap copy
+    box->handler = handler;
+    box->context = context;
+    box->release = release;
+    box->descriptor = descriptor;
+
+    ObjCRTBlock stack = {
+        .isa = _NSConcreteStackBlock,
+        .flags = ObjCRTBlockHasCopyDispose | ObjCRTBlockHasSignature | (stret ? ObjCRTBlockUsesStret : 0),
+        .reserved = 0,
+        .invoke = stret ? (void *)ObjCRTBlockInvokeStret : (void *)ObjCRTBlockInvoke,
+        .descriptor = descriptor,
+        .box = box,
+    };
+    return (void *)_Block_copy(&stack);
+}
+
 #pragma mark - Calling Swift from iOS code
 
 // objcrt_call_aligned(function, a0, a1, a2, a3, a4): a0-a2 arrive in r1-r3,
