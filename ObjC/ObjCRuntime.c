@@ -5,6 +5,7 @@
 #include <objc/message.h>
 #include <objc/runtime.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include "ObjCRuntime.h"
 
@@ -135,12 +136,36 @@ void objcrt_pool_pop(void *pool) {
     objc_autoreleasePoolPop(pool);
 }
 
+// Strings go back and forth for every text a view shows and every
+// argument a delegate receives, so the class and selectors are looked up once.
 void *objcrt_string(const char *utf8) {
-    return ((void *(*)(Class, SEL, const char *))objc_msgSend)(objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), utf8);
+    static Class string;
+    static SEL create;
+    if (!string) {
+        string = objc_getClass("NSString");
+        create = sel_registerName("stringWithUTF8String:");
+    }
+    return ((void *(*)(Class, SEL, const char *))objc_msgSend)(string, create, utf8);
+}
+
+static SEL ObjCRTUTF8Selector(void) {
+    static SEL selector;
+    if (!selector) selector = sel_registerName("UTF8String");
+    return selector;
 }
 
 const char *objcrt_utf8(void *string) {
-    return string ? ((const char *(*)(id, SEL))objc_msgSend)(string, sel_registerName("UTF8String")) : "";
+    return string ? ((const char *(*)(id, SEL))objc_msgSend)(string, ObjCRTUTF8Selector()) : "";
+}
+
+const char *objcrt_string_utf8(void *object) {
+    static Class string;
+    if (!string) string = objc_getClass("NSString");
+    if (!object) return NULL;
+    for (Class c = object_getClass(object); c; c = class_getSuperclass(c)) {
+        if (c == string) return ((const char *(*)(id, SEL))objc_msgSend)(object, ObjCRTUTF8Selector());
+    }
+    return NULL;
 }
 
 long objcrt_load(const char *path) {
@@ -154,6 +179,34 @@ void *objcrt_object_class(void *object) {
 void *objcrt_superclass(void *cls) {
     return cls ? (void *)class_getSuperclass(cls) : NULL;
 }
+
+#pragma mark - Calling Swift from iOS code
+
+// objcrt_call_aligned(function, a0, a1, a2, a3, a4): a0-a2 arrive in r1-r3,
+// a3 and a4 on the stack. Calls function(a0, a1, a2, a3, a4) with sp rounded
+// down to a multiple of 8, keeping r7 as the frame pointer, as iOS expects.
+__asm__(
+    "    .text\n"
+    "    .arm\n"
+    "    .align 2\n"
+    "    .globl _objcrt_call_aligned\n"
+    "_objcrt_call_aligned:\n"
+    "    push {r4, r5, r7, lr}\n"
+    "    add r7, sp, #8\n"
+    "    mov r4, r0\n"
+    "    ldr r5, [sp, #16]\n"     // a3
+    "    ldr ip, [sp, #20]\n"     // a4
+    "    mov r0, r1\n"
+    "    mov r1, r2\n"
+    "    mov r2, r3\n"
+    "    mov r3, r5\n"
+    "    bic sp, sp, #7\n"
+    "    sub sp, sp, #8\n"
+    "    str ip, [sp]\n"
+    "    blx r4\n"
+    "    sub sp, r7, #8\n"
+    "    pop {r4, r5, r7, pc}\n"
+);
 
 #pragma mark - Defining classes
 
@@ -170,7 +223,9 @@ static uint64_t ObjCRTMethod(id self, SEL cmd, W w0, W w1, W w2, W w3, W w4, W w
                              W w8, W w9, W w10, W w11, W w12, W w13, W w14, W w15) {
     W words[ObjCRTMaxWords] = {w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15};
     W result[2] = {0, 0};
-    if (ObjCRTCurrentHandler) ObjCRTCurrentHandler(self, cmd, words, result, NULL);
+    if (ObjCRTCurrentHandler) {
+        objcrt_call_aligned(ObjCRTCurrentHandler, (W)self, (W)cmd, (W)words, (W)result, 0);
+    }
     return (uint64_t)result[1] << 32 | result[0];
 }
 
@@ -180,7 +235,9 @@ static void ObjCRTMethodStruct(void *structResult, id self, SEL cmd, W w0, W w1,
                                W w7, W w8, W w9, W w10, W w11, W w12, W w13, W w14, W w15) {
     W words[ObjCRTMaxWords] = {w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15};
     W result[2] = {0, 0};
-    if (ObjCRTCurrentHandler) ObjCRTCurrentHandler(self, cmd, words, result, structResult);
+    if (ObjCRTCurrentHandler) {
+        objcrt_call_aligned(ObjCRTCurrentHandler, (W)self, (W)cmd, (W)words, (W)result, (W)structResult);
+    }
 }
 
 void *objcrt_allocate_class(const char *name, void *superclass) {
@@ -247,13 +304,32 @@ void *objcrt_get_associated(void *object, const void *key) {
 
 #pragma mark - Main queue and app
 
+typedef struct {
+    ObjCRTFunction function;
+    void *context;
+} ObjCRTWork;
+
+// Runs on the main queue, called by libdispatch with iOS's stack alignment.
+static void ObjCRTRunWork(void *pointer) {
+    ObjCRTWork work = *(ObjCRTWork *)pointer;
+    free(pointer);
+    objcrt_call_aligned(work.function, (W)work.context, 0, 0, 0, 0);
+}
+
+static ObjCRTWork *ObjCRTMakeWork(ObjCRTFunction function, void *context) {
+    ObjCRTWork *work = malloc(sizeof *work);
+    work->function = function;
+    work->context = context;
+    return work;
+}
+
 void objcrt_async(ObjCRTFunction function, void *context) {
-    dispatch_async_f(dispatch_get_main_queue(), context, function);
+    dispatch_async_f(dispatch_get_main_queue(), ObjCRTMakeWork(function, context), ObjCRTRunWork);
 }
 
 void objcrt_after(unsigned long milliseconds, ObjCRTFunction function, void *context) {
     dispatch_after_f(dispatch_time(DISPATCH_TIME_NOW, (int64_t)milliseconds * NSEC_PER_MSEC),
-                     dispatch_get_main_queue(), context, function);
+                     dispatch_get_main_queue(), ObjCRTMakeWork(function, context), ObjCRTRunWork);
 }
 
 long objcrt_application_main(const char *delegateClass) {

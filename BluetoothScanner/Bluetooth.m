@@ -9,6 +9,7 @@
 #import <Foundation/Foundation.h>
 #include <dlfcn.h>
 #include "Bluetooth.h"
+#include "ObjCRuntime.h"
 
 @protocol BTManager
 + (id)sharedInstance;
@@ -83,7 +84,8 @@ static void BTReport(void) {
         infos[i].connected = [device connected];
         infos[i].nearby = [device connected] || ([BTDiscovered containsObject:device] && ![BTLost containsObject:address]);
     }
-    BTChanged(BTContext, infos, (long)count);
+    // Into Swift, which needs an 8-byte-aligned stack.
+    objcrt_call_aligned(BTChanged, (unsigned long)BTContext, (unsigned long)infos, (unsigned long)count, 0, 0);
     (void)strings.count;
 }
 

@@ -96,8 +96,40 @@ there's no SwiftPM step or download. `make macros` builds
 `build/plugins/libObjCMacros.dylib`, and every Swift compile loads it with
 `-load-plugin-library`, including SwiftUI apps. Macros expand before Embedded
 compilation, so the generated code is ordinary Embedded Swift.
-`../SwiftUI/Examples/Interop/UIKit.swift` declares the UIKit and Foundation
-API that example uses this way.
+`../XMLBrowser/Foundation.swift` declares the Foundation API that app uses
+this way by hand, and [../Frameworks](../Frameworks/README.md) has whole
+frameworks generated from the SDK's headers (see below).
+
+## Generating wrappers from headers
+
+`tools/objcgen.py` writes these declarations for whole frameworks, from the
+iOS SDK's headers. [../Frameworks](../Frameworks/README.md) holds the
+result for Foundation and UIKit.
+
+```bash
+make frameworks   # python3 tools/objcgen.py --framework Foundation --framework UIKit --out ../Frameworks
+```
+
+1. **Parse:** clang parses the umbrella headers with the SDK
+   (`-ast-dump=json`).
+2. **Collect:** the tool gathers each class's methods and properties,
+   including those in categories. Each member goes in the module of the
+   framework whose headers declare it, so UIKit's additions to NSString are
+   in UIKit. The framework is found from the headers' `@interface` lines.
+3. **Map types:** C types become Swift types (strings, numbers, structs,
+   wrappers, optionals from the nullability annotations). Methods it can't
+   express (blocks, varargs, C arrays) are left out.
+4. **Check availability:** the tool compiles a probe file that uses every
+   class and member, with `-miphoneos-version-min=6.0
+   -Werror=unguarded-availability`. Whatever clang rejects is left out,
+   because it's newer than iOS 6 or unavailable on iOS. The JSON dump has no
+   version numbers, so clang's own check decides.
+5. **Write** one `@ObjC` struct per class. Its members go in an extension of
+   a protocol that refines the superclass's protocol, so subclasses inherit
+   them. The generated code has no hand edits.
+
+Other frameworks work the same way (`--framework MessageUI`, for example);
+give dependencies first. `--min-ios` changes the version.
 
 ## Defining classes
 
@@ -136,6 +168,10 @@ let delegateClass = ObjC.defineClass("ScrollDelegate") { cls in
   struct results larger than 4 bytes), which collects the 16 argument words and
   calls Swift. Swift finds the closure by class and selector, including for
   instances of subclasses.
+- **Stack alignment:** the C implementation calls Swift through
+  `objcrt_call_aligned`, which realigns the stack to 8 bytes. That's what the
+  bare-metal Swift code expects, while iOS only guarantees 4. `objcrt_async`
+  and `objcrt_after` do the same, and so should any C callback into Swift.
 - **Memory:**
   - In `dealloc`, `self` isn't retained.
   - Returned objects are autoreleased, except in the alloc, new, copy and
@@ -233,5 +269,10 @@ the iPhone 4S (iOS 9.3.6). The current suite hasn't run there yet.
   array) crashes the app, because Swift can't catch it. An unknown selector or
   the wrong number of arguments stops with a message naming the method.
 - **Speed:** a message converts its arguments and result through the cached
-  method types, which is slower than a direct call but fine for UI code.
+  method types, which is slower than a direct call but fine for UI code. On
+  the iPod touch 4:
+  - A message with no arguments takes about 4 µs.
+  - A call into a method defined in Swift takes about 10 µs, plus about 8 µs
+    per object argument.
+  - Converting an NSString to a String takes about 7 µs.
 - **Argument size:** at most 16 words of arguments.

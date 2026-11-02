@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <title>Swift badge</title>
+  <defs>
+    <linearGradient id="orange" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F88A36"/>
+      <stop offset="1" stop-color="#FD2020"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="120" height="120" rx="26" fill="url(#orange)"/>
+  <circle cx="60" cy="60" r="34" fill="none" stroke="#FFFFFF" stroke-width="6"/>
+  <text x="60" y="68" font-family="Helvetica" font-size="22" fill="#FFFFFF" text-anchor="middle">iOS 6</text>
+</svg>

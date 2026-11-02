@@ -7,6 +7,7 @@
 #include <dlfcn.h>
 #include <stdlib.h>
 #include <string.h>
+#include "ObjCRuntime.h"
 #include "WiFi.h"
 
 typedef struct __WiFiManager *WiFiManagerRef;
@@ -106,7 +107,7 @@ static void WiFiScanDone(WiFiDeviceRef device, CFArrayRef networks, int error, v
     WiFiScanRequest *request = token;
     WiFiScanning = 0;
     if (error || !networks) {
-        request->callback(request->context, NULL, 0, error ? error : -1);
+        objcrt_call_aligned(request->callback, (unsigned long)request->context, 0, 0, error ? error : -1, 0);
         free(request);
         return;
     }
@@ -130,7 +131,8 @@ static void WiFiScanDone(WiFiDeviceRef device, CFArrayRef networks, int error, v
     }
     if (current) CFRelease(current);
 
-    request->callback(request->context, infos, count, 0);
+    // Into Swift, which needs an 8-byte-aligned stack.
+    objcrt_call_aligned(request->callback, (unsigned long)request->context, (unsigned long)infos, count, 0, 0);
     for (CFIndex i = 0; i < count; i++) {
         free((char *)infos[i].ssid);
         free((char *)infos[i].bssid);

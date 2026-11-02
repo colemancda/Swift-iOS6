@@ -192,7 +192,9 @@ public struct ObjCValue: ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral,
     public var asString: String? {
         switch storage {
         case .string(let string): return string
-        case .object(let object?) where isKind(of: "NSString"): return String(cString: objcrt_utf8(object.pointer))
+        case .object(let object?):
+            guard let utf8 = objcrt_string_utf8(object.pointer) else { return nil }
+            return String(cString: utf8)
         default: return nil
         }
     }
@@ -244,9 +246,8 @@ public struct ObjCValue: ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral,
 
     /// Whether this is an instance of the named class or one of its subclasses.
     public func isKind(of className: String) -> Bool {
-        guard let object = asObject else { return false }
-        let cls = withCString(className) { objcrt_class($0) }
-        return cls != nil && objcrt_is_kind(object.pointer, cls) != 0
+        guard let object = asObject, let cls = ObjCCache.classNamed(className) else { return false }
+        return objcrt_is_kind(object.pointer, cls) != 0
     }
 
     public func responds(to selector: String) -> Bool {
@@ -387,6 +388,7 @@ extension ObjCValue {
         defer { for buffer in buffers { buffer.deallocate() } }
 
         var words: [UInt] = []
+        words.reserveCapacity(ObjCRTMaxWords)
         for index in 0..<arguments.count {
             arguments[index].appendWords(to: &words, type: signature.types[index], size: signature.sizes[index],
                                          buffers: &buffers, selector: selectorName)
@@ -399,8 +401,8 @@ extension ObjCValue {
 
         let returnType = signature.returnType
         let returnSize = signature.returnSize
-        var structWords = [UInt](repeating: 0, count: max(1, (returnSize + 3) / 4))
         let usesStructReturn = returnType == ascii("{") && returnSize > 4
+        var structWords = [UInt](repeating: 0, count: usesStructReturn ? (returnSize + 3) / 4 : 0)
 
         var result: (UInt, UInt) = (0, 0)
         words.withUnsafeBufferPointer { wordBuffer in
@@ -528,14 +530,22 @@ extension ObjCValue {
 enum MethodFamily {
     case owning, initializer, other
 
+    /// Compares UTF-8 bytes: String's own hasPrefix compares Unicode
+    /// characters, which is slow, and this runs for every message.
     init(_ selector: String) {
-        var name = Substring(selector)
-        while name.hasPrefix("_") { name = name.dropFirst() }
-        func starts(_ word: String) -> Bool {
-            guard name.hasPrefix(word) else { return false }
+        var name = selector.utf8[...]
+        while name.first == UInt8(ascii: "_") { name = name.dropFirst() }
+        func starts(_ word: StaticString) -> Bool {
+            let count = word.utf8CodeUnitCount
+            guard name.count >= count else { return false }
+            var index = name.startIndex
+            for offset in 0..<count {
+                if name[index] != word.utf8Start[offset] { return false }
+                index = name.index(after: index)
+            }
             // The word must end there: "newline" isn't in the new family.
-            let rest = name.dropFirst(word.utf8.count)
-            guard let next = rest.utf8.first else { return true }
+            guard index < name.endIndex else { return true }
+            let next = name[index]
             return !(next >= UInt8(ascii: "a") && next <= UInt8(ascii: "z"))
         }
         if starts("init") {
@@ -564,10 +574,11 @@ func long<T>(_ tuple: T, _ index: Int) -> Int {
 
 /// Calls `body` with `string` as a NUL-terminated C string.
 func withCString<Result>(_ string: String, _ body: (UnsafePointer<CChar>) -> Result) -> Result {
-    var bytes: [CChar] = []
-    for byte in string.utf8 { bytes.append(CChar(bitPattern: byte)) }
+    var bytes = Array(string.utf8)
     bytes.append(0)
-    return bytes.withUnsafeBufferPointer { body($0.baseAddress!) }
+    return bytes.withUnsafeBufferPointer { buffer in
+        buffer.baseAddress!.withMemoryRebound(to: CChar.self, capacity: buffer.count) { body($0) }
+    }
 }
 
 // MARK: - Caches
@@ -781,14 +792,21 @@ enum ObjCMethods {
 
         var arguments: [ObjCValue] = []
         var index = 0
-        for (type, size) in zip(signature.types, signature.sizes) {
-            let count = ObjCValue.wordCount(type: type, size: size)
-            var argumentWords: [UInt] = []
-            for offset in 0..<count where index + offset < ObjCRTMaxWords { argumentWords.append(words[index + offset]) }
+        arguments.reserveCapacity(signature.types.count)
+        for argument in 0..<signature.types.count {
+            let type = signature.types[argument]
+            let size = signature.sizes[argument]
+            let count = min(ObjCValue.wordCount(type: type, size: size), ObjCRTMaxWords - index)
+            guard count > 0 else { break }
+            let low = words[index]
+            let high = count > 1 ? words[index + 1] : 0
+            // Only structs need their words as an array.
+            var structWords: [UInt]?
+            if type == ascii("{") || type == ascii("(") {
+                structWords = Array(UnsafeBufferPointer(start: words + index, count: count))
+            }
             index += count
-            let high = argumentWords.count > 1 ? argumentWords[1] : 0
-            arguments.append(ObjCValue(returnType: type, size: size, result: (argumentWords.first ?? 0, high),
-                                       structWords: argumentWords, owned: false))
+            arguments.append(ObjCValue(returnType: type, size: size, result: (low, high), structWords: structWords, owned: false))
         }
 
         // self isn't retained during dealloc, where it can't be revived.

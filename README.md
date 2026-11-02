@@ -15,6 +15,12 @@ declare typed wrappers and implement Objective-C classes with macros
 backend is written with it.
 [SystemInfo/](SystemInfo/README.md) shows system and hardware information
 (device, CPU, memory, storage, battery, processes, installed apps) like AIDA64.
+[Frameworks/](Frameworks/README.md) has Foundation and UIKit as typed Swift
+modules (`UILabel(frame:)`, `label.text = "Hi"`), generated from the SDK's
+headers by `ObjC/tools/objcgen.py` and limited to iOS 6.0's API.
+[XML/](XML/README.md) parses XML with NSXMLParser into Swift events or a
+document tree, and [XMLBrowser/](XMLBrowser/README.md) browses XML files and
+plists with it.
 
 A minimal UIKit app and a command-line tool for a jailbroken iPod touch (4th gen,
 iPod4,1, armv7, iOS 6.1.6).
@@ -77,6 +83,13 @@ algorithms enabled there. Override with `make install SSH_CONF=...`.
 ## Limits
 
 - Code is ARM, not Thumb (`-marm`).
+- **Stack alignment:** the Swift code follows the bare-metal ABI (AAPCS),
+  which assumes an 8-byte-aligned stack. iOS only keeps it 4-byte aligned.
+  So every call from iOS code into Swift (Objective-C methods defined in
+  Swift, main-queue work, C callbacks) goes through
+  `objcrt_call_aligned` in `ObjC/ObjCRuntime.c`, which realigns it. Without
+  that, Swift code computes some stack addresses wrongly and corrupts its
+  own values.
 - Embedded Swift only: no Foundation, `@objc`, reflection or `Codable`.
 - Xcode 27 has no iOS 6 developer disk image, so `idevicescreenshot` and the
   debugger don't work. `make screenshot` uses UIKit's private

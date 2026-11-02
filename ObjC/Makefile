@@ -1,7 +1,10 @@
 # Builds the ObjCInterop module and its on-device tests.
 #
-#   make        build build/objc-tests
-#   make test   copy it to the iPod and run it
+#   make             build build/objc-tests
+#   make test        copy it to the iPod and run it
+#   make frameworks  regenerate ../Frameworks (Foundation and UIKit wrappers)
+#                    from the SDK's headers with tools/objcgen.py
+#   make test-frameworks  build and run Tests/Frameworks on the iPod
 #
 # SwiftUI apps get the module through ../SwiftUI/Makefile.
 
@@ -31,9 +34,34 @@ LDFLAGS    := -arch armv7 -isysroot $(SDK) -miphoneos-version-min=$(MIN_IOS) \
 SSH_CONF ?= ../ipod-ssh.conf
 SSH_HOST ?= ipod
 
-.PHONY: all test clean macros
+.PHONY: all test clean macros frameworks test-frameworks
 all: build/objc-tests
 macros: $(MACROS)
+
+# Typed wrappers generated from the SDK's headers: one module per framework.
+FRAMEWORKS     := Foundation UIKit
+FRAMEWORKS_DIR := ../Frameworks
+frameworks:
+	python3 tools/objcgen.py $(addprefix --framework ,$(FRAMEWORKS)) --out $(FRAMEWORKS_DIR) --sdk $(SDK) --min-ios $(MIN_IOS)
+
+build/obj/Foundation.o: $(FRAMEWORKS_DIR)/Foundation/Sources/Foundation.swift build/obj/ObjCInterop.o
+	$(SWIFTC) $(SWIFTFLAGS) -parse-as-library -module-name Foundation \
+	  -emit-module -emit-module-path build/modules/Foundation.swiftmodule -c $< -o $@
+
+build/obj/UIKit.o: $(FRAMEWORKS_DIR)/UIKit/Sources/UIKit.swift build/obj/Foundation.o
+	$(SWIFTC) $(SWIFTFLAGS) -parse-as-library -module-name UIKit \
+	  -emit-module -emit-module-path build/modules/UIKit.swiftmodule -c $< -o $@
+
+build/obj/FrameworkTests.o: $(wildcard Tests/Frameworks/*.swift) build/obj/Foundation.o build/obj/UIKit.o
+	$(SWIFTC) $(SWIFTFLAGS) -module-name FrameworkTests -c $(wildcard Tests/Frameworks/*.swift) -o $@
+
+build/framework-tests: build/obj/FrameworkTests.o build/obj/Foundation.o build/obj/UIKit.o build/obj/ObjCInterop.o build/obj/ObjCRuntime.o
+	$(CC) $(LDFLAGS) $^ -o $@.tmp
+	ldid -S $@.tmp
+	mv $@.tmp $@
+
+test-frameworks: build/framework-tests
+	ssh -F $(SSH_CONF) $(SSH_HOST) 'cd / && cat > /tmp/framework-tests && chmod 755 /tmp/framework-tests && su mobile -c /tmp/framework-tests' < $<
 
 $(MACROS): Macros/ObjCMacros.swift
 	@mkdir -p build/plugins
