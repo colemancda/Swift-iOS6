@@ -31,8 +31,7 @@ make run       # launch it (the iPod must be unlocked)
 - **Typed wrappers:** `Foundation.swift` declares the NSFileManager,
   NSFileHandle, NSBundle and NSDate API the app uses, with ObjCInterop's
   macros.
-- **No `.task`:** parsing and the file search run in `onAppear`, not
-  `.task`. Releasing a finished `Task` currently crashes on armv7 (see
-  [../SwiftUI](../SwiftUI/README.md#limits)).
+- **Parsing waits for the push:** a document is parsed in a `.task`, after
+  the push animation, so the animation doesn't stutter.
 - **Long lists** are cut at 150 rows, since every row is a view that's laid
   out on each render.

@@ -112,9 +112,11 @@ struct FileList: View {
             }
         }
         .navigationTitle("XML Browser")
-        // After the first screen is up: reading the directories takes a moment.
-        // (Not .task: releasing a finished Task crashes on armv7 for now.)
-        .onAppear { library.search() }
+        .task {
+            // After the first screen is up: reading the directories takes a moment.
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            library.search()
+        }
     }
 }
 
@@ -171,7 +173,11 @@ struct DocumentView: View {
             }
         }
         .navigationTitle(file.name)
-        .onAppear { library.load(file) }
+        .task {
+            // Parse once the push animation is over, so it doesn't stutter.
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            library.load(file)
+        }
     }
 }
 

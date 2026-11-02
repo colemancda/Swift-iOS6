@@ -94,6 +94,13 @@ algorithms enabled there. Override with `make install SSH_CONF=...`.
   `objcrt_call_aligned` in `ObjC/ObjCRuntime.c`, which realigns it. Without
   that, Swift code computes some stack addresses wrongly and corrupts its
   own values.
+- **Thumb pointers:** the prebuilt concurrency runtime mixes Thumb and ARM
+  code, and the linker leaves bit 0 (the Thumb bit) off its stored pointers
+  to local Thumb functions: the task destructors and the task-group vtables.
+  Calling through one ran Thumb code as ARM, so releasing a finished `Task`
+  crashed. `SwiftUI/tools/thumbfix.py` sets the bit in each linked app before
+  it's signed, finding the pointers through dyld's rebase information. Task
+  groups also need `__cxa_pure_virtual`, which `Compat.c` defines.
 - Embedded Swift only: no Foundation, `@objc`, reflection or `Codable`.
 - Xcode 27 has no iOS 6 developer disk image, so `idevicescreenshot` and the
   debugger don't work. `make screenshot` uses UIKit's private

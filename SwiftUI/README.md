@@ -182,8 +182,4 @@ The same as SwiftUI-iOS9, and also:
 - iOS 6 appearance: glossy navigation bars and back buttons. There's no
   swipe-to-go-back, which arrived in iOS 7.
 - Only regular and bold system fonts.
-- **Finished tasks crash when released.** Releasing a `Task` that has
-  finished crashes in the concurrency runtime's `destroyTask` on armv7. A
-  `.task` whose view disappears after its work is done hits this, and so
-  does awaiting a child `Task`. A `.task` that loops for as long as its view
-  is shown, like the examples', is fine. Use `onAppear` for one-off work.
+

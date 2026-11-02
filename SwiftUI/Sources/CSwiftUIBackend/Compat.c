@@ -15,3 +15,9 @@ int memset_s(void *s, size_t smax, int c, size_t n) {
     for (size_t i = 0; i < count; i++) p[i] = (unsigned char)c;
     return n > smax ? 84 : 0; // EOVERFLOW
 }
+
+/// The C++ runtime's handler for calling a pure virtual function, which the
+/// concurrency runtime's task groups refer to. Calling one is a bug: stop.
+void __cxa_pure_virtual(void) {
+    __builtin_trap();
+}

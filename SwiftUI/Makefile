@@ -156,11 +156,14 @@ $(BUILD)/r9/$(APP)/trampolines.s: $(BAREMETAL) tools/r9wrap.py $(IOS_HEADERS)
 $(BUILD)/r9/$(APP)/trampolines.o: $(BUILD)/r9/$(APP)/trampolines.s
 	$(CC) -arch $(ARCH) -isysroot $(SDK) -miphoneos-version-min=$(MIN_IOS) -c $< -o $@
 
+# tools/thumbfix.py sets the Thumb bit the linker leaves off pointers to the
+# runtime's Thumb functions (task destructors), before signing.
 $(BUNDLE)/$(APP): $(BUILD)/r9/$(APP)/trampolines.o $(BUILD)/obj/ObjCRuntime.o $(APP_OBJS) $(APP_DIR)/Info.plist $(ENTITLEMENTS) \
                   $(RESOURCES)
 	@mkdir -p $(BUNDLE)
 	$(if $(RESOURCES),cp $(RESOURCES) $(BUNDLE)/)
 	$(CC) $(LDFLAGS) $(WRAPPED) $(BUILD)/obj/ObjCRuntime.o $(APP_OBJS) -o $@.tmp
+	python3 tools/thumbfix.py $@.tmp
 	ldid -S$(ENTITLEMENTS) $@.tmp
 	mv $@.tmp $@
 	plutil -convert binary1 -o $(BUNDLE)/Info.plist $(APP_DIR)/Info.plist
