@@ -52,8 +52,8 @@ make EXAMPLE=Planets run      # launch it (the iPod must be unlocked)
   planet's facts, then its moons).
 - **Interop:** UIKit and Foundation from Swift through
   [ObjCInterop](../ObjC/README.md): device details, screen brightness, keeping
-  the screen awake and opening a URL, with no Objective-C file. `UIKit.swift`
-  declares the API as typed wrappers with ObjCInterop's macros.
+  the screen awake and opening a URL, with no Objective-C file. It uses the
+  Foundation and UIKit modules generated from the SDK's headers.
 - **Devices:** `NavigationView`, `List`, `@EnvironmentObject`, and an async
   `task` that updates the list every second.
 
@@ -70,6 +70,9 @@ The same as SwiftUI-iOS9 (`Text`, `Button`, stacks, `Spacer`, `ForEach`,
 and `Toggle`. `NavigationStack` renders like `NavigationView` and has no `path`
 binding or `navigationDestination`. `Toggle` is a `UISwitch`.
 
+The Interop example uses the generated Foundation and UIKit modules
+([../Frameworks](../Frameworks/README.md)), listed in its `LIBS` file.
+
 ## Apps in other folders
 
 An app outside `Examples/` (like [../WiFiScanner](../WiFiScanner/README.md))
@@ -79,6 +82,13 @@ holds the app's Swift sources and `Info.plist`, and optionally:
 - C or Objective-C sources, built for iOS like the backend.
 - An `include/` folder with a Clang module, which Swift imports.
 - An `Entitlements.plist` that `ldid` signs the app with.
+- A `Resources/` folder, copied into the app bundle.
+
+`LIBS` lists Swift libraries in folders beside this one that the app imports.
+Each has its sources in `Sources/`, and `LIBS=XML` builds `../XML` as the
+module `XML` (see [../XMLBrowser](../XMLBrowser/README.md)). C code that
+calls back into Swift goes through `objcrt_call_aligned` (in
+`../ObjC/include/ObjCRuntime.h`), as `../WiFiScanner/WiFi.c` does.
 
 ## How the UI is wrapped
 
@@ -172,3 +182,4 @@ The same as SwiftUI-iOS9, and also:
 - iOS 6 appearance: glossy navigation bars and back buttons. There's no
   swipe-to-go-back, which arrived in iOS 7.
 - Only regular and bold system fonts.
+

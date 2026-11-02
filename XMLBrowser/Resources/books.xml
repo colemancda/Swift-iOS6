@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A small library catalog, with attributes, nested elements and entities. -->
+<catalog name="Shelf" updated="2026-11-02">
+  <book id="b1" lang="en" format="paperback">
+    <title>The Swift Programming Language</title>
+    <author>Apple</author>
+    <year>2014</year>
+    <price currency="USD">0.00</price>
+    <tags><tag>swift</tag><tag>reference</tag></tags>
+  </book>
+  <book id="b2" lang="en" format="hardcover">
+    <title>Structure and Interpretation of Computer Programs</title>
+    <author>Harold Abelson</author>
+    <author>Gerald Jay Sussman</author>
+    <year>1985</year>
+    <price currency="USD">55.00</price>
+    <tags><tag>lisp</tag><tag>classic</tag></tags>
+  </book>
+  <book id="b3" lang="en" format="paperback">
+    <title>The C Programming Language</title>
+    <author>Brian W. Kernighan</author>
+    <author>Dennis M. Ritchie</author>
+    <year>1978</year>
+    <price currency="USD">45.00</price>
+    <tags><tag>c</tag><tag>classic</tag></tags>
+  </book>
+  <book id="b4" lang="fr" format="paperback">
+    <title>Le Petit Prince</title>
+    <author>Antoine de Saint-Exupéry</author>
+    <year>1943</year>
+    <price currency="EUR">8.50</price>
+    <tags><tag>fiction</tag></tags>
+  </book>
+  <book id="b5" lang="ja" format="ebook">
+    <title>吾輩は猫である</title>
+    <author>夏目漱石</author>
+    <year>1905</year>
+    <price currency="JPY">500</price>
+    <tags><tag>fiction</tag><tag>classic</tag></tags>
+  </book>
+  <book id="b6" lang="en" format="hardcover">
+    <title>Design Patterns: Elements of Reusable Object-Oriented Software</title>
+    <author>Erich Gamma</author>
+    <author>Richard Helm</author>
+    <author>Ralph Johnson</author>
+    <author>John Vlissides</author>
+    <year>1994</year>
+    <price currency="USD">49.99</price>
+    <tags><tag>objects</tag><tag>patterns</tag></tags>
+  </book>
+  <book id="b7" lang="en" format="paperback">
+    <title>Gödel, Escher, Bach &amp; the Eternal Golden Braid</title>
+    <author>Douglas Hofstadter</author>
+    <year>1979</year>
+    <price currency="USD">22.00</price>
+    <tags><tag>math</tag><tag>music</tag><tag>art</tag></tags>
+  </book>
+</catalog>

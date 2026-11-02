@@ -1,9 +1,12 @@
+import Foundation
 import ObjCInterop
 import SwiftUI
+import UIKit
 
 // UIKit and Foundation from Swift, with no Objective-C file: every value and
-// action here is an Objective-C message, through the typed declarations in
-// UIKit.swift (written with ObjCInterop's macros).
+// action here is an Objective-C message, through the Foundation and UIKit
+// modules that ../../../ObjC/tools/objcgen.py generates from the SDK's headers
+// (see the LIBS file).
 
 @main
 struct InteropApp: App {
@@ -45,17 +48,18 @@ final class DeviceStore: ObservableObject {
         let height = Int(screen.bounds.size.height * scale)
 
         var found = [
-            Fact(id: "Name", value: device.name),
-            Fact(id: "Model", value: device.model),
-            Fact(id: "System", value: "\(device.systemName) \(device.systemVersion)"),
+            Fact(id: "Name", value: device.name ?? "?"),
+            Fact(id: "Model", value: device.model ?? "?"),
+            Fact(id: "System", value: "\(device.systemName ?? "?") \(device.systemVersion ?? "?")"),
             Fact(id: "Screen", value: "\(width) × \(height) at \(Int(scale))×"),
             Fact(id: "Brightness", value: "\(Int(screen.brightness * 100))%"),
-            Fact(id: "Locale", value: NSLocale.currentLocale().localeIdentifier),
-            Fact(id: "Time zone", value: NSTimeZone.localTimeZone().name),
-            Fact(id: "App version", value: NSBundle.mainBundle().objectForInfoDictionaryKey("CFBundleShortVersionString") ?? "?"),
+            Fact(id: "Locale", value: NSLocale.currentLocale().localeIdentifier ?? "?"),
+            Fact(id: "Time zone", value: NSTimeZone.localTimeZone().name ?? "?"),
+            Fact(id: "App version",
+                 value: NSBundle.mainBundle().objectForInfoDictionaryKey("CFBundleShortVersionString").asString ?? "?"),
         ]
         if let vendor = device.identifierForVendor {
-            found.append(Fact(id: "Vendor ID", value: vendor.uuidString))
+            found.append(Fact(id: "Vendor ID", value: vendor.UUIDString ?? "?"))
         }
         if monitorsBattery {
             let level = device.batteryLevel
@@ -84,7 +88,9 @@ final class DeviceStore: ObservableObject {
     }
 
     func openWebsite() {
-        _ = application.open(NSURL.URLWithString("http://www.apple.com"))
+        if let url = NSURL.URLWithString("http://www.apple.com") {
+            _ = application.openURL(url)
+        }
     }
 }
 

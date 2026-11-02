@@ -6,8 +6,12 @@
 #
 # An app in another folder sets APP, APP_DIR and BUILD (see ../WiFiScanner).
 # APP_DIR holds its Swift sources and Info.plist, and optionally C or
-# Objective-C sources built for iOS, a Clang module in include/, and
-# Entitlements.plist for signing.
+# Objective-C sources built for iOS, a Clang module in include/,
+# Entitlements.plist for signing, and files to bundle in Resources/.
+# LIBS names Swift libraries the app imports, each with its sources in
+# Sources/: a folder beside this one (LIBS=XML builds ../XML as module XML),
+# or a generated framework in ../Frameworks (Foundation, UIKit). An app can
+# list them in a LIBS file in APP_DIR instead.
 #
 # Needs Xcode (clang, ld), a swift.org toolchain (Embedded stdlib) and the
 # iOS 9.3 SDK in ../sdk (`make sdk` in the parent directory).
@@ -37,7 +41,7 @@ CC     := xcrun clang
 # anything newer than MIN_IOS.
 CFLAGS  := -arch $(ARCH) -isysroot $(SDK) -miphoneos-version-min=$(MIN_IOS) \
            -marm -fobjc-arc -O2 -Wall -Werror=unguarded-availability \
-           -ISources/CSwiftUIBackend/include -I$(APP_DIR)/include
+           -ISources/CSwiftUIBackend/include -I$(OBJC)/include -I$(APP_DIR)/include
 # The executor hooks and libc shims are called by the Swift runtime with its
 # (bare-metal) calling convention, so they are compiled for the same target.
 EXECUTOR_CFLAGS := -target armv7-apple-none-macho -ffreestanding -marm -ffixed-r9 \
@@ -53,8 +57,10 @@ LLVM_OBJCOPY := $(SWIFT_TOOLCHAIN)/usr/bin/llvm-objcopy
 
 # Everything built for the bare-metal target. Its calls into iOS code go
 # through r9-preserving trampolines (see tools/r9wrap.py), written to $(BUILD)/r9.
-BAREMETAL := $(BUILD)/obj/$(APP).o $(BUILD)/obj/SwiftUI.o $(BUILD)/obj/ObjCInterop.o $(BUILD)/obj/Executor.o \
-             $(BUILD)/obj/Compat.o $(RUNTIME_LIBS)
+LIBS      ?= $(strip $(shell cat $(APP_DIR)/LIBS 2>/dev/null))
+LIB_OBJS  := $(patsubst %,$(BUILD)/obj/lib%.o,$(LIBS))
+BAREMETAL := $(BUILD)/obj/$(APP).o $(BUILD)/obj/SwiftUI.o $(BUILD)/obj/ObjCInterop.o $(LIB_OBJS) \
+             $(BUILD)/obj/Executor.o $(BUILD)/obj/Compat.o $(RUNTIME_LIBS)
 WRAPPED   := $(addprefix $(BUILD)/r9/$(APP)/,$(notdir $(BAREMETAL))) $(BUILD)/r9/$(APP)/trampolines.o
 
 # There's no Embedded stdlib for armv7-apple-ios, so Swift targets bare-metal
@@ -72,6 +78,7 @@ APP_C_SRCS   := $(wildcard $(APP_DIR)/*.c $(APP_DIR)/*.m)
 APP_HEADERS  := $(wildcard $(APP_DIR)/include/*.h)
 APP_OBJS     := $(patsubst %,$(BUILD)/obj/$(APP)-%.o,$(basename $(notdir $(APP_C_SRCS))))
 ENTITLEMENTS ?= $(wildcard $(APP_DIR)/Entitlements.plist)
+RESOURCES    ?= $(wildcard $(APP_DIR)/Resources/*)
 # Headers of the iOS-side functions Swift calls, for the trampolines' stack arguments.
 IOS_HEADERS  := Sources/CSwiftUIBackend/include/SwiftUIBackend.h $(OBJC)/include/ObjCRuntime.h $(APP_HEADERS)
 comma := ,
@@ -105,9 +112,23 @@ $(BUILD)/obj/ObjCInterop.o: $(OBJC)/Sources/ObjCInterop.swift $(OBJC)/include/Ob
 
 $(BUILD)/obj/ObjCRuntime.o: $(OBJC)/ObjCRuntime.c $(OBJC)/include/ObjCRuntime.h
 	@mkdir -p $(BUILD)/obj
-	$(CC) $(CFLAGS) -I$(OBJC)/include -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BUILD)/obj/$(APP).o: $(APP_SRCS) $(APP_HEADERS) $(BUILD)/obj/SwiftUI.o $(BUILD)/obj/ObjCInterop.o
+# Also writes $(BUILD)/modules/<name>.swiftmodule.
+.SECONDEXPANSION:
+$(BUILD)/obj/lib%.o: $$(wildcard ../$$*/Sources/*.swift ../Frameworks/$$*/Sources/*.swift) $(BUILD)/obj/ObjCInterop.o
+	@mkdir -p $(BUILD)/modules $(BUILD)/obj
+	$(SWIFTC) $(SWIFTFLAGS) -parse-as-library -module-name $* \
+	  -emit-module -emit-module-path $(BUILD)/modules/$*.swiftmodule \
+	  -c $(filter %.swift,$^) -o $@
+
+# The other generated frameworks use Foundation's wrappers.
+GENERATED_LIBS := $(filter-out Foundation,$(patsubst ../Frameworks/%/Sources,%,$(wildcard ../Frameworks/*/Sources)))
+$(patsubst %,$(BUILD)/obj/lib%.o,$(GENERATED_LIBS)): $(BUILD)/obj/libFoundation.o
+# …and their apps link the Objective-C framework itself (UIKit and Foundation always are).
+LDFLAGS += $(patsubst %,-framework %,$(filter-out UIKit,$(filter $(GENERATED_LIBS),$(LIBS))))
+
+$(BUILD)/obj/$(APP).o: $(APP_SRCS) $(APP_HEADERS) $(BUILD)/obj/SwiftUI.o $(BUILD)/obj/ObjCInterop.o $(LIB_OBJS)
 	$(SWIFTC) $(SWIFTFLAGS) -parse-as-library -module-name $(APP) -c $(APP_SRCS) -o $@
 
 $(BUILD)/obj/$(APP)-%.o: $(APP_DIR)/%.c $(APP_HEADERS)
@@ -135,9 +156,14 @@ $(BUILD)/r9/$(APP)/trampolines.s: $(BAREMETAL) tools/r9wrap.py $(IOS_HEADERS)
 $(BUILD)/r9/$(APP)/trampolines.o: $(BUILD)/r9/$(APP)/trampolines.s
 	$(CC) -arch $(ARCH) -isysroot $(SDK) -miphoneos-version-min=$(MIN_IOS) -c $< -o $@
 
-$(BUNDLE)/$(APP): $(BUILD)/r9/$(APP)/trampolines.o $(BUILD)/obj/ObjCRuntime.o $(APP_OBJS) $(APP_DIR)/Info.plist $(ENTITLEMENTS)
+# tools/thumbfix.py sets the Thumb bit the linker leaves off pointers to the
+# runtime's Thumb functions (task destructors), before signing.
+$(BUNDLE)/$(APP): $(BUILD)/r9/$(APP)/trampolines.o $(BUILD)/obj/ObjCRuntime.o $(APP_OBJS) $(APP_DIR)/Info.plist $(ENTITLEMENTS) \
+                  $(RESOURCES)
 	@mkdir -p $(BUNDLE)
+	$(if $(RESOURCES),cp $(RESOURCES) $(BUNDLE)/)
 	$(CC) $(LDFLAGS) $(WRAPPED) $(BUILD)/obj/ObjCRuntime.o $(APP_OBJS) -o $@.tmp
+	python3 tools/thumbfix.py $@.tmp
 	ldid -S$(ENTITLEMENTS) $@.tmp
 	mv $@.tmp $@
 	plutil -convert binary1 -o $(BUNDLE)/Info.plist $(APP_DIR)/Info.plist

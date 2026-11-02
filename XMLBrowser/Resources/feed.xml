@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Retro Swift</title>
+    <link>http://example.com/</link>
+    <description>Modern Swift on old iPhones and iPods.</description>
+    <language>en</language>
+    <item>
+      <title>Embedded Swift runs on iOS 6</title>
+      <link>http://example.com/embedded-swift-ios6</link>
+      <dc:creator>Retro Swift</dc:creator>
+      <pubDate>Mon, 02 Nov 2026 09:00:00 GMT</pubDate>
+      <category>Swift</category>
+      <description><![CDATA[Bare-metal armv7 code linked into an iOS app, with <b>r9</b> trampolines.]]></description>
+    </item>
+    <item>
+      <title>A SwiftUI library for UIKit 6</title>
+      <link>http://example.com/swiftui-ios6</link>
+      <dc:creator>Retro Swift</dc:creator>
+      <pubDate>Sun, 01 Nov 2026 18:30:00 GMT</pubDate>
+      <category>SwiftUI</category>
+      <description>Lists, navigation stacks, toggles &amp; buttons, laid out with frames.</description>
+    </item>
+    <item>
+      <title>Objective-C messaging without a compiler</title>
+      <link>http://example.com/objc-interop</link>
+      <dc:creator>Retro Swift</dc:creator>
+      <pubDate>Sat, 31 Oct 2026 12:15:00 GMT</pubDate>
+      <category>Objective-C</category>
+      <description>@dynamicCallable sends any message; macros declare typed wrappers.</description>
+    </item>
+    <item>
+      <title>Scanning Wi-Fi with MobileWiFi</title>
+      <link>http://example.com/wifi-scanner</link>
+      <dc:creator>Retro Swift</dc:creator>
+      <pubDate>Fri, 30 Oct 2026 08:45:00 GMT</pubDate>
+      <category>Private APIs</category>
+      <description>Networks, channels and signal strength from a private framework.</description>
+    </item>
+    <item>
+      <title>Reading XML with NSXMLParser</title>
+      <link>http://example.com/xml</link>
+      <dc:creator>Retro Swift</dc:creator>
+      <pubDate>Thu, 29 Oct 2026 20:00:00 GMT</pubDate>
+      <category>Foundation</category>
+      <description>Events from libxml2, through a delegate class written in Swift.</description>
+    </item>
+  </channel>
+</rss>

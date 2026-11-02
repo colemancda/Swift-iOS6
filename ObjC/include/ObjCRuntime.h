@@ -73,6 +73,8 @@ void objcrt_pool_pop(void *pool);
 void *objcrt_string(const char *utf8);
 /// An NSString's UTF-8, valid while the string is.
 const char *objcrt_utf8(void *string);
+/// An NSString's UTF-8 text, or NULL if `object` isn't an NSString.
+const char *objcrt_string_utf8(void *object);
 
 /// The class of an object.
 void *objcrt_object_class(void *object);
@@ -108,10 +110,21 @@ const char *objcrt_protocol_method_types(const char *protocol, void *selector);
 void objcrt_set_associated(void *object, const void *key, void *value);
 void *objcrt_get_associated(void *object, const void *key);
 
+#pragma mark - Calling Swift from iOS code
+
+/// Calls `function` (Swift or other bare-metal code) with up to five word
+/// arguments, on a stack aligned to 8 bytes. The Swift code is built for
+/// bare-metal armv7, whose ABI (AAPCS) keeps the stack 8-byte aligned and
+/// whose code relies on it, while iOS's only keeps it 4-byte aligned: every
+/// call from iOS code into Swift, such as a callback, goes through this.
+void objcrt_call_aligned(const void *function, unsigned long a0, unsigned long a1, unsigned long a2,
+                         unsigned long a3, unsigned long a4);
+
 #pragma mark - Main queue and app
 
 typedef void (*ObjCRTFunction)(void *context);
-/// Calls `function` on the main queue, on a later turn of the run loop.
+/// Calls `function` (through objcrt_call_aligned) on the main queue, on a
+/// later turn of the run loop.
 void objcrt_async(ObjCRTFunction function, void *context);
 /// Calls `function` on the main queue after `milliseconds`.
 void objcrt_after(unsigned long milliseconds, ObjCRTFunction function, void *context);
