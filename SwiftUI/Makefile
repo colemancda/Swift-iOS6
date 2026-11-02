@@ -19,8 +19,10 @@ BUILD    ?= build
 BUNDLE   := $(BUILD)/$(APP).app
 BUNDLE_ID = $(shell plutil -extract CFBundleIdentifier raw $(APP_DIR)/Info.plist)
 SDK      := ../sdk/iPhoneOS9.3.sdk
-# Objective-C messaging from Swift (`import ObjCInterop`), built into every app.
+# Objective-C messaging from Swift (`import ObjCInterop`), built into every app,
+# with its macros (a compiler plugin built by ../ObjC/Makefile).
 OBJC     := ../ObjC
+MACROS   := $(abspath $(OBJC))/build/plugins/libObjCMacros.dylib
 MIN_IOS  := 6.0
 ARCH     := armv7
 
@@ -60,7 +62,8 @@ WRAPPED   := $(addprefix $(BUILD)/r9/$(APP)/,$(notdir $(BAREMETAL))) $(BUILD)/r9
 # clobber r9, but the bare-metal convention expects it preserved.
 SWIFTFLAGS := -target armv7-apple-none-macho -enable-experimental-feature Embedded \
               -wmo -Osize -Xcc -marm -Xcc -ffixed-r9 \
-              -ISources/CSwiftUIBackend/include -I$(OBJC)/include -I$(BUILD)/modules -I$(APP_DIR)/include
+              -ISources/CSwiftUIBackend/include -I$(OBJC)/include -I$(BUILD)/modules -I$(APP_DIR)/include \
+              -load-plugin-library $(MACROS)
 
 SWIFTUI_SRCS := $(wildcard Sources/SwiftUI/*.swift)
 APP_SRCS     := $(wildcard $(APP_DIR)/*.swift)
@@ -90,8 +93,11 @@ $(BUILD)/obj/SwiftUI.o: $(SWIFTUI_SRCS) Sources/CSwiftUIBackend/include/SwiftUIB
 	  -emit-module -emit-module-path $(BUILD)/modules/SwiftUI.swiftmodule \
 	  -c $(SWIFTUI_SRCS) -o $@
 
+$(MACROS): $(OBJC)/Macros/ObjCMacros.swift
+	$(MAKE) -C $(OBJC) macros
+
 # Also writes $(BUILD)/modules/ObjCInterop.swiftmodule.
-$(BUILD)/obj/ObjCInterop.o: $(OBJC)/Sources/ObjCInterop.swift $(OBJC)/include/ObjCRuntime.h
+$(BUILD)/obj/ObjCInterop.o: $(OBJC)/Sources/ObjCInterop.swift $(OBJC)/include/ObjCRuntime.h $(MACROS)
 	@mkdir -p $(BUILD)/modules $(BUILD)/obj
 	$(SWIFTC) $(SWIFTFLAGS) -parse-as-library -module-name ObjCInterop \
 	  -emit-module -emit-module-path $(BUILD)/modules/ObjCInterop.swiftmodule \

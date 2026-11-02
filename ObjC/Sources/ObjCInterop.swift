@@ -254,6 +254,15 @@ public struct ObjCValue: ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral,
         return ObjCCache.signature(object.pointer, ObjCCache.selector(selector)) != nil
     }
 
+    /// Sends `selector` to the implementation in the superclass of `cls`, for
+    /// a method of a class defined from Swift.
+    @discardableResult
+    public func sendSuper(_ selector: String, from cls: ObjCValue, _ arguments: [any ObjCConvertible]) -> ObjCValue {
+        var values: [ObjCValue] = []
+        for argument in arguments { values.append(argument.objcValue) }
+        return ObjCValue.send(selector, to: self, values, superclass: cls.asObject?.pointer)
+    }
+
     /// objc_setAssociatedObject (retained): keeps `value` alive as long as this object.
     public func setAssociated(_ value: ObjCValue, for key: ObjCAssociationKey) {
         guard let object = asObject else { return }
@@ -666,17 +675,19 @@ public final class ObjCClassBuilder {
     }
 
     /// Implements a method that returns nothing.
-    public func method(_ selector: String, types: String? = nil, _ body: @escaping (ObjCMethodCall) -> Void) {
-        function(selector, types: types) { call in
+    public func method(_ selector: String, types: String? = nil, fallbackTypes: String? = nil,
+                       _ body: @escaping (ObjCMethodCall) -> Void) {
+        function(selector, types: types, fallbackTypes: fallbackTypes) { call in
             body(call)
             return ObjCValue(storage: .void)
         }
     }
 
     /// Implements a method that returns a value. Its types come from `types`, else the superclass
-    /// (an override), else an adopted protocol, else they're objects
-    /// returning void: "v@:" plus "@" for each colon in the selector.
-    public func function(_ selector: String, types: String? = nil, _ body: @escaping (ObjCMethodCall) -> ObjCValue) {
+    /// (an override), else an adopted protocol, else `fallbackTypes`, else
+    /// they're objects returning void: "v@:" plus "@" for each colon.
+    public func function(_ selector: String, types: String? = nil, fallbackTypes: String? = nil,
+                         _ body: @escaping (ObjCMethodCall) -> ObjCValue) {
         let sel = ObjCCache.selector(selector)
         var encoding = types
         if encoding == nil, let inherited = objcrt_method_types(pointer, sel) {
@@ -690,6 +701,7 @@ public final class ObjCClassBuilder {
                 }
             }
         }
+        if encoding == nil { encoding = fallbackTypes }
         if encoding == nil {
             var defaults = "v@:"
             for byte in selector.utf8 where byte == UInt8(ascii: ":") { defaults += "@" }
@@ -814,5 +826,169 @@ extension ObjCValue {
         case ascii("{"), ascii("("): return max(1, (size + 3) / 4)
         default: return 1
         }
+    }
+}
+
+// MARK: - Macros
+
+/// A typed wrapper around an Objective-C object:
+///
+///     @ObjC("UILabel")
+///     struct UILabel {
+///         @ObjCMethod init(frame: CGRect)
+///         @ObjCProperty var text: String?
+///         @ObjCMethod func sizeThatFits(_ size: CGSize) -> CGSize
+///     }
+///
+/// Adds `object`, `init(_ object: ObjCValue)` and `objcClass`, and makes
+/// the type an ObjCWrapper. The class name defaults to the type's name.
+@attached(member, names: named(object), named(init), named(objcClass))
+@attached(extension, conformances: ObjCWrapper)
+public macro ObjC(_ className: String? = nil) = #externalMacro(module: "ObjCMacros", type: "ObjCClassMacro")
+
+/// Without a body: sends the message, with the selector from the name and
+/// labels (or the one given), and converts the result to the return type.
+/// On a static method it messages the class; on an initializer it sends
+/// alloc and init… to the class. With a body, in an @ObjCImplementation
+/// class: the class exports the method to Objective-C.
+@attached(body)
+public macro ObjCMethod(_ selector: String? = nil) = #externalMacro(module: "ObjCMacros", type: "ObjCMethodMacro")
+
+/// Getter and setter messages for a property: `text` and `setText:` by default.
+@attached(accessor)
+public macro ObjCProperty(getter: String? = nil, setter: String? = nil, readonly: Bool = false) =
+    #externalMacro(module: "ObjCMacros", type: "ObjCPropertyMacro")
+
+/// Defines an Objective-C class implemented by this Swift class: each
+/// @ObjCMethod method becomes a method of `objcClass`, converting its
+/// arguments and result. See ObjCImplementationMacro for how instances are tied.
+@attached(member, names: named(objcInstances), named(objcPointer), named(object), named(objcClass), named(attach),
+          named(objcInstance), named(callSuper))
+@attached(extension, conformances: ObjCConvertible, names: named(objcValue))
+public macro ObjCImplementation(_ className: String? = nil, superclass: String = "NSObject") =
+    #externalMacro(module: "ObjCMacros", type: "ObjCImplementationMacro")
+
+// MARK: - Typed results
+
+/// A Swift type a message result or a method argument converts to.
+public protocol ObjCResult {
+    init(objcValue: ObjCValue)
+}
+
+/// Converts a message result to the type the context expects.
+public func objcResult<T: ObjCResult>(_ value: ObjCValue) -> T {
+    T(objcValue: value)
+}
+
+extension ObjCValue: ObjCResult {
+    public init(objcValue: ObjCValue) { self = objcValue }
+}
+
+extension Int: ObjCResult {
+    public init(objcValue: ObjCValue) { self = objcValue.asInt ?? 0 }
+}
+
+extension Int32: ObjCResult {
+    public init(objcValue: ObjCValue) { self = Int32(truncatingIfNeeded: objcValue.asInt ?? 0) }
+}
+
+extension UInt: ObjCResult {
+    public init(objcValue: ObjCValue) { self = UInt(bitPattern: objcValue.asInt ?? 0) }
+}
+
+extension Int64: ObjCResult {
+    public init(objcValue: ObjCValue) { self = objcValue.asInt64 ?? 0 }
+}
+
+extension Double: ObjCResult {
+    public init(objcValue: ObjCValue) { self = objcValue.asDouble ?? 0 }
+}
+
+extension Float: ObjCResult {
+    public init(objcValue: ObjCValue) { self = Float(objcValue.asDouble ?? 0) }
+}
+
+extension Bool: ObjCResult {
+    public init(objcValue: ObjCValue) { self = objcValue.asBool ?? false }
+}
+
+extension String: ObjCResult {
+    /// An NSString's contents, or "" for nil.
+    public init(objcValue: ObjCValue) { self = objcValue.asString ?? "" }
+}
+
+extension Optional: ObjCResult where Wrapped: ObjCResult {
+    public init(objcValue: ObjCValue) {
+        self = objcValue.isNil ? nil : Wrapped(objcValue: objcValue)
+    }
+}
+
+/// A Swift type that wraps an Objective-C object; @ObjC makes one.
+public protocol ObjCWrapper: ObjCConvertible, ObjCResult {
+    var object: ObjCValue { get }
+    init(_ object: ObjCValue)
+    static var objcClass: ObjCValue { get }
+}
+
+extension ObjCWrapper {
+    public var objcValue: ObjCValue { object }
+    public init(objcValue: ObjCValue) { self.init(objcValue) }
+
+    /// Whether the object is nil.
+    public var isNil: Bool { object.isNil }
+
+    /// The same object as another wrapper type, such as a UILabel as a UIView.
+    public func `as`<T: ObjCWrapper>(_ type: T.Type) -> T { T(object) }
+}
+
+// MARK: - Geometry
+
+/// Core Graphics and Foundation structs as they are on armv7 (CGFloat is a
+/// 32-bit float), passed and returned by value.
+public struct CGPoint: Equatable, ObjCConvertible, ObjCResult {
+    public var x: Float
+    public var y: Float
+    public init(x: Float, y: Float) { self.x = x; self.y = y }
+    public var objcValue: ObjCValue { .point(x: x, y: y) }
+    public init(objcValue: ObjCValue) {
+        let words = objcValue.asStruct
+        self.init(x: words?.float(at: 0) ?? 0, y: words?.float(at: 1) ?? 0)
+    }
+}
+
+public struct CGSize: Equatable, ObjCConvertible, ObjCResult {
+    public var width: Float
+    public var height: Float
+    public init(width: Float, height: Float) { self.width = width; self.height = height }
+    public var objcValue: ObjCValue { .size(width: width, height: height) }
+    public init(objcValue: ObjCValue) {
+        let words = objcValue.asStruct
+        self.init(width: words?.float(at: 0) ?? 0, height: words?.float(at: 1) ?? 0)
+    }
+}
+
+public struct CGRect: Equatable, ObjCConvertible, ObjCResult {
+    public var origin: CGPoint
+    public var size: CGSize
+    public init(x: Float, y: Float, width: Float, height: Float) {
+        origin = CGPoint(x: x, y: y)
+        size = CGSize(width: width, height: height)
+    }
+    public var objcValue: ObjCValue { .rect(x: origin.x, y: origin.y, width: size.width, height: size.height) }
+    public init(objcValue: ObjCValue) {
+        let words = objcValue.asStruct
+        self.init(x: words?.float(at: 0) ?? 0, y: words?.float(at: 1) ?? 0,
+                  width: words?.float(at: 2) ?? 0, height: words?.float(at: 3) ?? 0)
+    }
+}
+
+public struct NSRange: Equatable, ObjCConvertible, ObjCResult {
+    public var location: Int
+    public var length: Int
+    public init(location: Int, length: Int) { self.location = location; self.length = length }
+    public var objcValue: ObjCValue { .range(location: location, length: length) }
+    public init(objcValue: ObjCValue) {
+        let words = objcValue.asStruct
+        self.init(location: words?.int(at: 0) ?? 0, length: words?.int(at: 1) ?? 0)
     }
 }

@@ -230,6 +230,46 @@ func uikitClassChecks() {
 
 if hasUIKit { ObjC.autoreleasepool { uikitClassChecks() } }
 
+// The same through the macros: typed wrappers and a Swift-implemented class.
+ObjC.autoreleasepool {
+    let greeting = NSString.stringWithString("Hello, macros")
+    check("@ObjC static method and String result", greeting.uppercaseString() == "HELLO, MACROS")
+    check("@ObjCProperty readonly Int", greeting.length == 13, "\(greeting.length)")
+    check("Bool result", greeting.hasPrefix("Hello") && !greeting.hasPrefix("Bye"))
+    check("NSRange result", greeting.rangeOfString("macros") == NSRange(location: 7, length: 6))
+    check("wrapper result", greeting.stringByReplacingOccurrencesOfString("macros", withString: "Swift").uppercaseString() == "HELLO, SWIFT")
+    let array = NSMutableArray()
+    array.addObject(greeting.object)
+    array.addObject(ObjC.NSString.stringWithString("two"))
+    check("@ObjCMethod init()", array.count == 2)
+    check("wrapper as argument", array.componentsJoinedByString(" + ") == "Hello, macros + two")
+    check("Double through wrapper", NSNumber.numberWithDouble(2.5).doubleValue == 2.5)
+    check("Int64 through wrapper", NSNumber.numberWithLongLong(6_000_000_000).longLongValue == 6_000_000_000)
+
+    // Objective-C creates the Swift instance (alloc/init) and calls it.
+    let counter = Counter.objcClass.new()
+    counter.increment()
+    counter.increment()
+    check("@ObjCImplementation method", counter.add(5, times: 2).asInt == 12, "\(counter.add(0, times: 0).asInt ?? -1)")
+    check("Double argument and result", counter.scale(0.5).asDouble == 6)
+    check("override with a String result", counter.send("description").asString == "Counter at 12")
+    let swiftSide = Counter.objcInstance(for: counter)
+    check("Swift instance tied to the object", swiftSide?.count == 12)
+    let center = NSNotificationCenter.defaultCenter()
+    center.addObserver(counter, selector: ObjC.selector("received:"), name: "SITyped", object: ObjC.nil)
+    center.postNotificationName("SITyped", object: ObjC.nil)
+    check("Objective-C calls a Swift method", swiftSide?.lastName == "SITyped")
+    center.removeObserver(counter)
+
+    // Swift creates the instance and ties it to a new object.
+    let manual = Counter()
+    let manualObject = Counter.objcClass.new()
+    manual.attach(to: manualObject)
+    manualObject.increment()
+    check("attach(to:)", Counter.objcInstance(for: manualObject) === manual && manual.count == 1)
+}
+check("@ObjCImplementation dealloc runs", Counter.deallocs >= 1, "\(Counter.deallocs)")
+
 // Ownership: alloc/init and convenience constructors in a loop; an extra
 // release would crash, and a leak would grow memory.
 for _ in 0..<10_000 {

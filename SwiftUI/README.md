@@ -52,7 +52,8 @@ make EXAMPLE=Planets run      # launch it (the iPod must be unlocked)
   planet's facts, then its moons).
 - **Interop:** UIKit and Foundation from Swift through
   [ObjCInterop](../ObjC/README.md): device details, screen brightness, keeping
-  the screen awake and opening a URL, with no Objective-C file.
+  the screen awake and opening a URL, with no Objective-C file. `UIKit.swift`
+  declares the API as typed wrappers with ObjCInterop's macros.
 - **Devices:** `NavigationView`, `List`, `@EnvironmentObject`, and an async
   `task` that updates the list every second.
 

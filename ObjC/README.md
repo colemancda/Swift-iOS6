@@ -37,6 +37,68 @@ It's built on `@dynamicMemberLookup` and `@dynamicCallable`:
 - **Name clashes:** a selector that clashes with a Swift keyword or one of
   those names is sent with `send("init")` or `send("setValue:forKey:", v, k)`.
 
+## Typed wrappers and classes with macros
+
+Macros give the same calls typed Swift declarations, in the style of
+swift-java's `@JavaClass`, `@JavaMethod` and `@JavaImplementation`:
+
+```swift
+@ObjC("UILabel")
+struct UILabel {
+    @ObjCMethod init(frame: CGRect)                      // alloc + initWithFrame:
+    @ObjCProperty var text: String?                      // text / setText:
+    @ObjCProperty(getter: "isHidden") var hidden: Bool
+    @ObjCMethod func sizeThatFits(_ size: CGSize) -> CGSize
+    @ObjCMethod("setTitle:forState:") func setTitle(_ title: String, for state: Int)
+    @ObjCMethod static func new() -> UILabel             // a class method
+}
+
+@ObjCImplementation("Counter", superclass: "NSObject")
+final class Counter {
+    var count = 0
+    init() {}                                            // lets Objective-C create it
+    @ObjCMethod func increment() { count += 1 }
+    @ObjCMethod func add(_ amount: Int, times: Int) -> Int { count += amount * times; return count }
+    @ObjCMethod("description") func describe() -> String { "Counter at \(count)" }
+}
+```
+
+- **`@ObjC`** on a struct adds `object` (the `ObjCValue`), `init(_:)` and
+  `objcClass`, and makes the type an `ObjCWrapper`: a message argument and
+  result, convertible with `.as(UIView.self)`.
+- **`@ObjCMethod` without a body** generates one. The selector is the name,
+  then for the first parameter its label capitalized (nothing for `_`) and a
+  colon, then `label:` for the rest, unless you pass one:
+  - `setTitle(_:forState:)` becomes `setTitle:forState:`.
+  - `scrollRect(toVisible:animated:)` becomes `scrollRectToVisible:animated:`.
+  - `init(frame:)` becomes alloc and `initWithFrame:`.
+
+  The result converts to the declared type: `Int`, `Int64`, `Double`, `Float`,
+  `Bool`, `String`, an optional, a wrapper, a struct (`CGPoint`, `CGSize`,
+  `CGRect`, `NSRange`), or `ObjCValue`.
+- **`@ObjCProperty`** generates the getter and setter (`text` and `setText:`).
+  It takes `getter:`, `setter:` and `readonly: true`.
+- **`@ObjCImplementation`** on a class defines `objcClass`.
+  - Each `@ObjCMethod` method becomes an Objective-C method that converts its
+    arguments to the Swift parameter types and returns its result. The type
+    encoding comes from the Swift signature, but the superclass's types win for
+    an override.
+  - Each Objective-C instance is tied to a Swift instance, which the object
+    keeps alive until `dealloc`. If the class has an `init()`, Objective-C can
+    create instances itself (alloc/init). Otherwise, create one in Swift and
+    `attach(to:)` an object of `objcClass`.
+  - `callSuper("selector", …)` reaches the superclass. A `@ObjCMethod func
+    dealloc()` runs before the tie ends.
+
+The macros are a compiler plugin built for the Mac against the swift-syntax
+libraries the toolchain ships for its own macros (`usr/lib/swift/host`), so
+there's no SwiftPM step or download. `make macros` builds
+`build/plugins/libObjCMacros.dylib`, and every Swift compile loads it with
+`-load-plugin-library`, including SwiftUI apps. Macros expand before Embedded
+compilation, so the generated code is ordinary Embedded Swift.
+`../SwiftUI/Examples/Interop/UIKit.swift` declares the UIKit and Foundation
+API that example uses this way.
+
 ## Defining classes
 
 Swift can define Objective-C classes, for delegates, target-action and
@@ -150,7 +212,8 @@ PASS struct override through stret
 …
 ```
 
-On the iPod (iOS 6.1.6), all 40 checks that run outside an app pass. iOS 6
+On the iPod (iOS 6.1.6), all 56 checks that run outside an app pass,
+including the macro checks in `Tests/Wrappers.swift`. iOS 6
 won't start UIKit in a command-line tool (it traps in GraphicsServices), so
 the UIKit checks are skipped there, and the SwiftUI apps cover UIKit instead.
 An earlier version of the suite, including the UIKit checks, passed 55/55 on
