@@ -270,6 +270,34 @@ ObjC.autoreleasepool {
 }
 check("@ObjCImplementation dealloc runs", Counter.deallocs >= 1, "\(Counter.deallocs)")
 
+// Swift subclasses of implemented classes define Objective-C subclasses.
+do {
+    let square = Square.objcClass.new()
+    check("subclass of a defined class", square.isKind(of: "SIShape") && square.className == "SISquare")
+    check("subclass override", square.area().asDouble == 4 && square.name().asString == "square")
+    check("subclass created as itself", Square.objcInstance(for: square)?.sides == 4 && Shape.objcInstance(for: square) is Square)
+    square.grow(1.0)
+    check("subclass's own method", square.area().asDouble == 9)
+    let described = square.send("description").asString ?? ""
+    check("callSuper from a superclass method reaches NSObject", described.hasPrefix("square <SISquare: "), described)
+
+    let shape = Shape.objcClass.new()
+    check("superclass keeps its methods", shape.area().asDouble == 0 && shape.name().asString == "shape")
+    check("superclass created as itself", !(Shape.objcInstance(for: shape) is Square))
+
+    let unit = UnitSquare.objcClass.new()
+    check("third level, inherited init()", unit.area().asDouble == 4 && UnitSquare.objcInstance(for: unit)?.unit == true)
+    check("third level class", unit.isKind(of: "SISquare") && unit.className == "SIUnitSquare")
+
+    let manual = Square()
+    let manualObject = Square.objcClass.new()
+    manual.attach(to: manualObject)
+    manualObject.grow(2.0)
+    check("subclass attach(to:)", Square.objcInstance(for: manualObject) === manual && manual.side == 4)
+}
+check("subclass dealloc runs the override and the superclass's", Square.squareDeallocs == 3 && Shape.shapeDeallocs == 4,
+      "\(Square.squareDeallocs) \(Shape.shapeDeallocs)")
+
 // Blocks made from Swift closures.
 final class Witness {
     static var released = 0
