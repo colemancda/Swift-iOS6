@@ -123,6 +123,36 @@ final class Counter {
     - The macro takes a class whose first inherited type is a Swift class as
       a subclass. A root class that adopts Swift protocols names its
       Objective-C superclass with `superclass:`.
+  - **A wrapped class's members:** a root class whose first inherited type
+    is a generated wrapper's protocol subclasses that wrapper's class, and
+    has its instance methods and properties, as a UIKit subclass has:
+
+    ```swift
+    @ObjCImplementation("VLCPlayerViewController")   // a UIViewController subclass
+    final class PlayerViewController: UIViewControllerMethods {
+        @ObjCMethod func viewDidLoad() {
+            callSuper("viewDidLoad")
+            view?.backgroundColor = UIColor.blackColor()
+        }
+    }
+    ```
+
+    The protocols' initializers and class methods are the wrappers' only
+    (`where Self: ObjCWrapper`).
+  - **Created from Swift:** an initializer calls `objcInit("initWithFrame:",
+    frame)` (or `objcInit()`) where a subclass would call `super.init(…)`.
+    It ties the instance to a new object of its class before init… runs, so
+    the overrides init… sends reach it, and the instance keeps the object.
+    When Objective-C creates the instance, through `init()`, `objcInit()`
+    ties it to that object instead.
+  - **Protocols:** `protocols: ["UITableViewDataSource"]` adopts Objective-C
+    protocols, whose methods then take their types from the protocol.
+  - **Extensions:** `@ObjCExtension("DataSource")` on an extension exports
+    its `@ObjCMethod` methods too, when the class lists the tag:
+    `extensions: ["DataSource"]`.
+  - **Arguments and results** of an implemented class's type are its Swift
+    instances, and `callSuper` returns a Swift type when you ask for one:
+    `callSuper("sizeThatFits:", size) as CGSize`.
 
 The macros are a compiler plugin built for the Mac against the swift-syntax
 libraries the toolchain ships for its own macros (`usr/lib/swift/host`), so
@@ -158,9 +188,11 @@ make frameworks   # python3 tools/objcgen.py --framework Foundation --framework 
    -Werror=unguarded-availability`. Whatever clang rejects is left out,
    because it's newer than iOS 6 or unavailable on iOS. The JSON dump has no
    version numbers, so clang's own check decides.
-5. **Write** one `@ObjC` struct per class. Its members go in an extension of
+5. **Write** one `@ObjC` struct per class. Its members go in extensions of
    a protocol that refines the superclass's protocol, so subclasses inherit
-   them. The generated code has no hand edits.
+   them: instance members for anything with the object (wrappers and
+   implemented classes), and initializers and class members for wrappers
+   (`where Self: ObjCWrapper`). The generated code has no hand edits.
 
 `FRAMEWORKS` in the Makefile lists the frameworks to generate (Foundation,
 UIKit, CoreLocation, CoreBluetooth and CoreData), with dependencies first.
@@ -213,6 +245,7 @@ let delegateClass = ObjC.defineClass("ScrollDelegate") { cls in
     init families.
 - **Also available:**
   - Associated objects: `value.setAssociated(other, for: key)`.
+  - Protocols by name, for `Protocol *` arguments: `ObjC.protocolNamed("NSCopying")`.
   - Main-queue dispatch and `UIApplicationMain`, in `ObjCRuntime.h`.
 - **Caching:** selectors, classes and method signatures are cached, so
   repeated messages don't look up types again.
@@ -283,7 +316,7 @@ PASS struct override through stret
 …
 ```
 
-On the iPod (iOS 6.1.6), all 75 checks that run outside an app pass,
+On the iPod (iOS 6.1.6), all 82 checks that run outside an app pass,
 including the macro checks in `Tests/Wrappers.swift`. iOS 6
 won't start UIKit in a command-line tool (it traps in GraphicsServices), so
 the UIKit checks are skipped there, and the SwiftUI apps cover UIKit instead.
@@ -332,6 +365,9 @@ ObjC.NSBlockOperation.blockOperationWithBlock(ObjCBlock { print("later") }).star
 - **No instance variables:** classes defined from Swift keep their state in
   Swift (for example, in a dictionary by object address, cleared in
   `dealloc`) or in associated objects.
+- **Swift-created instances aren't freed:** an instance made with
+  `objcInit` keeps its object, and the object keeps the instance, so neither
+  is deallocated. Instances Objective-C creates go with their objects.
 - **No variadic methods:** the type encoding doesn't describe variadic
   arguments, so `stringWithFormat:` and `arrayWithObjects:` don't work. Use
   `stringWithString:` and `addObject:` instead.
