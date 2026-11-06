@@ -794,10 +794,18 @@ def generate(args):
         all_members, sorted(wrapped), sdk, args.framework, args.min_ios)
     for name in rejected_classes:
         wrapped.pop(name, None)
+    stats_left_out = []
 
+    # Members whose types are classes left out (headers without availability
+    # annotations, such as an app's, can use them unguarded) are left out too.
+    left_out = re.compile(r"\b(?:" + "|".join(map(re.escape, sorted(rejected_classes))) + r")(?:Methods)?\b") \
+        if rejected_classes else None
     kept = collections.defaultdict(list)
     for member in all_members:
         if id(member) in rejected_members or member.cls not in wrapped:
+            continue
+        if left_out and left_out.search(member.swift):
+            stats_left_out.append(member)
             continue
         kept[member.cls].append(member)
 
