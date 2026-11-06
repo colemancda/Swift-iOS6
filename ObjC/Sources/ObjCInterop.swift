@@ -722,15 +722,74 @@ extension ObjCRuntime {
     public func defineClass(_ name: String, superclass: String = "NSObject",
                             _ build: (ObjCClassBuilder) -> Void) -> ObjCValue {
         if let existing = ObjCCache.classNamed(name) { return ObjCValue(object: existing) }
-        ObjCMethods.install()
-        guard let parent = ObjCCache.classNamed(superclass),
-              let cls = withCString(name, { objcrt_allocate_class($0, parent) }) else {
+        guard let parent = ObjCCache.classNamed(superclass) else {
             fatalError("can't define \(name): no superclass \(superclass)")
+        }
+        return defineClass(name, superclassPointer: parent, build)
+    }
+
+    /// Defines an Objective-C class as a subclass of `superclass`, a class
+    /// object (such as another defined class's), and returns it.
+    @discardableResult
+    public func defineClass(_ name: String, superclass: ObjCValue,
+                            _ build: (ObjCClassBuilder) -> Void) -> ObjCValue {
+        if let existing = ObjCCache.classNamed(name) { return ObjCValue(object: existing) }
+        guard let parent = superclass.asObject?.pointer else {
+            fatalError("can't define \(name): no superclass")
+        }
+        return defineClass(name, superclassPointer: parent, build)
+    }
+
+    func defineClass(_ name: String, superclassPointer parent: UnsafeMutableRawPointer,
+                     _ build: (ObjCClassBuilder) -> Void) -> ObjCValue {
+        ObjCMethods.install()
+        guard let cls = withCString(name, { objcrt_allocate_class($0, parent) }) else {
+            fatalError("can't define \(name)")
         }
         build(ObjCClassBuilder(pointer: cls))
         objcrt_register_class(cls)
         ObjCCache.classes[name] = cls
         return ObjCValue(object: cls)
+    }
+}
+
+/// The Swift instances of @ObjCImplementation classes, by the address of the
+/// Objective-C object each implements, and how to create one for an object
+/// Objective-C allocated, by class. An object of a subclass gets an instance
+/// of the subclass: the factory comes from the object's own class, or the
+/// nearest superclass that has one.
+public enum ObjCImplementations {
+    public static var instances: [UInt: AnyObject] = [:]
+    public static var factories: [UInt: (ObjCValue) -> AnyObject] = [:]
+
+    /// The Swift instance of type `T` for `object`, created (if `create`) when there's none yet.
+    public static func instance<T: AnyObject>(_ type: T.Type, for object: ObjCValue, create: Bool = true) -> T? {
+        guard let pointer = object.asObject?.pointer else { return nil }
+        if let instance = instances[UInt(bitPattern: pointer)] { return instance as? T }
+        guard create else { return nil }
+        var cls = objcrt_object_class(pointer)
+        while let current = cls {
+            if let factory = factories[UInt(bitPattern: current)] {
+                return factory(object) as? T   // the factory attaches it
+            }
+            cls = objcrt_superclass(current)
+        }
+        return nil
+    }
+
+    /// Registers how to create the Swift instance for objects of `cls`.
+    public static func setFactory(_ factory: @escaping (ObjCValue) -> AnyObject, for cls: ObjCClassBuilder) {
+        factories[UInt(bitPattern: cls.pointer)] = factory
+    }
+
+    /// Ties `instance` to `object`, which keeps it alive until dealloc.
+    public static func attach(_ instance: AnyObject, to object: ObjCValue) {
+        instances[UInt(bitPattern: object.asObject?.pointer)] = instance
+    }
+
+    /// Ends the tie, in dealloc.
+    public static func detach(_ object: ObjCValue) {
+        instances[UInt(bitPattern: object.asObject?.pointer)] = nil
     }
 }
 
@@ -987,9 +1046,10 @@ public macro ObjCProperty(getter: String? = nil, setter: String? = nil, readonly
 
 /// Defines an Objective-C class implemented by this Swift class: each
 /// @ObjCMethod method becomes a method of `objcClass`, converting its
-/// arguments and result. See ObjCImplementationMacro for how instances are tied.
-@attached(member, names: named(objcInstances), named(objcPointer), named(object), named(objcClass), named(attach),
-          named(objcInstance), named(callSuper))
+/// arguments and result. A Swift subclass of such a class (given no
+/// `superclass:`) defines a subclass of its Objective-C class. See
+/// ObjCImplementationMacro for how instances are tied.
+@attached(member, names: arbitrary)
 @attached(extension, conformances: ObjCConvertible, names: named(objcValue))
 public macro ObjCImplementation(_ className: String? = nil, superclass: String = "NSObject") =
     #externalMacro(module: "ObjCMacros", type: "ObjCImplementationMacro")
