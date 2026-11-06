@@ -425,6 +425,10 @@ long objcrt_add_method(void *cls, void *selector, const char *types) {
     return 0;
 }
 
+void *objcrt_protocol(const char *name) {
+    return (void *)objc_getProtocol(name);
+}
+
 long objcrt_add_protocol(void *cls, const char *protocol) {
     Protocol *p = objc_getProtocol(protocol);
     if (!p) return 1;
