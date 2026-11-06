@@ -825,7 +825,7 @@ def generate(args):
     for name in sorted(wrapped, key=lambda n: (len(ancestors(n)), n)):
         framework = wrapped[name]
         parent = model.classes[name].get("super")
-        refines = f"{parent}Methods" if parent in wrapped else "ObjCWrapper"
+        refines = f"{parent}Methods" if parent in wrapped else "ObjCObjectMethods"
         accessors, property_names = property_selectors(name)
         inherited = ancestor_keys(name)
         seen_swift, seen_keys = set(), set()
@@ -845,19 +845,25 @@ def generate(args):
                 continue
             seen_keys.add(key)
             seen_swift.add(member.swift)
-            bodies[member.framework].append(f"    {member.swift}")
+            # Initializers and class members are for the wrapper; instance
+            # members are for anything with the object, implemented classes too.
+            wrapper_only = bool(re.search(r"\bpublic (static |init\()|-> Self\b", member.swift))
+            bodies[(member.framework, wrapper_only)].append(f"    {member.swift}")
             stats[member.kind] += 1
         stats["class"] += 1
         lines = [f"/// The Objective-C class {name}" + (f", a subclass of {parent}." if parent else "."),
                  f"public protocol {name}Methods: {refines} {{}}",
                  f"@ObjC public struct {name}: {name}Methods {{}}"]
-        if bodies[framework]:
-            lines += [f"extension {name}Methods {{"] + bodies[framework] + ["}"]
+        def extension(wrapper_only):
+            return f"extension {name}Methods where Self: ObjCWrapper {{" if wrapper_only else f"extension {name}Methods {{"
+        for wrapper_only in (False, True):
+            if bodies[(framework, wrapper_only)]:
+                lines += [extension(wrapper_only)] + bodies[(framework, wrapper_only)] + ["}"]
         outputs[framework].append("\n".join(lines))
-        for other, body in bodies.items():
-            if other != framework:
+        for (other, wrapper_only), body in sorted(bodies.items()):
+            if other != framework and body:
                 outputs[other].append("\n".join([f"/// {other} additions to {name}.",
-                                                 f"extension {name}Methods {{"] + body + ["}"]))
+                                                 extension(wrapper_only)] + body + ["}"]))
 
     # Structs that some kept declaration uses, at the top of their framework's file.
     everything = "\n".join("\n".join(parts) for parts in outputs.values())
