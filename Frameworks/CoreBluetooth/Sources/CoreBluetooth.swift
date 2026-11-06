@@ -20,11 +20,13 @@ public protocol CBCentralManagerMethods: NSObjectMethods {}
 extension CBCentralManagerMethods {
     @ObjCProperty public var delegate: ObjCValue
     @ObjCProperty(readonly: true) public var state: Int
-    @ObjCMethod("initWithDelegate:queue:") public init(delegate a0: ObjCValue, queue a1: NSObject?)
     @ObjCMethod("scanForPeripheralsWithServices:options:") public func scanForPeripheralsWithServices(_ a0: NSArray?, options a1: NSDictionary?)
     @ObjCMethod("stopScan") public func stopScan()
     @ObjCMethod("connectPeripheral:options:") public func connectPeripheral(_ a0: some CBPeripheralMethods, options a1: NSDictionary?)
     @ObjCMethod("cancelPeripheralConnection:") public func cancelPeripheralConnection(_ a0: some CBPeripheralMethods)
+}
+extension CBCentralManagerMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithDelegate:queue:") public init(delegate a0: ObjCValue, queue a1: NSObject?)
 }
 
 /// The Objective-C class CBPeripheralManager, a subclass of NSObject.
@@ -34,7 +36,6 @@ extension CBPeripheralManagerMethods {
     @ObjCProperty public var delegate: ObjCValue
     @ObjCProperty(readonly: true) public var state: Int
     @ObjCProperty(readonly: true) public var isAdvertising: Bool
-    @ObjCMethod("initWithDelegate:queue:") public init(delegate a0: ObjCValue, queue a1: NSObject?)
     @ObjCMethod("startAdvertising:") public func startAdvertising(_ a0: NSDictionary?)
     @ObjCMethod("stopAdvertising") public func stopAdvertising()
     @ObjCMethod("setDesiredConnectionLatency:forCentral:") public func setDesiredConnectionLatency(_ a0: Int, forCentral a1: some CBCentralMethods)
@@ -44,26 +45,31 @@ extension CBPeripheralManagerMethods {
     @ObjCMethod("respondToRequest:withResult:") public func respondToRequest(_ a0: some CBATTRequestMethods, withResult a1: Int)
     @ObjCMethod("updateValue:forCharacteristic:onSubscribedCentrals:") public func updateValue(_ a0: some NSDataMethods, forCharacteristic a1: some CBMutableCharacteristicMethods, onSubscribedCentrals a2: NSArray?) -> Bool
 }
+extension CBPeripheralManagerMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithDelegate:queue:") public init(delegate a0: ObjCValue, queue a1: NSObject?)
+}
 
 /// The Objective-C class CBUUID, a subclass of NSObject.
 public protocol CBUUIDMethods: NSObjectMethods {}
 @ObjC public struct CBUUID: CBUUIDMethods {}
 extension CBUUIDMethods {
     @ObjCProperty(readonly: true) public var data: NSData
+}
+extension CBUUIDMethods where Self: ObjCWrapper {
     @ObjCMethod("UUIDWithString:") public static func UUIDWithString(_ a0: String) -> CBUUID
     @ObjCMethod("UUIDWithData:") public static func UUIDWithData(_ a0: some NSDataMethods) -> CBUUID
     @ObjCMethod("UUIDWithCFUUID:") public static func UUIDWithCFUUID(_ a0: ObjCValue) -> CBUUID
 }
 
 /// The Objective-C class CBCentral, a subclass of CBPeer.
-public protocol CBCentralMethods: ObjCWrapper {}
+public protocol CBCentralMethods: ObjCObjectMethods {}
 @ObjC public struct CBCentral: CBCentralMethods {}
 extension CBCentralMethods {
     @ObjCProperty(readonly: true) public var maximumUpdateValueLength: Int
 }
 
 /// The Objective-C class CBCharacteristic, a subclass of CBAttribute.
-public protocol CBCharacteristicMethods: ObjCWrapper {}
+public protocol CBCharacteristicMethods: ObjCObjectMethods {}
 @ObjC public struct CBCharacteristic: CBCharacteristicMethods {}
 extension CBCharacteristicMethods {
     @ObjCProperty(readonly: true) public var service: CBService
@@ -75,7 +81,7 @@ extension CBCharacteristicMethods {
 }
 
 /// The Objective-C class CBDescriptor, a subclass of CBAttribute.
-public protocol CBDescriptorMethods: ObjCWrapper {}
+public protocol CBDescriptorMethods: ObjCObjectMethods {}
 @ObjC public struct CBDescriptor: CBDescriptorMethods {}
 extension CBDescriptorMethods {
     @ObjCProperty(readonly: true) public var characteristic: CBCharacteristic
@@ -83,7 +89,7 @@ extension CBDescriptorMethods {
 }
 
 /// The Objective-C class CBPeripheral, a subclass of CBPeer.
-public protocol CBPeripheralMethods: ObjCWrapper {}
+public protocol CBPeripheralMethods: ObjCObjectMethods {}
 @ObjC public struct CBPeripheral: CBPeripheralMethods {}
 extension CBPeripheralMethods {
     @ObjCProperty public var delegate: ObjCValue
@@ -104,7 +110,7 @@ extension CBPeripheralMethods {
 }
 
 /// The Objective-C class CBService, a subclass of CBAttribute.
-public protocol CBServiceMethods: ObjCWrapper {}
+public protocol CBServiceMethods: ObjCObjectMethods {}
 @ObjC public struct CBService: CBServiceMethods {}
 extension CBServiceMethods {
     @ObjCProperty(readonly: true) public var peripheral: CBPeripheral
@@ -118,19 +124,21 @@ public protocol CBMutableCharacteristicMethods: CBCharacteristicMethods {}
 @ObjC public struct CBMutableCharacteristic: CBMutableCharacteristicMethods {}
 extension CBMutableCharacteristicMethods {
     @ObjCProperty public var permissions: Int
+}
+extension CBMutableCharacteristicMethods where Self: ObjCWrapper {
     @ObjCMethod("initWithType:properties:value:permissions:") public init(type a0: some CBUUIDMethods, properties a1: Int, value a2: NSData?, permissions a3: Int)
 }
 
 /// The Objective-C class CBMutableDescriptor, a subclass of CBDescriptor.
 public protocol CBMutableDescriptorMethods: CBDescriptorMethods {}
 @ObjC public struct CBMutableDescriptor: CBMutableDescriptorMethods {}
-extension CBMutableDescriptorMethods {
+extension CBMutableDescriptorMethods where Self: ObjCWrapper {
     @ObjCMethod("initWithType:value:") public init(type a0: some CBUUIDMethods, value a1: ObjCValue)
 }
 
 /// The Objective-C class CBMutableService, a subclass of CBService.
 public protocol CBMutableServiceMethods: CBServiceMethods {}
 @ObjC public struct CBMutableService: CBMutableServiceMethods {}
-extension CBMutableServiceMethods {
+extension CBMutableServiceMethods where Self: ObjCWrapper {
     @ObjCMethod("initWithType:primary:") public init(type a0: some CBUUIDMethods, primary a1: Bool)
 }
