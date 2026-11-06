@@ -8,17 +8,17 @@ import Foundation
 public protocol NSAtomicStoreCacheNodeMethods: NSObjectMethods {}
 @ObjC public struct NSAtomicStoreCacheNode: NSAtomicStoreCacheNodeMethods {}
 extension NSAtomicStoreCacheNodeMethods {
-    @ObjCMethod("initWithObjectID:") public init(objectID a0: some NSManagedObjectIDMethods)
     @ObjCProperty(readonly: true) public var objectID: NSManagedObjectID
     @ObjCProperty public var propertyCache: NSMutableDictionary?
+}
+extension NSAtomicStoreCacheNodeMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithObjectID:") public init(objectID a0: some NSManagedObjectIDMethods)
 }
 
 /// The Objective-C class NSEntityDescription, a subclass of NSObject.
 public protocol NSEntityDescriptionMethods: NSObjectMethods {}
 @ObjC public struct NSEntityDescription: NSEntityDescriptionMethods {}
 extension NSEntityDescriptionMethods {
-    @ObjCMethod("entityForName:inManagedObjectContext:") public static func entityForName(_ a0: String, inManagedObjectContext a1: some NSManagedObjectContextMethods) -> NSEntityDescription?
-    @ObjCMethod("insertNewObjectForEntityForName:inManagedObjectContext:") public static func insertNewObjectForEntityForName(_ a0: String, inManagedObjectContext a1: some NSManagedObjectContextMethods) -> NSManagedObject
     @ObjCProperty(readonly: true) public var managedObjectModel: NSManagedObjectModel
     @ObjCProperty public var managedObjectClassName: String?
     @ObjCProperty public var name: String?
@@ -37,6 +37,10 @@ extension NSEntityDescriptionMethods {
     @ObjCProperty public var versionHashModifier: String?
     @ObjCProperty public var renamingIdentifier: String?
     @ObjCProperty public var compoundIndexes: NSArray?
+}
+extension NSEntityDescriptionMethods where Self: ObjCWrapper {
+    @ObjCMethod("entityForName:inManagedObjectContext:") public static func entityForName(_ a0: String, inManagedObjectContext a1: some NSManagedObjectContextMethods) -> NSEntityDescription?
+    @ObjCMethod("insertNewObjectForEntityForName:inManagedObjectContext:") public static func insertNewObjectForEntityForName(_ a0: String, inManagedObjectContext a1: some NSManagedObjectContextMethods) -> NSManagedObject
 }
 
 /// The Objective-C class NSEntityMapping, a subclass of NSObject.
@@ -73,14 +77,12 @@ extension NSEntityMigrationPolicyMethods {
 public protocol NSFetchedResultsControllerMethods: NSObjectMethods {}
 @ObjC public struct NSFetchedResultsController: NSFetchedResultsControllerMethods {}
 extension NSFetchedResultsControllerMethods {
-    @ObjCMethod("initWithFetchRequest:managedObjectContext:sectionNameKeyPath:cacheName:") public init(fetchRequest a0: some NSFetchRequestMethods, managedObjectContext a1: some NSManagedObjectContextMethods, sectionNameKeyPath a2: String?, cacheName a3: String?)
     @ObjCMethod("performFetch:") public func performFetch(_ a0: ObjCValue) -> Bool
     @ObjCProperty(readonly: true) public var fetchRequest: NSFetchRequest
     @ObjCProperty(readonly: true) public var managedObjectContext: NSManagedObjectContext
     @ObjCProperty(readonly: true) public var sectionNameKeyPath: String?
     @ObjCProperty(readonly: true) public var cacheName: String?
     @ObjCProperty public var delegate: ObjCValue
-    @ObjCMethod("deleteCacheWithName:") public static func deleteCacheWithName(_ a0: String?)
     @ObjCProperty(readonly: true) public var fetchedObjects: NSArray?
     @ObjCMethod("objectAtIndexPath:") public func objectAtIndexPath(_ a0: some NSIndexPathMethods) -> ObjCValue
     @ObjCMethod("indexPathForObject:") public func indexPathForObject(_ a0: ObjCValue) -> NSIndexPath?
@@ -89,23 +91,28 @@ extension NSFetchedResultsControllerMethods {
     @ObjCProperty(readonly: true) public var sections: NSArray?
     @ObjCMethod("sectionForSectionIndexTitle:atIndex:") public func sectionForSectionIndexTitle(_ a0: String, atIndex a1: Int) -> Int
 }
+extension NSFetchedResultsControllerMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithFetchRequest:managedObjectContext:sectionNameKeyPath:cacheName:") public init(fetchRequest a0: some NSFetchRequestMethods, managedObjectContext a1: some NSManagedObjectContextMethods, sectionNameKeyPath a2: String?, cacheName a3: String?)
+    @ObjCMethod("deleteCacheWithName:") public static func deleteCacheWithName(_ a0: String?)
+}
 
 /// The Objective-C class NSIncrementalStoreNode, a subclass of NSObject.
 public protocol NSIncrementalStoreNodeMethods: NSObjectMethods {}
 @ObjC public struct NSIncrementalStoreNode: NSIncrementalStoreNodeMethods {}
 extension NSIncrementalStoreNodeMethods {
-    @ObjCMethod("initWithObjectID:withValues:version:") public init(objectID a0: some NSManagedObjectIDMethods, withValues a1: some NSDictionaryMethods, version a2: Int64)
     @ObjCMethod("updateWithValues:version:") public func updateWithValues(_ a0: some NSDictionaryMethods, version a1: Int64)
     @ObjCProperty(readonly: true) public var objectID: NSManagedObjectID
     @ObjCProperty(readonly: true) public var version: Int64
     @ObjCMethod("valueForPropertyDescription:") public func valueForPropertyDescription(_ a0: some NSPropertyDescriptionMethods) -> ObjCValue
+}
+extension NSIncrementalStoreNodeMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithObjectID:withValues:version:") public init(objectID a0: some NSManagedObjectIDMethods, withValues a1: some NSDictionaryMethods, version a2: Int64)
 }
 
 /// The Objective-C class NSManagedObject, a subclass of NSObject.
 public protocol NSManagedObjectMethods: NSObjectMethods {}
 @ObjC public struct NSManagedObject: NSManagedObjectMethods {}
 extension NSManagedObjectMethods {
-    @ObjCMethod("contextShouldIgnoreUnmodeledPropertyChanges") public static func contextShouldIgnoreUnmodeledPropertyChanges() -> Bool
     @ObjCProperty(readonly: true) public var managedObjectContext: NSManagedObjectContext?
     @ObjCProperty(readonly: true) public var entity: NSEntityDescription
     @ObjCProperty(readonly: true) public var objectID: NSManagedObjectID
@@ -135,12 +142,14 @@ extension NSManagedObjectMethods {
     @ObjCMethod("validateForInsert:") public func validateForInsert(_ a0: ObjCValue) -> Bool
     @ObjCMethod("validateForUpdate:") public func validateForUpdate(_ a0: ObjCValue) -> Bool
 }
+extension NSManagedObjectMethods where Self: ObjCWrapper {
+    @ObjCMethod("contextShouldIgnoreUnmodeledPropertyChanges") public static func contextShouldIgnoreUnmodeledPropertyChanges() -> Bool
+}
 
 /// The Objective-C class NSManagedObjectContext, a subclass of NSObject.
 public protocol NSManagedObjectContextMethods: NSObjectMethods {}
 @ObjC public struct NSManagedObjectContext: NSManagedObjectContextMethods {}
 extension NSManagedObjectContextMethods {
-    @ObjCMethod("initWithConcurrencyType:") public init(concurrencyType a0: Int)
     public func performBlock(_ a0: @escaping () -> Void) { _ = self.object.send("performBlock:", ObjCBlock(types: "v") { call in a0(); return nil }) }
     public func performBlockAndWait(_ a0: @escaping () -> Void) { _ = self.object.send("performBlockAndWait:", ObjCBlock(types: "v") { call in a0(); return nil }) }
     @ObjCProperty public var persistentStoreCoordinator: NSPersistentStoreCoordinator?
@@ -179,6 +188,9 @@ extension NSManagedObjectContextMethods {
     @ObjCMethod("obtainPermanentIDsForObjects:error:") public func obtainPermanentIDsForObjects(_ a0: some NSArrayMethods, error a1: ObjCValue) -> Bool
     @ObjCMethod("mergeChangesFromContextDidSaveNotification:") public func mergeChangesFromContextDidSaveNotification(_ a0: some NSNotificationMethods)
 }
+extension NSManagedObjectContextMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithConcurrencyType:") public init(concurrencyType a0: Int)
+}
 
 /// The Objective-C class NSManagedObjectID, a subclass of NSObject.
 public protocol NSManagedObjectIDMethods: NSObjectMethods {}
@@ -194,9 +206,6 @@ extension NSManagedObjectIDMethods {
 public protocol NSManagedObjectModelMethods: NSObjectMethods {}
 @ObjC public struct NSManagedObjectModel: NSManagedObjectModelMethods {}
 extension NSManagedObjectModelMethods {
-    @ObjCMethod("mergedModelFromBundles:") public static func mergedModelFromBundles(_ a0: NSArray?) -> NSManagedObjectModel?
-    @ObjCMethod("modelByMergingModels:") public static func modelByMergingModels(_ a0: NSArray?) -> NSManagedObjectModel?
-    @ObjCMethod("initWithContentsOfURL:") public init(contentsOfURL a0: some NSURLMethods)
     @ObjCProperty(readonly: true) public var entitiesByName: NSDictionary
     @ObjCProperty public var entities: NSArray
     @ObjCProperty(readonly: true) public var configurations: NSArray
@@ -206,23 +215,30 @@ extension NSManagedObjectModelMethods {
     @ObjCMethod("fetchRequestTemplateForName:") public func fetchRequestTemplateForName(_ a0: String) -> NSFetchRequest?
     @ObjCMethod("fetchRequestFromTemplateWithName:substitutionVariables:") public func fetchRequestFromTemplateWithName(_ a0: String, substitutionVariables a1: some NSDictionaryMethods) -> NSFetchRequest?
     @ObjCProperty public var localizationDictionary: NSDictionary?
-    @ObjCMethod("mergedModelFromBundles:forStoreMetadata:") public static func mergedModelFromBundles(_ a0: NSArray?, forStoreMetadata a1: some NSDictionaryMethods) -> NSManagedObjectModel?
-    @ObjCMethod("modelByMergingModels:forStoreMetadata:") public static func modelByMergingModels(_ a0: some NSArrayMethods, forStoreMetadata a1: some NSDictionaryMethods) -> NSManagedObjectModel?
     @ObjCProperty(readonly: true) public var fetchRequestTemplatesByName: NSDictionary?
     @ObjCProperty public var versionIdentifiers: NSSet?
     @ObjCMethod("isConfiguration:compatibleWithStoreMetadata:") public func isConfiguration(_ a0: String?, compatibleWithStoreMetadata a1: some NSDictionaryMethods) -> Bool
     @ObjCProperty(readonly: true) public var entityVersionHashesByName: NSDictionary?
+}
+extension NSManagedObjectModelMethods where Self: ObjCWrapper {
+    @ObjCMethod("mergedModelFromBundles:") public static func mergedModelFromBundles(_ a0: NSArray?) -> NSManagedObjectModel?
+    @ObjCMethod("modelByMergingModels:") public static func modelByMergingModels(_ a0: NSArray?) -> NSManagedObjectModel?
+    @ObjCMethod("initWithContentsOfURL:") public init(contentsOfURL a0: some NSURLMethods)
+    @ObjCMethod("mergedModelFromBundles:forStoreMetadata:") public static func mergedModelFromBundles(_ a0: NSArray?, forStoreMetadata a1: some NSDictionaryMethods) -> NSManagedObjectModel?
+    @ObjCMethod("modelByMergingModels:forStoreMetadata:") public static func modelByMergingModels(_ a0: some NSArrayMethods, forStoreMetadata a1: some NSDictionaryMethods) -> NSManagedObjectModel?
 }
 
 /// The Objective-C class NSMappingModel, a subclass of NSObject.
 public protocol NSMappingModelMethods: NSObjectMethods {}
 @ObjC public struct NSMappingModel: NSMappingModelMethods {}
 extension NSMappingModelMethods {
+    @ObjCProperty public var entityMappings: NSArray?
+    @ObjCProperty(readonly: true) public var entityMappingsByName: NSDictionary
+}
+extension NSMappingModelMethods where Self: ObjCWrapper {
     @ObjCMethod("mappingModelFromBundles:forSourceModel:destinationModel:") public static func mappingModelFromBundles(_ a0: NSArray?, forSourceModel a1: NSManagedObjectModel?, destinationModel a2: NSManagedObjectModel?) -> NSMappingModel?
     @ObjCMethod("inferredMappingModelForSourceModel:destinationModel:error:") public static func inferredMappingModelForSourceModel(_ a0: some NSManagedObjectModelMethods, destinationModel a1: some NSManagedObjectModelMethods, error a2: ObjCValue) -> NSMappingModel?
     @ObjCMethod("initWithContentsOfURL:") public init(contentsOfURL a0: NSURL?)
-    @ObjCProperty public var entityMappings: NSArray?
-    @ObjCProperty(readonly: true) public var entityMappingsByName: NSDictionary
 }
 
 /// The Objective-C class NSMergeConflict, a subclass of NSObject.
@@ -235,6 +251,8 @@ extension NSMergeConflictMethods {
     @ObjCProperty(readonly: true) public var persistedSnapshot: NSDictionary?
     @ObjCProperty(readonly: true) public var newVersionNumber: Int
     @ObjCProperty(readonly: true) public var oldVersionNumber: Int
+}
+extension NSMergeConflictMethods where Self: ObjCWrapper {
     @ObjCMethod("initWithSource:newVersion:oldVersion:cachedSnapshot:persistedSnapshot:") public init(source a0: some NSManagedObjectMethods, newVersion a1: Int, oldVersion a2: Int, cachedSnapshot a3: NSDictionary?, persistedSnapshot a4: NSDictionary?)
 }
 
@@ -243,15 +261,16 @@ public protocol NSMergePolicyMethods: NSObjectMethods {}
 @ObjC public struct NSMergePolicy: NSMergePolicyMethods {}
 extension NSMergePolicyMethods {
     @ObjCProperty(readonly: true) public var mergeType: Int
-    @ObjCMethod("initWithMergeType:") public init(mergeType a0: Int)
     @ObjCMethod("resolveConflicts:error:") public func resolveConflicts(_ a0: some NSArrayMethods, error a1: ObjCValue) -> Bool
+}
+extension NSMergePolicyMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithMergeType:") public init(mergeType a0: Int)
 }
 
 /// The Objective-C class NSMigrationManager, a subclass of NSObject.
 public protocol NSMigrationManagerMethods: NSObjectMethods {}
 @ObjC public struct NSMigrationManager: NSMigrationManagerMethods {}
 extension NSMigrationManagerMethods {
-    @ObjCMethod("initWithSourceModel:destinationModel:") public init(sourceModel a0: some NSManagedObjectModelMethods, destinationModel a1: some NSManagedObjectModelMethods)
     @ObjCMethod("migrateStoreFromURL:type:options:withMappingModel:toDestinationURL:destinationType:destinationOptions:error:") public func migrateStoreFromURL(_ a0: some NSURLMethods, type a1: String, options a2: NSDictionary?, withMappingModel a3: NSMappingModel?, toDestinationURL a4: some NSURLMethods, destinationType a5: String, destinationOptions a6: NSDictionary?, error a7: ObjCValue) -> Bool
     @ObjCProperty public var usesStoreSpecificMigrationManager: Bool
     @ObjCMethod("reset") public func reset()
@@ -270,15 +289,14 @@ extension NSMigrationManagerMethods {
     @ObjCProperty public var userInfo: NSDictionary?
     @ObjCMethod("cancelMigrationWithError:") public func cancelMigrationWithError(_ a0: some NSErrorMethods)
 }
+extension NSMigrationManagerMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithSourceModel:destinationModel:") public init(sourceModel a0: some NSManagedObjectModelMethods, destinationModel a1: some NSManagedObjectModelMethods)
+}
 
 /// The Objective-C class NSPersistentStore, a subclass of NSObject.
 public protocol NSPersistentStoreMethods: NSObjectMethods {}
 @ObjC public struct NSPersistentStore: NSPersistentStoreMethods {}
 extension NSPersistentStoreMethods {
-    @ObjCMethod("metadataForPersistentStoreWithURL:error:") public static func metadataForPersistentStoreWithURL(_ a0: some NSURLMethods, error a1: ObjCValue) -> NSDictionary?
-    @ObjCMethod("setMetadata:forPersistentStoreWithURL:error:") public static func setMetadata(_ a0: NSDictionary?, forPersistentStoreWithURL a1: some NSURLMethods, error a2: ObjCValue) -> Bool
-    @ObjCMethod("migrationManagerClass") public static func migrationManagerClass() -> ObjCValue
-    @ObjCMethod("initWithPersistentStoreCoordinator:configurationName:URL:options:") public init(persistentStoreCoordinator a0: NSPersistentStoreCoordinator?, configurationName a1: String?, URL a2: some NSURLMethods, options a3: NSDictionary?)
     @ObjCMethod("loadMetadata:") public func loadMetadata(_ a0: ObjCValue) -> Bool
     @ObjCProperty(readonly: true) public var persistentStoreCoordinator: NSPersistentStoreCoordinator?
     @ObjCProperty(readonly: true) public var configurationName: String
@@ -291,12 +309,17 @@ extension NSPersistentStoreMethods {
     @ObjCMethod("didAddToPersistentStoreCoordinator:") public func didAddToPersistentStoreCoordinator(_ a0: some NSPersistentStoreCoordinatorMethods)
     @ObjCMethod("willRemoveFromPersistentStoreCoordinator:") public func willRemoveFromPersistentStoreCoordinator(_ a0: NSPersistentStoreCoordinator?)
 }
+extension NSPersistentStoreMethods where Self: ObjCWrapper {
+    @ObjCMethod("metadataForPersistentStoreWithURL:error:") public static func metadataForPersistentStoreWithURL(_ a0: some NSURLMethods, error a1: ObjCValue) -> NSDictionary?
+    @ObjCMethod("setMetadata:forPersistentStoreWithURL:error:") public static func setMetadata(_ a0: NSDictionary?, forPersistentStoreWithURL a1: some NSURLMethods, error a2: ObjCValue) -> Bool
+    @ObjCMethod("migrationManagerClass") public static func migrationManagerClass() -> ObjCValue
+    @ObjCMethod("initWithPersistentStoreCoordinator:configurationName:URL:options:") public init(persistentStoreCoordinator a0: NSPersistentStoreCoordinator?, configurationName a1: String?, URL a2: some NSURLMethods, options a3: NSDictionary?)
+}
 
 /// The Objective-C class NSPersistentStoreCoordinator, a subclass of NSObject.
 public protocol NSPersistentStoreCoordinatorMethods: NSObjectMethods {}
 @ObjC public struct NSPersistentStoreCoordinator: NSPersistentStoreCoordinatorMethods {}
 extension NSPersistentStoreCoordinatorMethods {
-    @ObjCMethod("initWithManagedObjectModel:") public init(managedObjectModel a0: some NSManagedObjectModelMethods)
     @ObjCProperty(readonly: true) public var managedObjectModel: NSManagedObjectModel
     @ObjCProperty(readonly: true) public var persistentStores: NSArray
     @ObjCMethod("persistentStoreForURL:") public func persistentStoreForURL(_ a0: some NSURLMethods) -> NSPersistentStore?
@@ -308,14 +331,17 @@ extension NSPersistentStoreCoordinatorMethods {
     @ObjCMethod("metadataForPersistentStore:") public func metadataForPersistentStore(_ a0: some NSPersistentStoreMethods) -> NSDictionary
     @ObjCMethod("managedObjectIDForURIRepresentation:") public func managedObjectIDForURIRepresentation(_ a0: some NSURLMethods) -> NSManagedObjectID?
     @ObjCMethod("executeRequest:withContext:error:") public func executeRequest(_ a0: some NSPersistentStoreRequestMethods, withContext a1: some NSManagedObjectContextMethods, error a2: ObjCValue) -> ObjCValue
-    @ObjCMethod("registeredStoreTypes") public static func registeredStoreTypes() -> NSDictionary
-    @ObjCMethod("registerStoreClass:forStoreType:") public static func registerStoreClass(_ a0: ObjCValue, forStoreType a1: String)
-    @ObjCMethod("metadataForPersistentStoreOfType:URL:error:") public static func metadataForPersistentStoreOfType(_ a0: String?, URL a1: some NSURLMethods, error a2: ObjCValue) -> NSDictionary?
-    @ObjCMethod("setMetadata:forPersistentStoreOfType:URL:error:") public static func setMetadata(_ a0: NSDictionary?, forPersistentStoreOfType a1: String?, URL a2: some NSURLMethods, error a3: ObjCValue) -> Bool
     @ObjCMethod("migratePersistentStore:toURL:options:withType:error:") public func migratePersistentStore(_ a0: some NSPersistentStoreMethods, toURL a1: some NSURLMethods, options a2: NSDictionary?, withType a3: String, error a4: ObjCValue) -> NSPersistentStore?
     @ObjCMethod("lock") public func lock()
     @ObjCMethod("unlock") public func unlock()
     @ObjCMethod("tryLock") public func tryLock() -> Bool
+}
+extension NSPersistentStoreCoordinatorMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithManagedObjectModel:") public init(managedObjectModel a0: some NSManagedObjectModelMethods)
+    @ObjCMethod("registeredStoreTypes") public static func registeredStoreTypes() -> NSDictionary
+    @ObjCMethod("registerStoreClass:forStoreType:") public static func registerStoreClass(_ a0: ObjCValue, forStoreType a1: String)
+    @ObjCMethod("metadataForPersistentStoreOfType:URL:error:") public static func metadataForPersistentStoreOfType(_ a0: String?, URL a1: some NSURLMethods, error a2: ObjCValue) -> NSDictionary?
+    @ObjCMethod("setMetadata:forPersistentStoreOfType:URL:error:") public static func setMetadata(_ a0: NSDictionary?, forPersistentStoreOfType a1: String?, URL a2: some NSURLMethods, error a3: ObjCValue) -> Bool
 }
 
 /// The Objective-C class NSPersistentStoreRequest, a subclass of NSObject.
@@ -395,8 +421,6 @@ extension NSExpressionDescriptionMethods {
 public protocol NSFetchRequestMethods: NSPersistentStoreRequestMethods {}
 @ObjC public struct NSFetchRequest: NSFetchRequestMethods {}
 extension NSFetchRequestMethods {
-    @ObjCMethod("fetchRequestWithEntityName:") public static func fetchRequestWithEntityName(_ a0: String) -> Self
-    @ObjCMethod("initWithEntityName:") public init(entityName a0: String)
     @ObjCProperty public var entity: NSEntityDescription?
     @ObjCProperty(readonly: true) public var entityName: String?
     @ObjCProperty public var predicate: NSPredicate?
@@ -416,15 +440,21 @@ extension NSFetchRequestMethods {
     @ObjCProperty public var propertiesToGroupBy: NSArray?
     @ObjCProperty public var havingPredicate: NSPredicate?
 }
+extension NSFetchRequestMethods where Self: ObjCWrapper {
+    @ObjCMethod("fetchRequestWithEntityName:") public static func fetchRequestWithEntityName(_ a0: String) -> Self
+    @ObjCMethod("initWithEntityName:") public init(entityName a0: String)
+}
 
 /// The Objective-C class NSFetchRequestExpression, a subclass of NSExpression.
 public protocol NSFetchRequestExpressionMethods: NSExpressionMethods {}
 @ObjC public struct NSFetchRequestExpression: NSFetchRequestExpressionMethods {}
 extension NSFetchRequestExpressionMethods {
-    @ObjCMethod("expressionForFetch:context:countOnly:") public static func expressionForFetch(_ a0: some NSExpressionMethods, context a1: some NSExpressionMethods, countOnly a2: Bool) -> NSExpression
     @ObjCProperty(readonly: true) public var requestExpression: NSExpression
     @ObjCProperty(readonly: true) public var contextExpression: NSExpression
     @ObjCProperty(getter: "isCountOnlyRequest", readonly: true) public var countOnlyRequest: Bool
+}
+extension NSFetchRequestExpressionMethods where Self: ObjCWrapper {
+    @ObjCMethod("expressionForFetch:context:countOnly:") public static func expressionForFetch(_ a0: some NSExpressionMethods, context a1: some NSExpressionMethods, countOnly a2: Bool) -> NSExpression
 }
 
 /// The Objective-C class NSFetchedPropertyDescription, a subclass of NSPropertyDescription.
@@ -441,12 +471,14 @@ extension NSIncrementalStoreMethods {
     @ObjCMethod("executeRequest:withContext:error:") public func executeRequest(_ a0: some NSPersistentStoreRequestMethods, withContext a1: NSManagedObjectContext?, error a2: ObjCValue) -> ObjCValue
     @ObjCMethod("newValuesForObjectWithID:withContext:error:") public func newValuesForObjectWithID(_ a0: some NSManagedObjectIDMethods, withContext a1: some NSManagedObjectContextMethods, error a2: ObjCValue) -> NSIncrementalStoreNode?
     @ObjCMethod("newValueForRelationship:forObjectWithID:withContext:error:") public func newValueForRelationship(_ a0: some NSRelationshipDescriptionMethods, forObjectWithID a1: some NSManagedObjectIDMethods, withContext a2: NSManagedObjectContext?, error a3: ObjCValue) -> ObjCValue
-    @ObjCMethod("identifierForNewStoreAtURL:") public static func identifierForNewStoreAtURL(_ a0: some NSURLMethods) -> ObjCValue
     @ObjCMethod("obtainPermanentIDsForObjects:error:") public func obtainPermanentIDsForObjects(_ a0: some NSArrayMethods, error a1: ObjCValue) -> NSArray?
     @ObjCMethod("managedObjectContextDidRegisterObjectsWithIDs:") public func managedObjectContextDidRegisterObjectsWithIDs(_ a0: some NSArrayMethods)
     @ObjCMethod("managedObjectContextDidUnregisterObjectsWithIDs:") public func managedObjectContextDidUnregisterObjectsWithIDs(_ a0: some NSArrayMethods)
     @ObjCMethod("newObjectIDForEntity:referenceObject:") public func newObjectIDForEntity(_ a0: some NSEntityDescriptionMethods, referenceObject a1: ObjCValue) -> NSManagedObjectID
     @ObjCMethod("referenceObjectForObjectID:") public func referenceObjectForObjectID(_ a0: some NSManagedObjectIDMethods) -> ObjCValue
+}
+extension NSIncrementalStoreMethods where Self: ObjCWrapper {
+    @ObjCMethod("identifierForNewStoreAtURL:") public static func identifierForNewStoreAtURL(_ a0: some NSURLMethods) -> ObjCValue
 }
 
 /// The Objective-C class NSRelationshipDescription, a subclass of NSPropertyDescription.
@@ -466,9 +498,11 @@ extension NSRelationshipDescriptionMethods {
 public protocol NSSaveChangesRequestMethods: NSPersistentStoreRequestMethods {}
 @ObjC public struct NSSaveChangesRequest: NSSaveChangesRequestMethods {}
 extension NSSaveChangesRequestMethods {
-    @ObjCMethod("initWithInsertedObjects:updatedObjects:deletedObjects:lockedObjects:") public init(insertedObjects a0: NSSet?, updatedObjects a1: NSSet?, deletedObjects a2: NSSet?, lockedObjects a3: NSSet?)
     @ObjCProperty(readonly: true) public var insertedObjects: NSSet?
     @ObjCProperty(readonly: true) public var updatedObjects: NSSet?
     @ObjCProperty(readonly: true) public var deletedObjects: NSSet?
     @ObjCProperty(readonly: true) public var lockedObjects: NSSet?
+}
+extension NSSaveChangesRequestMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithInsertedObjects:updatedObjects:deletedObjects:lockedObjects:") public init(insertedObjects a0: NSSet?, updatedObjects a1: NSSet?, deletedObjects a2: NSSet?, lockedObjects a3: NSSet?)
 }
