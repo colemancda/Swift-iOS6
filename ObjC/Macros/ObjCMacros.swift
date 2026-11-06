@@ -228,12 +228,18 @@ public struct ObjCPropertyMacro: AccessorMacro {
 
 // MARK: - @ObjCImplementation
 
-/// `@ObjCImplementation("Name", superclass: "UIView") final class X { … }`:
+/// `@ObjCImplementation("Name", superclass: "UIView") class X { … }`:
 /// defines the Objective-C class (`objcClass`), with a method for each
 /// @ObjCMethod method of X. Each Objective-C instance is tied to a Swift
 /// instance: create one with `X(…)` then `attach(to:)` an object of
 /// `objcClass`, or, if X has an `init()`, Objective-C can create it
 /// (alloc/init from UIKit). The tie ends when the object is deallocated.
+///
+/// `@ObjCImplementation class Y: X { … }` (no `superclass:`) on a Swift
+/// subclass of such a class defines a subclass of X's Objective-C class.
+/// Swift's own dispatch runs overrides, so Y only adds its new methods, and
+/// an object of Y's class gets a Y. `callSuper` from any class of the
+/// hierarchy reaches the Objective-C superclass of the root's class.
 public struct ObjCImplementationMacro: MemberMacro, ExtensionMacro {
     public static func expansion(of node: AttributeSyntax, providingMembersOf declaration: some DeclGroupSyntax,
                                  conformingTo protocols: [TypeSyntax], in context: some MacroExpansionContext) throws -> [DeclSyntax] {
@@ -242,16 +248,24 @@ public struct ObjCImplementationMacro: MemberMacro, ExtensionMacro {
         }
         let typeName = type.name.text
         let className = stringArgument(node, "") ?? typeName
-        let superclass = stringArgument(node, "superclass") ?? "NSObject"
+        let explicitSuperclass = stringArgument(node, "superclass")
+        // A Swift superclass: the first inherited type, unless `superclass:` names the Objective-C one.
+        let swiftSuperclass = explicitSuperclass == nil
+            ? type.inheritanceClause?.inheritedTypes.first?.type.trimmedDescription : nil
         let access = accessModifier(type.modifiers)
+        let isOpen = type.modifiers.contains { $0.name.tokenKind == .keyword(.open) }
+        let overridable = isOpen ? "open " : access
+        let storage = "_objcClass\(typeName)"
 
         var hasDefaultInit = false
+        var hasInitializers = false
         var methods: [String] = []
         var userDealloc = false
+        var deallocOverrides = false
         for member in type.memberBlock.members {
-            if let initializer = member.decl.as(InitializerDeclSyntax.self),
-               initializer.signature.parameterClause.parameters.isEmpty {
-                hasDefaultInit = true
+            if let initializer = member.decl.as(InitializerDeclSyntax.self) {
+                hasInitializers = true
+                if initializer.signature.parameterClause.parameters.isEmpty { hasDefaultInit = true }
             }
             guard let function = member.decl.as(FunctionDeclSyntax.self),
                   let marker = attribute(function.attributes, "ObjCMethod") else { continue }
@@ -259,6 +273,7 @@ public struct ObjCImplementationMacro: MemberMacro, ExtensionMacro {
             let selector = stringArgument(marker, "") ?? selector(name: function.name.text, parameters: parameters)
             if selector == "dealloc" {
                 userDealloc = true
+                deallocOverrides = function.modifiers.contains { $0.name.tokenKind == .keyword(.override) }
                 continue
             }
             let returnType = function.signature.returnClause?.type
@@ -271,77 +286,111 @@ public struct ObjCImplementationMacro: MemberMacro, ExtensionMacro {
                 call += (index > 0 ? ", " : "") + (label == "_" ? "" : label + ": ") + "objcResult(call[\(index)])"
             }
             call += ")"
+            let lookup = "ObjCImplementations.instance(\(typeName).self, for: call.this)"
             if isVoid(returnType) {
                 methods.append("""
                     cls.method(\"\(selector)\", fallbackTypes: \"\(types)\") { call in
-                        guard let instance = \(typeName).objcInstance(for: call.this) else { return }
+                        guard let instance = \(lookup) else { return }
                         \(call)
                     }
                 """)
             } else {
                 methods.append("""
                     cls.function(\"\(selector)\", fallbackTypes: \"\(types)\") { call in
-                        guard let instance = \(typeName).objcInstance(for: call.this) else { return nil }
+                        guard let instance = \(lookup) else { return nil }
                         return \(call).objcValue
                     }
                 """)
             }
         }
 
-        let dealloc = """
+        // A class with no initializers has the implicit init(), or inherits
+        // its superclass's.
+        if hasDefaultInit || !hasInitializers {
+            methods.append("""
+                ObjCImplementations.setFactory({ object in
+                    let instance = \(typeName)()
+                    instance.attach(to: object)
+                    return instance
+                }, for: cls)
+            """)
+        }
+
+        let existing = "ObjCImplementations.instance(\(typeName).self, for: call.this, create: false)"
+        if swiftSuperclass == nil {
+            methods.append("""
                 cls.method("dealloc") { call in
-                    let key = UInt(bitPattern: call.this.asObject?.pointer)
-                    \(userDealloc ? "\(typeName).objcInstances[key]?.dealloc()" : "")
-                    \(typeName).objcInstances[key] = nil
+                    \(userDealloc ? "\(existing)?.dealloc()" : "")
+                    ObjCImplementations.detach(call.this)
                     call.callSuper()
                 }
-            """
-        let create = hasDefaultInit ? """
-                let instance = \(typeName)()
-                instance.objcPointer = object.asObject?.pointer
-                objcInstances[key] = instance
-                return instance
-            """ : "return nil"
+            """)
+        } else if userDealloc && !deallocOverrides {
+            // An override runs from the superclass's dealloc, through Swift.
+            methods.append("""
+                cls.method("dealloc") { call in
+                    \(existing)?.dealloc()
+                    call.callSuper()
+                }
+            """)
+        }
 
-        return [
-            "/// Swift instances by the address of their Objective-C object.\nstatic var objcInstances: [UInt: \(raw: typeName)] = [:]",
-            "/// The Objective-C object this instance implements (not retained: the object owns this instance).\nvar objcPointer: UnsafeMutableRawPointer? = nil",
-            "/// The Objective-C object this instance implements.\n\(raw: access)var object: ObjCValue { ObjCValue(object: objcPointer) }",
+        let superclassArgument = swiftSuperclass.map { "\($0).objcClass" }
+            ?? "\"\(explicitSuperclass ?? "NSObject")\""
+        var members: [DeclSyntax] = [
             """
             /// The Objective-C class \(raw: className), defined on first use.
-            \(raw: access)static let objcClass: ObjCValue = ObjC.defineClass(\(literal: className), superclass: \(literal: superclass)) { cls in
+            static let \(raw: storage): ObjCValue = ObjC.defineClass(\(literal: className), superclass: \(raw: superclassArgument)) { cls in
             \(raw: methods.joined(separator: "\n"))
-            \(raw: dealloc)
             }
             """,
+        ]
+        // Embedded Swift can't cast to a dynamic Self: each class looks up its own type.
+        let lookup = """
+            /// The Swift instance for an object of `objcClass` (or of a subclass's).
+            \(overridable)\(swiftSuperclass == nil ? "" : "override ")class func objcInstance(for object: ObjCValue) -> \(typeName)? {
+                ObjCImplementations.instance(\(typeName).self, for: object)
+            }
+            """
+        if let swiftSuperclass {
+            members.append("""
+                /// The Objective-C class \(raw: className), a subclass of \(raw: swiftSuperclass)'s.
+                \(raw: overridable)override class var objcClass: ObjCValue { \(raw: storage) }
+                """)
+            members.append("\(raw: lookup)")
+            return members
+        }
+        members += [
+            """
+            /// The Objective-C class \(raw: className).
+            \(raw: overridable)class var objcClass: ObjCValue { \(raw: storage) }
+            """,
+            "/// The Objective-C object this instance implements (not retained: the object owns this instance).\n\(raw: access)var objcPointer: UnsafeMutableRawPointer? = nil",
+            "/// The Objective-C object this instance implements.\n\(raw: access)var object: ObjCValue { ObjCValue(object: objcPointer) }",
             """
             /// Ties this instance to `object`, an instance of `objcClass`, which keeps it alive.
             \(raw: access)func attach(to object: ObjCValue) {
                 objcPointer = object.asObject?.pointer
-                \(raw: typeName).objcInstances[UInt(bitPattern: objcPointer)] = self
+                ObjCImplementations.attach(self, to: object)
             }
             """,
+            "\(raw: lookup)",
             """
-            /// The Swift instance for an object of `objcClass`.
-            static func objcInstance(for object: ObjCValue) -> \(raw: typeName)? {
-                let key = UInt(bitPattern: object.asObject?.pointer)
-                if let instance = objcInstances[key] { return instance }
-                \(raw: create)
-            }
-            """,
-            """
-            /// Sends `selector` to the superclass's implementation, from a method of this class.
+            /// Sends `selector` to the Objective-C superclass's implementation, from a method of this class or a subclass.
             @discardableResult
             \(raw: access)func callSuper(_ selector: String, _ arguments: any ObjCConvertible...) -> ObjCValue {
-                self.object.sendSuper(selector, from: Self.objcClass, arguments)
+                self.object.sendSuper(selector, from: \(raw: typeName).\(raw: storage), arguments)
             }
             """,
         ]
+        return members
     }
 
     public static func expansion(of node: AttributeSyntax, attachedTo declaration: some DeclGroupSyntax,
                                  providingExtensionsOf type: some TypeSyntaxProtocol, conformingTo protocols: [TypeSyntax],
                                  in context: some MacroExpansionContext) throws -> [ExtensionDeclSyntax] {
-        [try ExtensionDeclSyntax("extension \(type.trimmed): ObjCConvertible { public var objcValue: ObjCValue { object } }")]
+        // A subclass already conforms, through its superclass.
+        guard !protocols.isEmpty else { return [] }
+        return [try ExtensionDeclSyntax("extension \(type.trimmed): ObjCConvertible { public var objcValue: ObjCValue { object } }")]
     }
 }
