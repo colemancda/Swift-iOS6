@@ -87,6 +87,9 @@ class Shape {
 
     @ObjCMethod func name() -> String { "shape" }
 
+    /// Takes an object of an implemented class: its Swift instance.
+    @ObjCMethod func isBigger(than other: Shape) -> Bool { area() > other.area() }
+
     /// Reaches NSObject's description, from any subclass.
     @ObjCMethod("description") func describe() -> String {
         name() + " " + (callSuper("description").asString ?? "?")
@@ -124,4 +127,40 @@ class Square: Shape {
 @ObjCImplementation("SIUnitSquare")
 final class UnitSquare: Square {
     var unit = true
+}
+
+/// Created from Swift: its initializer makes its Objective-C object.
+@ObjCImplementation("SINamed", superclass: "NSObject", protocols: ["NSCopying"], extensions: ["Loud"])
+final class Named {
+    let name: String
+
+    init(name: String) {
+        self.name = name
+        objcInit()
+    }
+
+    @ObjCMethod("description") func describe() -> String { name }
+}
+
+/// Methods in an extension, exported through the class's `extensions:`.
+@ObjCExtension("Loud")
+extension Named {
+    @ObjCMethod func shout(_ times: Int) -> String {
+        var result = ""
+        for _ in 0..<times { result += name + "!" }
+        return result
+    }
+}
+
+/// Both ways: Swift creates it with Tracked(), and Objective-C with new.
+@ObjCImplementation("SITracked")
+final class Tracked {
+    static var created = 0
+
+    init() {
+        Tracked.created += 1
+        objcInit()
+    }
+
+    @ObjCMethod func ping() -> Int { Tracked.created }
 }
