@@ -285,6 +285,9 @@ do {
     check("superclass keeps its methods", shape.area().asDouble == 0 && shape.name().asString == "shape")
     check("superclass created as itself", !(Shape.objcInstance(for: shape) is Square))
 
+    check("implemented class as an argument", square.isBiggerThan(shape).asBool == true &&
+          shape.isBiggerThan(square).asBool == false)
+
     let unit = UnitSquare.objcClass.new()
     check("third level, inherited init()", unit.area().asDouble == 4 && UnitSquare.objcInstance(for: unit)?.unit == true)
     check("third level class", unit.isKind(of: "SISquare") && unit.className == "SIUnitSquare")
@@ -294,6 +297,18 @@ do {
     manual.attach(to: manualObject)
     manualObject.grow(2.0)
     check("subclass attach(to:)", Square.objcInstance(for: manualObject) === manual && manual.side == 4)
+}
+do {
+    let named = Named(name: "made in Swift")
+    check("objcInit makes the object", named.object.isKind(of: "SINamed") && Named.objcInstance(for: named.object) === named)
+    check("objcInit's object calls the instance", named.object.send("description").asString == "made in Swift")
+    let tracked = Tracked()
+    check("Swift-created with objcInit()", Tracked.objcInstance(for: tracked.object) === tracked && Tracked.created == 1)
+    let trackedObject = Tracked.objcClass.new()
+    check("Objective-C-created: objcInit() takes the object", trackedObject.ping().asInt == 2 &&
+          Tracked.objcInstance(for: trackedObject)?.object.asObject?.pointer == trackedObject.asObject?.pointer)
+    check("@ObjCExtension method", named.object.shout(2).asString == "made in Swift!made in Swift!")
+    check("protocols: adopted", named.object.send("conformsToProtocol:", ObjC.protocolNamed("NSCopying")).asBool == true)
 }
 check("subclass dealloc runs the override and the superclass's", Square.squareDeallocs == 3 && Shape.shapeDeallocs == 4,
       "\(Square.squareDeallocs) \(Shape.shapeDeallocs)")
