@@ -62,6 +62,12 @@ public struct ObjCRuntime {
         return result
     }
 
+    /// The protocol with this name, for arguments of type Protocol *, or nil
+    /// if the runtime doesn't know it (only protocols loaded code refers to).
+    public func protocolNamed(_ name: String) -> ObjCValue {
+        ObjCValue(object: withCString(name) { objcrt_protocol($0) })
+    }
+
     /// nil, as an argument.
     public var `nil`: ObjCValue { ObjCValue(storage: .object(nil)) }
 
@@ -167,6 +173,14 @@ public struct ObjCValue: ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral,
     /// Sends the message with this full selector, such as "setTitle:forState:".
     @discardableResult
     public func send(_ selector: String, _ arguments: any ObjCConvertible...) -> ObjCValue {
+        var values: [ObjCValue] = []
+        for argument in arguments { values.append(argument.objcValue) }
+        return ObjCValue.send(selector, to: self, values)
+    }
+
+    /// Sends the message with this full selector and an array of arguments.
+    @discardableResult
+    public func send(_ selector: String, arguments: [any ObjCConvertible]) -> ObjCValue {
         var values: [ObjCValue] = []
         for argument in arguments { values.append(argument.objcValue) }
         return ObjCValue.send(selector, to: self, values)
@@ -761,6 +775,9 @@ extension ObjCRuntime {
 public enum ObjCImplementations {
     public static var instances: [UInt: AnyObject] = [:]
     public static var factories: [UInt: (ObjCValue) -> AnyObject] = [:]
+    /// The object a factory is creating the Swift instance for: the
+    /// instance's objcInit() ties itself to it rather than making another.
+    public static var pendingObject: ObjCValue? = nil
 
     /// The Swift instance of type `T` for `object`, created (if `create`) when there's none yet.
     public static func instance<T: AnyObject>(_ type: T.Type, for object: ObjCValue, create: Bool = true) -> T? {
@@ -1050,9 +1067,34 @@ public macro ObjCProperty(getter: String? = nil, setter: String? = nil, readonly
 /// `superclass:`) defines a subclass of its Objective-C class. See
 /// ObjCImplementationMacro for how instances are tied.
 @attached(member, names: arbitrary)
-@attached(extension, conformances: ObjCConvertible, names: named(objcValue))
-public macro ObjCImplementation(_ className: String? = nil, superclass: String = "NSObject") =
+@attached(extension, conformances: ObjCConvertible, ObjCImplementationResult, names: named(objcValue),
+          named(objcImplementation))
+public macro ObjCImplementation(_ className: String? = nil, superclass: String = "NSObject", protocols: [String] = [],
+                                extensions: [String] = []) =
     #externalMacro(module: "ObjCMacros", type: "ObjCImplementationMacro")
+
+/// On an extension of an @ObjCImplementation class: exports its @ObjCMethod
+/// methods too. The class lists the tag in `extensions:`.
+@attached(member, names: arbitrary)
+public macro ObjCExtension(_ tag: String) = #externalMacro(module: "ObjCMacros", type: "ObjCExtensionMacro")
+
+/// A class that implements an Objective-C class (@ObjCImplementation makes
+/// its root conform): a method argument or result of the class's type is the
+/// Swift instance of the object.
+public protocol ObjCImplementationResult: AnyObject {
+    static func objcImplementation(for value: ObjCValue) -> Self?
+}
+
+public func objcResult<T: ObjCImplementationResult>(_ value: ObjCValue) -> T {
+    guard let instance = T.objcImplementation(for: value) else {
+        fatalError("no Swift instance for the object")
+    }
+    return instance
+}
+
+public func objcResult<T: ObjCImplementationResult>(_ value: ObjCValue) -> T? {
+    T.objcImplementation(for: value)
+}
 
 // MARK: - Typed results
 
@@ -1109,22 +1151,32 @@ extension Optional: ObjCResult where Wrapped: ObjCResult {
     }
 }
 
-/// A Swift type that wraps an Objective-C object; @ObjC makes one.
-public protocol ObjCWrapper: ObjCConvertible, ObjCResult {
+/// A Swift type with an Objective-C object: a wrapper, or a class that
+/// implements one (@ObjCImplementation). The generated `…Methods`
+/// protocols refine it, so both get a class's instance methods and properties.
+public protocol ObjCObjectMethods: ObjCConvertible {
     var object: ObjCValue { get }
+}
+
+extension ObjCObjectMethods {
+    public var objcValue: ObjCValue { object }
+
+    /// Whether the object is nil.
+    public var isNil: Bool { object.isNil }
+
+    /// The same object as a wrapper type, such as a UILabel as a UIView.
+    public func `as`<T: ObjCWrapper>(_ type: T.Type) -> T { T(object) }
+}
+
+/// A Swift type that wraps an Objective-C object; @ObjC makes one. The
+/// generated initializers and class methods are for wrappers.
+public protocol ObjCWrapper: ObjCObjectMethods, ObjCResult {
     init(_ object: ObjCValue)
     static var objcClass: ObjCValue { get }
 }
 
 extension ObjCWrapper {
-    public var objcValue: ObjCValue { object }
     public init(objcValue: ObjCValue) { self.init(objcValue) }
-
-    /// Whether the object is nil.
-    public var isNil: Bool { object.isNil }
-
-    /// The same object as another wrapper type, such as a UILabel as a UIView.
-    public func `as`<T: ObjCWrapper>(_ type: T.Type) -> T { T(object) }
 }
 
 // MARK: - Geometry
