@@ -92,6 +92,37 @@ final class Counter {
     `attach(to:)` an object of `objcClass`.
   - `callSuper("selector", …)` reaches the superclass. A `@ObjCMethod func
     dealloc()` runs before the tie ends.
+  - **Subclasses:** a Swift subclass of an implemented class takes
+    `@ObjCImplementation` without `superclass:`, and defines a subclass of
+    its Objective-C class:
+
+    ```swift
+    @ObjCImplementation("SIShape", superclass: "NSObject")
+    class Shape {
+        init() {}
+        @ObjCMethod func area() -> Double { 0 }
+    }
+
+    @ObjCImplementation("SISquare")
+    class Square: Shape {
+        var side = 2.0
+        @ObjCMethod override func area() -> Double { side * side }
+        @ObjCMethod func grow(_ amount: Double) { side += amount }
+    }
+    ```
+
+    - Overrides run through Swift's own dispatch, with `super` as usual.
+    - An object of SISquare that Objective-C allocates gets a `Square`, so
+      `Square.objcInstance(for:)` and `Shape.objcInstance(for:)` both find
+      it.
+    - `callSuper` from any class in the hierarchy reaches the Objective-C
+      superclass of the root's class (NSObject here).
+    - Objective-C can create a class's instances if the class has an
+      `init()`, or no initializers at all: the implicit one, or the one it
+      inherits.
+    - The macro takes a class whose first inherited type is a Swift class as
+      a subclass. A root class that adopts Swift protocols names its
+      Objective-C superclass with `superclass:`.
 
 The macros are a compiler plugin built for the Mac against the swift-syntax
 libraries the toolchain ships for its own macros (`usr/lib/swift/host`), so
@@ -252,7 +283,7 @@ PASS struct override through stret
 …
 ```
 
-On the iPod (iOS 6.1.6), all 56 checks that run outside an app pass,
+On the iPod (iOS 6.1.6), all 75 checks that run outside an app pass,
 including the macro checks in `Tests/Wrappers.swift`. iOS 6
 won't start UIKit in a command-line tool (it traps in GraphicsServices), so
 the UIKit checks are skipped there, and the SwiftUI apps cover UIKit instead.
