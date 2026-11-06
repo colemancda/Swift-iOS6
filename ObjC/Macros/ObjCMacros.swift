@@ -30,6 +30,16 @@ func stringArgument(_ node: AttributeSyntax, _ label: String) -> String? {
     return nil
 }
 
+/// An array of string literals argument, by label.
+func stringArrayArgument(_ node: AttributeSyntax, _ label: String) -> [String] {
+    guard let arguments = node.arguments?.as(LabeledExprListSyntax.self) else { return [] }
+    for argument in arguments where argument.label?.text == label {
+        guard let array = argument.expression.as(ArrayExprSyntax.self) else { return [] }
+        return array.elements.compactMap { $0.expression.as(StringLiteralExprSyntax.self)?.representedLiteralValue }
+    }
+    return []
+}
+
 func boolArgument(_ node: AttributeSyntax, _ label: String) -> Bool {
     guard let arguments = node.arguments?.as(LabeledExprListSyntax.self) else { return false }
     for argument in arguments where argument.label?.text == label {
@@ -226,6 +236,84 @@ public struct ObjCPropertyMacro: AccessorMacro {
     }
 }
 
+// MARK: - Exported methods
+
+/// The `cls.method`/`cls.function` registrations of the @ObjCMethod methods
+/// with bodies among `members`, and whether one is dealloc (and an override).
+func methodRegistrations(_ members: MemberBlockItemListSyntax, typeName: String)
+    -> (methods: [String], dealloc: Bool, deallocOverrides: Bool) {
+    var methods: [String] = []
+    var dealloc = false
+    var deallocOverrides = false
+    for member in members {
+        guard let function = member.decl.as(FunctionDeclSyntax.self),
+              let marker = attribute(function.attributes, "ObjCMethod") else { continue }
+        let parameters = function.signature.parameterClause.parameters
+        let selector = stringArgument(marker, "") ?? selector(name: function.name.text, parameters: parameters)
+        if selector == "dealloc" {
+            dealloc = true
+            deallocOverrides = function.modifiers.contains { $0.name.tokenKind == .keyword(.override) }
+            continue
+        }
+        let returnType = function.signature.returnClause?.type
+        var types = encoding(returnType) + "@:"
+        for parameter in parameters { types += encoding(parameter.type) }
+
+        var call = "instance.\(function.name.text)("
+        for (index, parameter) in parameters.enumerated() {
+            let label = parameter.firstName.text
+            call += (index > 0 ? ", " : "") + (label == "_" ? "" : label + ": ") + "objcResult(call[\(index)])"
+        }
+        call += ")"
+        let lookup = "ObjCImplementations.instance(\(typeName).self, for: call.this)"
+        if isVoid(returnType) {
+            methods.append("""
+                cls.method(\"\(selector)\", fallbackTypes: \"\(types)\") { call in
+                    guard let instance = \(lookup) else { return }
+                    \(call)
+                }
+            """)
+        } else {
+            methods.append("""
+                cls.function(\"\(selector)\", fallbackTypes: \"\(types)\") { call in
+                    guard let instance = \(lookup) else { return nil }
+                    return \(call).objcValue
+                }
+            """)
+        }
+    }
+    return (methods, dealloc, deallocOverrides)
+}
+
+// MARK: - @ObjCExtension
+
+/// `@ObjCExtension("DataSource") extension X: … { @ObjCMethod func … }`:
+/// exports the extension's @ObjCMethod methods too, through
+/// `objcMethodsDataSource(_:)`, which X's class definition calls when X's
+/// @ObjCImplementation lists the tag: `extensions: ["DataSource"]`.
+public struct ObjCExtensionMacro: MemberMacro {
+    public static func expansion(of node: AttributeSyntax, providingMembersOf declaration: some DeclGroupSyntax,
+                                 conformingTo protocols: [TypeSyntax], in context: some MacroExpansionContext) throws -> [DeclSyntax] {
+        guard let type = declaration.as(ExtensionDeclSyntax.self) else {
+            throw MacroError("@ObjCExtension applies to an extension of an @ObjCImplementation class")
+        }
+        guard let tag = stringArgument(node, "") else {
+            throw MacroError("@ObjCExtension needs a tag: @ObjCExtension(\"DataSource\")")
+        }
+        let typeName = type.extendedType.trimmedDescription
+        let registered = methodRegistrations(type.memberBlock.members, typeName: typeName)
+        if registered.dealloc {
+            throw MacroError("dealloc goes in the class, not an extension")
+        }
+        return ["""
+            /// Adds this extension's @ObjCMethod methods to the Objective-C class.
+            static func objcMethods\(raw: tag)(_ cls: ObjCClassBuilder) {
+            \(raw: registered.methods.joined(separator: "\n"))
+            }
+            """]
+    }
+}
+
 // MARK: - @ObjCImplementation
 
 /// `@ObjCImplementation("Name", superclass: "UIView") class X { … }`:
@@ -248,10 +336,17 @@ public struct ObjCImplementationMacro: MemberMacro, ExtensionMacro {
         }
         let typeName = type.name.text
         let className = stringArgument(node, "") ?? typeName
-        let explicitSuperclass = stringArgument(node, "superclass")
-        // A Swift superclass: the first inherited type, unless `superclass:` names the Objective-C one.
-        let swiftSuperclass = explicitSuperclass == nil
+        var explicitSuperclass = stringArgument(node, "superclass")
+        // The first inherited type is a Swift superclass, unless `superclass:`
+        // names the Objective-C one, or it's a wrapper's protocol (UIViewMethods):
+        // then the class gets the wrapper's instance members, and its
+        // Objective-C class is a subclass of the wrapped class (UIView).
+        var swiftSuperclass = explicitSuperclass == nil
             ? type.inheritanceClause?.inheritedTypes.first?.type.trimmedDescription : nil
+        if let inherited = swiftSuperclass, inherited.hasSuffix("Methods"), inherited != "Methods" {
+            explicitSuperclass = String(inherited.dropLast("Methods".count))
+            swiftSuperclass = nil
+        }
         let access = accessModifier(type.modifiers)
         let isOpen = type.modifiers.contains { $0.name.tokenKind == .keyword(.open) }
         let overridable = isOpen ? "open " : access
@@ -259,49 +354,21 @@ public struct ObjCImplementationMacro: MemberMacro, ExtensionMacro {
 
         var hasDefaultInit = false
         var hasInitializers = false
-        var methods: [String] = []
-        var userDealloc = false
-        var deallocOverrides = false
+        // Adopted first, so methods take their types from the protocols.
+        var methods: [String] = stringArrayArgument(node, "protocols").map { "    cls.conform(to: \"\($0)\")" }
         for member in type.memberBlock.members {
             if let initializer = member.decl.as(InitializerDeclSyntax.self) {
                 hasInitializers = true
                 if initializer.signature.parameterClause.parameters.isEmpty { hasDefaultInit = true }
             }
-            guard let function = member.decl.as(FunctionDeclSyntax.self),
-                  let marker = attribute(function.attributes, "ObjCMethod") else { continue }
-            let parameters = function.signature.parameterClause.parameters
-            let selector = stringArgument(marker, "") ?? selector(name: function.name.text, parameters: parameters)
-            if selector == "dealloc" {
-                userDealloc = true
-                deallocOverrides = function.modifiers.contains { $0.name.tokenKind == .keyword(.override) }
-                continue
-            }
-            let returnType = function.signature.returnClause?.type
-            var types = encoding(returnType) + "@:"
-            for parameter in parameters { types += encoding(parameter.type) }
-
-            var call = "instance.\(function.name.text)("
-            for (index, parameter) in parameters.enumerated() {
-                let label = parameter.firstName.text
-                call += (index > 0 ? ", " : "") + (label == "_" ? "" : label + ": ") + "objcResult(call[\(index)])"
-            }
-            call += ")"
-            let lookup = "ObjCImplementations.instance(\(typeName).self, for: call.this)"
-            if isVoid(returnType) {
-                methods.append("""
-                    cls.method(\"\(selector)\", fallbackTypes: \"\(types)\") { call in
-                        guard let instance = \(lookup) else { return }
-                        \(call)
-                    }
-                """)
-            } else {
-                methods.append("""
-                    cls.function(\"\(selector)\", fallbackTypes: \"\(types)\") { call in
-                        guard let instance = \(lookup) else { return nil }
-                        return \(call).objcValue
-                    }
-                """)
-            }
+        }
+        let registered = methodRegistrations(type.memberBlock.members, typeName: typeName)
+        methods += registered.methods
+        let userDealloc = registered.dealloc
+        let deallocOverrides = registered.deallocOverrides
+        // Methods in extensions marked @ObjCExtension("Tag")
+        for tag in stringArrayArgument(node, "extensions") {
+            methods.append("    \(typeName).objcMethods\(tag)(cls)")
         }
 
         // A class with no initializers has the implicit init(), or inherits
@@ -309,8 +376,10 @@ public struct ObjCImplementationMacro: MemberMacro, ExtensionMacro {
         if hasDefaultInit || !hasInitializers {
             methods.append("""
                 ObjCImplementations.setFactory({ object in
+                    ObjCImplementations.pendingObject = object
                     let instance = \(typeName)()
-                    instance.attach(to: object)
+                    ObjCImplementations.pendingObject = nil
+                    if instance.objcPointer == nil { instance.attach(to: object) }
                     return instance
                 }, for: cls)
             """)
@@ -367,6 +436,32 @@ public struct ObjCImplementationMacro: MemberMacro, ExtensionMacro {
             """,
             "/// The Objective-C object this instance implements (not retained: the object owns this instance).\n\(raw: access)var objcPointer: UnsafeMutableRawPointer? = nil",
             "/// The Objective-C object this instance implements.\n\(raw: access)var object: ObjCValue { ObjCValue(object: objcPointer) }",
+            "/// The object of an instance Swift created (objcInit), which the instance keeps.\n\(raw: access)var objcOwnedObject: ObjCValue? = nil",
+            """
+            /// Creates the Objective-C object for an instance Swift created, with
+            /// an init… message (`objcInit("initWithFrame:", frame)`) to a new
+            /// object of the instance's class, in place of `super.init(…)`. The
+            /// object is tied first, so methods init… sends reach this instance.
+            /// The instance keeps the object, and the object the instance.
+            @discardableResult
+            \(raw: access)func objcInit(_ selector: String = "init", _ arguments: any ObjCConvertible...) -> ObjCValue {
+                if let pending = ObjCImplementations.pendingObject {
+                    // Objective-C is creating this instance for its object.
+                    ObjCImplementations.pendingObject = nil
+                    attach(to: pending)
+                    return pending
+                }
+                let allocated = type(of: self).objcClass.alloc()
+                attach(to: allocated)
+                let initialized = allocated.send(selector, arguments: arguments)
+                if initialized.asObject?.pointer != objcPointer {
+                    ObjCImplementations.detach(allocated)
+                    attach(to: initialized)
+                }
+                objcOwnedObject = initialized
+                return initialized
+            }
+            """,
             """
             /// Ties this instance to `object`, an instance of `objcClass`, which keeps it alive.
             \(raw: access)func attach(to object: ObjCValue) {
@@ -382,6 +477,13 @@ public struct ObjCImplementationMacro: MemberMacro, ExtensionMacro {
                 self.object.sendSuper(selector, from: \(raw: typeName).\(raw: storage), arguments)
             }
             """,
+            """
+            /// callSuper, with the result as a Swift type: `callSuper("sizeThatFits:", size) as CGSize`.
+            @discardableResult
+            \(raw: access)func callSuper<Result: ObjCResult>(_ selector: String, _ arguments: any ObjCConvertible...) -> Result {
+                objcResult(self.object.sendSuper(selector, from: \(raw: typeName).\(raw: storage), arguments))
+            }
+            """,
         ]
         return members
     }
@@ -389,8 +491,24 @@ public struct ObjCImplementationMacro: MemberMacro, ExtensionMacro {
     public static func expansion(of node: AttributeSyntax, attachedTo declaration: some DeclGroupSyntax,
                                  providingExtensionsOf type: some TypeSyntaxProtocol, conformingTo protocols: [TypeSyntax],
                                  in context: some MacroExpansionContext) throws -> [ExtensionDeclSyntax] {
-        // A subclass already conforms, through its superclass.
-        guard !protocols.isEmpty else { return [] }
-        return [try ExtensionDeclSyntax("extension \(type.trimmed): ObjCConvertible { public var objcValue: ObjCValue { object } }")]
+        // A subclass already conforms, through its superclass, and so does a
+        // class with a wrapper's protocol, to ObjCConvertible.
+        let names = Set(protocols.map { $0.trimmedDescription.split(separator: ".").last.map(String.init) ?? "" })
+        var extensions: [ExtensionDeclSyntax] = []
+        if names.contains("ObjCConvertible") {
+            extensions.append(try ExtensionDeclSyntax("extension \(type.trimmed): ObjCConvertible { public var objcValue: ObjCValue { object } }"))
+        }
+        if names.contains("ObjCImplementationResult") {
+            extensions.append(try ExtensionDeclSyntax("""
+                extension \(type.trimmed): ObjCImplementationResult {
+                    /// The Swift instance of an object of this class (or a subclass's: that subclass's instance).
+                    public static func objcImplementation(for value: ObjCValue) -> Self? {
+                        guard let instance = ObjCImplementations.instance(\(type.trimmed).self, for: value) else { return nil }
+                        return unsafeBitCast(instance, to: Self.self)
+                    }
+                }
+                """))
+        }
+        return extensions
     }
 }
