@@ -111,6 +111,35 @@ ObjC.autoreleasepool {
 
     // UIKit types exist and inherit, without running UIKit.
     check("UIKit class names", UILabel.objcClass.isNil == ObjC.UILabel.isNil)
+
+    // A Swift class that implements an NSOperation subclass, with
+    // NSOperation's members through NSOperationMethods.
+    let jobObject = Job.objcClass.new()
+    check("implemented subclass of a wrapped class", jobObject.isKind(of: "NSOperation") && jobObject.className == "SIFrameworkJob")
+    if let job = Job.objcInstance(for: jobObject) {
+        job.start()   // NSOperation's -start, which sends -main
+        check("wrapped class's methods on the Swift class", job.runs == 1 && job.finished, "\(job.runs)")
+        let other = NSOperation.new()
+        job.addDependency(other)
+        check("Swift class as a wrapper argument", job.dependencies.count == 1)
+        let queue = NSOperationQueue.new()
+        let second = Job()
+        let secondObject = Job.objcClass.new()   // attach(to:) doesn't retain it
+        second.attach(to: secondObject)
+        queue.addOperation(second)
+        queue.waitUntilAllOperationsAreFinished()
+        check("Swift class run by an NSOperationQueue", second.runs == 1)
+    } else {
+        check("implemented subclass's instance", false)
+    }
+}
+
+@ObjCImplementation("SIFrameworkJob")
+final class Job: NSOperationMethods {
+    var runs = 0
+    init() {}
+
+    @ObjCMethod func main() { runs += 1 }
 }
 
 print("\(passed) passed, \(failed) failed")
