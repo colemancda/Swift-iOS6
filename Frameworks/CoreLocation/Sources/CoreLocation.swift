@@ -57,9 +57,6 @@ extension CLHeadingMethods {
 public protocol CLLocationMethods: NSObjectMethods {}
 @ObjC public struct CLLocation: CLLocationMethods {}
 extension CLLocationMethods {
-    @ObjCMethod("initWithLatitude:longitude:") public init(latitude a0: Double, longitude a1: Double)
-    @ObjCMethod("initWithCoordinate:altitude:horizontalAccuracy:verticalAccuracy:timestamp:") public init(coordinate a0: CLLocationCoordinate2D, altitude a1: Double, horizontalAccuracy a2: Double, verticalAccuracy a3: Double, timestamp a4: some NSDateMethods)
-    @ObjCMethod("initWithCoordinate:altitude:horizontalAccuracy:verticalAccuracy:course:speed:timestamp:") public init(coordinate a0: CLLocationCoordinate2D, altitude a1: Double, horizontalAccuracy a2: Double, verticalAccuracy a3: Double, course a4: Double, speed a5: Double, timestamp a6: some NSDateMethods)
     @ObjCProperty(readonly: true) public var coordinate: CLLocationCoordinate2D
     @ObjCProperty(readonly: true) public var altitude: Double
     @ObjCProperty(readonly: true) public var horizontalAccuracy: Double
@@ -70,15 +67,16 @@ extension CLLocationMethods {
     @ObjCMethod("getDistanceFrom:") public func getDistanceFrom(_ a0: ObjCValue) -> Double
     @ObjCMethod("distanceFromLocation:") public func distanceFromLocation(_ a0: ObjCValue) -> Double
 }
+extension CLLocationMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithLatitude:longitude:") public init(latitude a0: Double, longitude a1: Double)
+    @ObjCMethod("initWithCoordinate:altitude:horizontalAccuracy:verticalAccuracy:timestamp:") public init(coordinate a0: CLLocationCoordinate2D, altitude a1: Double, horizontalAccuracy a2: Double, verticalAccuracy a3: Double, timestamp a4: some NSDateMethods)
+    @ObjCMethod("initWithCoordinate:altitude:horizontalAccuracy:verticalAccuracy:course:speed:timestamp:") public init(coordinate a0: CLLocationCoordinate2D, altitude a1: Double, horizontalAccuracy a2: Double, verticalAccuracy a3: Double, course a4: Double, speed a5: Double, timestamp a6: some NSDateMethods)
+}
 
 /// The Objective-C class CLLocationManager, a subclass of NSObject.
 public protocol CLLocationManagerMethods: NSObjectMethods {}
 @ObjC public struct CLLocationManager: CLLocationManagerMethods {}
 extension CLLocationManagerMethods {
-    @ObjCMethod("significantLocationChangeMonitoringAvailable") public static func significantLocationChangeMonitoringAvailable() -> Bool
-    @ObjCMethod("regionMonitoringAvailable") public static func regionMonitoringAvailable() -> Bool
-    @ObjCMethod("regionMonitoringEnabled") public static func regionMonitoringEnabled() -> Bool
-    @ObjCMethod("authorizationStatus") public static func authorizationStatus() -> Int
     @ObjCProperty public var delegate: ObjCValue
     @ObjCProperty(readonly: true) public var locationServicesEnabled: Bool
     @ObjCProperty public var purpose: String?
@@ -105,6 +103,12 @@ extension CLLocationManagerMethods {
     @ObjCMethod("startMonitoringForRegion:") public func startMonitoringForRegion(_ a0: some CLRegionMethods)
     @ObjCMethod("allowDeferredLocationUpdatesUntilTraveled:timeout:") public func allowDeferredLocationUpdatesUntilTraveled(_ a0: Double, timeout a1: Double)
     @ObjCMethod("disallowDeferredLocationUpdates") public func disallowDeferredLocationUpdates()
+}
+extension CLLocationManagerMethods where Self: ObjCWrapper {
+    @ObjCMethod("significantLocationChangeMonitoringAvailable") public static func significantLocationChangeMonitoringAvailable() -> Bool
+    @ObjCMethod("regionMonitoringAvailable") public static func regionMonitoringAvailable() -> Bool
+    @ObjCMethod("regionMonitoringEnabled") public static func regionMonitoringEnabled() -> Bool
+    @ObjCMethod("authorizationStatus") public static func authorizationStatus() -> Int
     @ObjCMethod("deferredLocationUpdatesAvailable") public static func deferredLocationUpdatesAvailable() -> Bool
 }
 
@@ -112,7 +116,6 @@ extension CLLocationManagerMethods {
 public protocol CLPlacemarkMethods: NSObjectMethods {}
 @ObjC public struct CLPlacemark: CLPlacemarkMethods {}
 extension CLPlacemarkMethods {
-    @ObjCMethod("initWithPlacemark:") public init(placemark a0: some CLPlacemarkMethods)
     @ObjCProperty(readonly: true) public var location: CLLocation?
     @ObjCProperty(readonly: true) public var region: CLRegion?
     @ObjCProperty(readonly: true) public var addressDictionary: NSDictionary?
@@ -130,14 +133,19 @@ extension CLPlacemarkMethods {
     @ObjCProperty(readonly: true) public var ocean: String?
     @ObjCProperty(readonly: true) public var areasOfInterest: NSArray?
 }
+extension CLPlacemarkMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithPlacemark:") public init(placemark a0: some CLPlacemarkMethods)
+}
 
 /// The Objective-C class CLRegion, a subclass of NSObject.
 public protocol CLRegionMethods: NSObjectMethods {}
 @ObjC public struct CLRegion: CLRegionMethods {}
 extension CLRegionMethods {
-    @ObjCMethod("initCircularRegionWithCenter:radius:identifier:") public init(circularRegionWithCenter a0: CLLocationCoordinate2D, radius a1: Double, identifier a2: String)
     @ObjCProperty(readonly: true) public var center: CLLocationCoordinate2D
     @ObjCProperty(readonly: true) public var radius: Double
     @ObjCProperty(readonly: true) public var identifier: String?
     @ObjCMethod("containsCoordinate:") public func containsCoordinate(_ a0: CLLocationCoordinate2D) -> Bool
+}
+extension CLRegionMethods where Self: ObjCWrapper {
+    @ObjCMethod("initCircularRegionWithCenter:radius:identifier:") public init(circularRegionWithCenter a0: CLLocationCoordinate2D, radius a1: Double, identifier a2: String)
 }
