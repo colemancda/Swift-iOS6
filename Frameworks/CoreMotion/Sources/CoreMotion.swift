@@ -229,7 +229,6 @@ extension CMMotionManagerMethods {
     public func startMagnetometerUpdatesToQueue(_ a0: some NSOperationQueueMethods, withHandler a1: @escaping (CMMagnetometerData?, NSError?) -> Void) { _ = self.object.send("startMagnetometerUpdatesToQueue:withHandler:", a0, ObjCBlock(types: "v@@") { call in a1(objcResult(call[0]), objcResult(call[1])); return nil }) }
     @ObjCMethod("stopMagnetometerUpdates") public func stopMagnetometerUpdates()
     @ObjCProperty public var deviceMotionUpdateInterval: Double
-    @ObjCMethod("availableAttitudeReferenceFrames") public static func availableAttitudeReferenceFrames() -> Int
     @ObjCProperty(readonly: true) public var attitudeReferenceFrame: Int
     @ObjCProperty(getter: "isDeviceMotionAvailable", readonly: true) public var deviceMotionAvailable: Bool
     @ObjCProperty(getter: "isDeviceMotionActive", readonly: true) public var deviceMotionActive: Bool
@@ -240,6 +239,9 @@ extension CMMotionManagerMethods {
     public func startDeviceMotionUpdatesUsingReferenceFrame(_ a0: Int, toQueue a1: some NSOperationQueueMethods, withHandler a2: @escaping (CMDeviceMotion?, NSError?) -> Void) { _ = self.object.send("startDeviceMotionUpdatesUsingReferenceFrame:toQueue:withHandler:", a0, a1, ObjCBlock(types: "v@@") { call in a2(objcResult(call[0]), objcResult(call[1])); return nil }) }
     @ObjCMethod("stopDeviceMotionUpdates") public func stopDeviceMotionUpdates()
     @ObjCProperty public var showsDeviceMovementDisplay: Bool
+}
+extension CMMotionManagerMethods where Self: ObjCWrapper {
+    @ObjCMethod("availableAttitudeReferenceFrames") public static func availableAttitudeReferenceFrames() -> Int
 }
 
 /// The Objective-C class CMAccelerometerData, a subclass of CMLogItem.
