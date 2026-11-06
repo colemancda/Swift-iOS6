@@ -82,7 +82,7 @@ build/obj/ObjCInterop.o: Sources/ObjCInterop.swift include/ObjCRuntime.h $(MACRO
 	$(SWIFTC) $(SWIFTFLAGS) -parse-as-library -module-name ObjCInterop \
 	  -emit-module -emit-module-path build/modules/ObjCInterop.swiftmodule -c Sources/ObjCInterop.swift -o $@
 
-build/obj/Tests.o: $(wildcard Tests/*.swift) build/obj/ObjCInterop.o
+build/obj/Tests.o: $(wildcard Tests/*.swift) build/obj/ObjCInterop.o $(MACROS)
 	$(SWIFTC) $(SWIFTFLAGS) -module-name ObjCTests -c $(wildcard Tests/*.swift) -o $@
 
 build/obj/ObjCRuntime.o: ObjCRuntime.c include/ObjCRuntime.h
