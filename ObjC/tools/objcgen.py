@@ -45,6 +45,24 @@ SWIFT_KEYWORDS = {
 RESERVED_MEMBERS = {"object", "objcClass", "objcValue", "isNil", "as", "Type", "Protocol", "init", "self", "Self"}
 # Labels Swift doesn't accept even in backticks.
 BAD_LABELS = {"inout", "var", "let"}
+# Directories with frameworks outside the SDK (--framework-path), such as
+# MobileVLCKit.framework: searched after the SDK's, like clang's -F.
+FRAMEWORK_PATHS = []
+
+
+def framework_headers(sdk, framework):
+    """The Headers folder of a framework, in the SDK or a --framework-path."""
+    for directory in [os.path.join(sdk, "System/Library/Frameworks")] + FRAMEWORK_PATHS:
+        headers = os.path.join(directory, f"{framework}.framework", "Headers")
+        if os.path.isdir(headers):
+            return headers
+    raise SystemExit(f"no headers for {framework}.framework in the SDK or {FRAMEWORK_PATHS}")
+
+
+def framework_flags():
+    return [f"-F{path}" for path in FRAMEWORK_PATHS]
+
+
 # Classes that aren't wrapped: Protocol clashes with Swift's own meaning.
 SKIPPED_CLASSES = {"Protocol"}
 
@@ -123,7 +141,7 @@ class HeaderIndex:
         pattern = re.compile(r"@interface\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?:<[^>]*>\s*)?(\(\s*([A-Za-z0-9_]*)\s*\)|:|$|\{)", re.M)
         # NSObject is declared by the Objective-C runtime's headers; it's wrapped with Foundation.
         directories = [("Foundation", os.path.join(sdk, "usr/include/objc"))] if "Foundation" in frameworks else []
-        directories += [(f, os.path.join(sdk, "System/Library/Frameworks", f"{f}.framework", "Headers")) for f in frameworks]
+        directories += [(f, framework_headers(sdk, f)) for f in frameworks]
         for framework, headers in directories:
             for name in sorted(os.listdir(headers)):
                 if not name.endswith(".h"):
@@ -242,7 +260,7 @@ def parse_headers(frameworks, sdk, min_ios):
         path = handle.name
     try:
         result = subprocess.run(
-            ["xcrun", "clang", "-x", "objective-c", "-arch", "armv7", "-isysroot", sdk,
+            ["xcrun", "clang", "-x", "objective-c", "-arch", "armv7", "-isysroot", sdk, *framework_flags(),
              f"-miphoneos-version-min={min_ios}", "-fsyntax-only", "-Xclang", "-ast-dump=json", path],
             capture_output=True, check=True)
     finally:
@@ -718,7 +736,7 @@ def check_availability(members, classes, sdk, frameworks, min_ios):
         path = handle.name
     try:
         result = subprocess.run(
-            ["xcrun", "clang", "-x", "objective-c", "-arch", "armv7", "-isysroot", sdk,
+            ["xcrun", "clang", "-x", "objective-c", "-arch", "armv7", "-isysroot", sdk, *framework_flags(),
              f"-miphoneos-version-min={min_ios}", "-fsyntax-only", "-ferror-limit=0", "-Wno-null-dereference",
              "-Wno-deprecated-declarations", "-Wno-objc-method-access", "-Wno-unused-value",
              "-Werror=unguarded-availability", "-Werror=unguarded-availability-new", path],
@@ -877,7 +895,11 @@ def main():
     parser.add_argument("--out", default=os.path.join(REPO, "Frameworks"))
     parser.add_argument("--sdk", default=os.path.join(REPO, "sdk", "iPhoneOS9.3.sdk"))
     parser.add_argument("--min-ios", default="6.0")
-    generate(parser.parse_args())
+    parser.add_argument("--framework-path", action="append", default=[],
+                        help="a folder with frameworks outside the SDK, such as MobileVLCKit.framework")
+    args = parser.parse_args()
+    FRAMEWORK_PATHS.extend(os.path.abspath(path) for path in args.framework_path)
+    generate(args)
 
 
 if __name__ == "__main__":
