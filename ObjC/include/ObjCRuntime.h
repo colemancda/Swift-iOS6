@@ -100,6 +100,8 @@ void objcrt_register_class(void *cls);
 /// replaces it if `cls` already has it. Returns 0 on success.
 long objcrt_add_method(void *cls, void *selector, const char *types);
 /// Declares that `cls` adopts the protocol. Returns 0 if the protocol exists.
+/// The protocol with this name (objc_getProtocol), or NULL if the runtime doesn't know it.
+void *objcrt_protocol(const char *name);
 long objcrt_add_protocol(void *cls, const char *protocol);
 /// The type encoding of `selector` on instances of `cls` (inherited ones
 /// included), or NULL.
