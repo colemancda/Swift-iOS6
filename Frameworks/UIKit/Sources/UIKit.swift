@@ -128,19 +128,21 @@ extension NSCoderMethods {
 
 /// UIKit additions to NSIndexPath.
 extension NSIndexPathMethods {
-    @ObjCMethod("indexPathForRow:inSection:") public static func indexPathForRow(_ a0: Int, inSection a1: Int) -> Self
     @ObjCProperty(readonly: true) public var section: Int
     @ObjCProperty(readonly: true) public var row: Int
-    @ObjCMethod("indexPathForItem:inSection:") public static func indexPathForItem(_ a0: Int, inSection a1: Int) -> Self
     @ObjCProperty(readonly: true) public var item: Int
+}
+
+/// UIKit additions to NSIndexPath.
+extension NSIndexPathMethods where Self: ObjCWrapper {
+    @ObjCMethod("indexPathForRow:inSection:") public static func indexPathForRow(_ a0: Int, inSection a1: Int) -> Self
+    @ObjCMethod("indexPathForItem:inSection:") public static func indexPathForItem(_ a0: Int, inSection a1: Int) -> Self
 }
 
 /// The Objective-C class NSLayoutConstraint, a subclass of NSObject.
 public protocol NSLayoutConstraintMethods: NSObjectMethods {}
 @ObjC public struct NSLayoutConstraint: NSLayoutConstraintMethods {}
 extension NSLayoutConstraintMethods {
-    @ObjCMethod("constraintsWithVisualFormat:options:metrics:views:") public static func constraintsWithVisualFormat(_ a0: String, options a1: Int, metrics a2: NSDictionary?, views a3: some NSDictionaryMethods) -> NSArray
-    @ObjCMethod("constraintWithItem:attribute:relatedBy:toItem:attribute:multiplier:constant:") public static func constraintWithItem(_ a0: ObjCValue, attribute a1: Int, relatedBy a2: Int, toItem a3: ObjCValue, attribute a4: Int, multiplier a5: Float, constant a6: Float) -> Self
     @ObjCProperty public var priority: Float
     @ObjCProperty public var shouldBeArchived: Bool
     @ObjCProperty(readonly: true) public var firstItem: ObjCValue
@@ -151,13 +153,15 @@ extension NSLayoutConstraintMethods {
     @ObjCProperty(readonly: true) public var multiplier: Float
     @ObjCProperty public var constant: Float
 }
+extension NSLayoutConstraintMethods where Self: ObjCWrapper {
+    @ObjCMethod("constraintsWithVisualFormat:options:metrics:views:") public static func constraintsWithVisualFormat(_ a0: String, options a1: Int, metrics a2: NSDictionary?, views a3: some NSDictionaryMethods) -> NSArray
+    @ObjCMethod("constraintWithItem:attribute:relatedBy:toItem:attribute:multiplier:constant:") public static func constraintWithItem(_ a0: ObjCValue, attribute a1: Int, relatedBy a2: Int, toItem a3: ObjCValue, attribute a4: Int, multiplier a5: Float, constant a6: Float) -> Self
+}
 
 /// The Objective-C class NSParagraphStyle, a subclass of NSObject.
 public protocol NSParagraphStyleMethods: NSObjectMethods {}
 @ObjC public struct NSParagraphStyle: NSParagraphStyleMethods {}
 extension NSParagraphStyleMethods {
-    @ObjCMethod("defaultParagraphStyle") public static func defaultParagraphStyle() -> NSParagraphStyle
-    @ObjCMethod("defaultWritingDirectionForLanguage:") public static func defaultWritingDirectionForLanguage(_ a0: String?) -> Int
     @ObjCProperty(readonly: true) public var lineSpacing: Float
     @ObjCProperty(readonly: true) public var paragraphSpacing: Float
     @ObjCProperty(readonly: true) public var alignment: Int
@@ -172,15 +176,21 @@ extension NSParagraphStyleMethods {
     @ObjCProperty(readonly: true) public var paragraphSpacingBefore: Float
     @ObjCProperty(readonly: true) public var hyphenationFactor: Float
 }
+extension NSParagraphStyleMethods where Self: ObjCWrapper {
+    @ObjCMethod("defaultParagraphStyle") public static func defaultParagraphStyle() -> NSParagraphStyle
+    @ObjCMethod("defaultWritingDirectionForLanguage:") public static func defaultWritingDirectionForLanguage(_ a0: String?) -> Int
+}
 
 /// The Objective-C class NSShadow, a subclass of NSObject.
 public protocol NSShadowMethods: NSObjectMethods {}
 @ObjC public struct NSShadow: NSShadowMethods {}
 extension NSShadowMethods {
-    @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
     @ObjCProperty public var shadowOffset: CGSize
     @ObjCProperty public var shadowBlurRadius: Float
     @ObjCProperty public var shadowColor: ObjCValue
+}
+extension NSShadowMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
 }
 
 /// UIKit additions to NSString.
@@ -212,13 +222,6 @@ extension NSStringDrawingContextMethods {
 
 /// UIKit additions to NSValue.
 extension NSValueMethods {
-    @ObjCMethod("valueWithCGPoint:") public static func valueWithCGPoint(_ a0: CGPoint) -> NSValue
-    @ObjCMethod("valueWithCGVector:") public static func valueWithCGVector(_ a0: ObjCValue) -> NSValue
-    @ObjCMethod("valueWithCGSize:") public static func valueWithCGSize(_ a0: CGSize) -> NSValue
-    @ObjCMethod("valueWithCGRect:") public static func valueWithCGRect(_ a0: CGRect) -> NSValue
-    @ObjCMethod("valueWithCGAffineTransform:") public static func valueWithCGAffineTransform(_ a0: ObjCValue) -> NSValue
-    @ObjCMethod("valueWithUIEdgeInsets:") public static func valueWithUIEdgeInsets(_ a0: UIEdgeInsets) -> NSValue
-    @ObjCMethod("valueWithUIOffset:") public static func valueWithUIOffset(_ a0: UIOffset) -> NSValue
     @ObjCMethod("CGPointValue") public func CGPointValue() -> CGPoint
     @ObjCMethod("CGVectorValue") public func CGVectorValue() -> ObjCValue
     @ObjCMethod("CGSizeValue") public func CGSizeValue() -> CGSize
@@ -226,6 +229,17 @@ extension NSValueMethods {
     @ObjCMethod("CGAffineTransformValue") public func CGAffineTransformValue() -> ObjCValue
     @ObjCMethod("UIEdgeInsetsValue") public func UIEdgeInsetsValue() -> UIEdgeInsets
     @ObjCMethod("UIOffsetValue") public func UIOffsetValue() -> UIOffset
+}
+
+/// UIKit additions to NSValue.
+extension NSValueMethods where Self: ObjCWrapper {
+    @ObjCMethod("valueWithCGPoint:") public static func valueWithCGPoint(_ a0: CGPoint) -> NSValue
+    @ObjCMethod("valueWithCGVector:") public static func valueWithCGVector(_ a0: ObjCValue) -> NSValue
+    @ObjCMethod("valueWithCGSize:") public static func valueWithCGSize(_ a0: CGSize) -> NSValue
+    @ObjCMethod("valueWithCGRect:") public static func valueWithCGRect(_ a0: CGRect) -> NSValue
+    @ObjCMethod("valueWithCGAffineTransform:") public static func valueWithCGAffineTransform(_ a0: ObjCValue) -> NSValue
+    @ObjCMethod("valueWithUIEdgeInsets:") public static func valueWithUIEdgeInsets(_ a0: UIEdgeInsets) -> NSValue
+    @ObjCMethod("valueWithUIOffset:") public static func valueWithUIOffset(_ a0: UIOffset) -> NSValue
 }
 
 /// The Objective-C class UIAcceleration, a subclass of NSObject.
@@ -242,17 +256,21 @@ extension UIAccelerationMethods {
 public protocol UIAccelerometerMethods: NSObjectMethods {}
 @ObjC public struct UIAccelerometer: UIAccelerometerMethods {}
 extension UIAccelerometerMethods {
-    @ObjCMethod("sharedAccelerometer") public static func sharedAccelerometer() -> UIAccelerometer
     @ObjCProperty public var updateInterval: Double
     @ObjCProperty public var delegate: ObjCValue
+}
+extension UIAccelerometerMethods where Self: ObjCWrapper {
+    @ObjCMethod("sharedAccelerometer") public static func sharedAccelerometer() -> UIAccelerometer
 }
 
 /// The Objective-C class UIAccessibilityElement, a subclass of NSObject.
 public protocol UIAccessibilityElementMethods: NSObjectMethods {}
 @ObjC public struct UIAccessibilityElement: UIAccessibilityElementMethods {}
 extension UIAccessibilityElementMethods {
-    @ObjCMethod("initWithAccessibilityContainer:") public init(accessibilityContainer a0: ObjCValue)
     @ObjCProperty public var accessibilityContainer: ObjCValue
+}
+extension UIAccessibilityElementMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithAccessibilityContainer:") public init(accessibilityContainer a0: ObjCValue)
 }
 
 /// The Objective-C class UIActivity, a subclass of NSObject.
@@ -273,7 +291,6 @@ extension UIActivityMethods {
 public protocol UIBarItemMethods: NSObjectMethods {}
 @ObjC public struct UIBarItem: UIBarItemMethods {}
 extension UIBarItemMethods {
-    @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
     @ObjCProperty(getter: "isEnabled") public var enabled: Bool
     @ObjCProperty public var title: String?
     @ObjCProperty public var image: UIImage?
@@ -284,19 +301,14 @@ extension UIBarItemMethods {
     @ObjCMethod("setTitleTextAttributes:forState:") public func setTitleTextAttributes(_ a0: NSDictionary?, forState a1: Int)
     @ObjCMethod("titleTextAttributesForState:") public func titleTextAttributesForState(_ a0: Int) -> NSDictionary?
 }
+extension UIBarItemMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
+}
 
 /// The Objective-C class UIBezierPath, a subclass of NSObject.
 public protocol UIBezierPathMethods: NSObjectMethods {}
 @ObjC public struct UIBezierPath: UIBezierPathMethods {}
 extension UIBezierPathMethods {
-    @ObjCMethod("bezierPath") public static func bezierPath() -> Self
-    @ObjCMethod("bezierPathWithRect:") public static func bezierPathWithRect(_ a0: CGRect) -> Self
-    @ObjCMethod("bezierPathWithOvalInRect:") public static func bezierPathWithOvalInRect(_ a0: CGRect) -> Self
-    @ObjCMethod("bezierPathWithRoundedRect:cornerRadius:") public static func bezierPathWithRoundedRect(_ a0: CGRect, cornerRadius a1: Float) -> Self
-    @ObjCMethod("bezierPathWithRoundedRect:byRoundingCorners:cornerRadii:") public static func bezierPathWithRoundedRect(_ a0: CGRect, byRoundingCorners a1: Int, cornerRadii a2: CGSize) -> Self
-    @ObjCMethod("bezierPathWithArcCenter:radius:startAngle:endAngle:clockwise:") public static func bezierPathWithArcCenter(_ a0: CGPoint, radius a1: Float, startAngle a2: Float, endAngle a3: Float, clockwise a4: Bool) -> Self
-    @ObjCMethod("bezierPathWithCGPath:") public static func bezierPathWithCGPath(_ a0: ObjCValue) -> Self
-    @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
     @ObjCProperty public var CGPath: ObjCValue
     @ObjCMethod("moveToPoint:") public func moveToPoint(_ a0: CGPoint)
     @ObjCMethod("addLineToPoint:") public func addLineToPoint(_ a0: CGPoint)
@@ -326,17 +338,25 @@ extension UIBezierPathMethods {
     @ObjCMethod("strokeWithBlendMode:alpha:") public func strokeWithBlendMode(_ a0: Int, alpha a1: Float)
     @ObjCMethod("addClip") public func addClip()
 }
+extension UIBezierPathMethods where Self: ObjCWrapper {
+    @ObjCMethod("bezierPath") public static func bezierPath() -> Self
+    @ObjCMethod("bezierPathWithRect:") public static func bezierPathWithRect(_ a0: CGRect) -> Self
+    @ObjCMethod("bezierPathWithOvalInRect:") public static func bezierPathWithOvalInRect(_ a0: CGRect) -> Self
+    @ObjCMethod("bezierPathWithRoundedRect:cornerRadius:") public static func bezierPathWithRoundedRect(_ a0: CGRect, cornerRadius a1: Float) -> Self
+    @ObjCMethod("bezierPathWithRoundedRect:byRoundingCorners:cornerRadii:") public static func bezierPathWithRoundedRect(_ a0: CGRect, byRoundingCorners a1: Int, cornerRadii a2: CGSize) -> Self
+    @ObjCMethod("bezierPathWithArcCenter:radius:startAngle:endAngle:clockwise:") public static func bezierPathWithArcCenter(_ a0: CGPoint, radius a1: Float, startAngle a2: Float, endAngle a3: Float, clockwise a4: Bool) -> Self
+    @ObjCMethod("bezierPathWithCGPath:") public static func bezierPathWithCGPath(_ a0: ObjCValue) -> Self
+    @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
+}
 
 /// The Objective-C class UICollectionViewLayout, a subclass of NSObject.
 public protocol UICollectionViewLayoutMethods: NSObjectMethods {}
 @ObjC public struct UICollectionViewLayout: UICollectionViewLayoutMethods {}
 extension UICollectionViewLayoutMethods {
-    @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
     @ObjCProperty(readonly: true) public var collectionView: UICollectionView?
     @ObjCMethod("invalidateLayout") public func invalidateLayout()
     @ObjCMethod("registerClass:forDecorationViewOfKind:") public func registerClass(_ a0: ObjCValue, forDecorationViewOfKind a1: String)
     @ObjCMethod("registerNib:forDecorationViewOfKind:") public func registerNib(_ a0: UINib?, forDecorationViewOfKind a1: String)
-    @ObjCMethod("layoutAttributesClass") public static func layoutAttributesClass() -> ObjCValue
     @ObjCMethod("prepareLayout") public func prepareLayout()
     @ObjCMethod("layoutAttributesForElementsInRect:") public func layoutAttributesForElementsInRect(_ a0: CGRect) -> NSArray?
     @ObjCMethod("layoutAttributesForItemAtIndexPath:") public func layoutAttributesForItemAtIndexPath(_ a0: some NSIndexPathMethods) -> UICollectionViewLayoutAttributes?
@@ -356,6 +376,10 @@ extension UICollectionViewLayoutMethods {
     @ObjCMethod("initialLayoutAttributesForAppearingDecorationElementOfKind:atIndexPath:") public func initialLayoutAttributesForAppearingDecorationElementOfKind(_ a0: String, atIndexPath a1: some NSIndexPathMethods) -> UICollectionViewLayoutAttributes?
     @ObjCMethod("finalLayoutAttributesForDisappearingDecorationElementOfKind:atIndexPath:") public func finalLayoutAttributesForDisappearingDecorationElementOfKind(_ a0: String, atIndexPath a1: some NSIndexPathMethods) -> UICollectionViewLayoutAttributes?
 }
+extension UICollectionViewLayoutMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
+    @ObjCMethod("layoutAttributesClass") public static func layoutAttributesClass() -> ObjCValue
+}
 
 /// The Objective-C class UICollectionViewLayoutAttributes, a subclass of NSObject.
 public protocol UICollectionViewLayoutAttributesMethods: NSObjectMethods {}
@@ -371,6 +395,8 @@ extension UICollectionViewLayoutAttributesMethods {
     @ObjCProperty public var indexPath: NSIndexPath
     @ObjCProperty(readonly: true) public var representedElementCategory: Int
     @ObjCProperty(readonly: true) public var representedElementKind: String?
+}
+extension UICollectionViewLayoutAttributesMethods where Self: ObjCWrapper {
     @ObjCMethod("layoutAttributesForCellWithIndexPath:") public static func layoutAttributesForCellWithIndexPath(_ a0: some NSIndexPathMethods) -> Self
     @ObjCMethod("layoutAttributesForSupplementaryViewOfKind:withIndexPath:") public static func layoutAttributesForSupplementaryViewOfKind(_ a0: String, withIndexPath a1: some NSIndexPathMethods) -> Self
     @ObjCMethod("layoutAttributesForDecorationViewOfKind:withIndexPath:") public static func layoutAttributesForDecorationViewOfKind(_ a0: String, withIndexPath a1: some NSIndexPathMethods) -> Self
@@ -389,6 +415,17 @@ extension UICollectionViewUpdateItemMethods {
 public protocol UIColorMethods: NSObjectMethods {}
 @ObjC public struct UIColor: UIColorMethods {}
 extension UIColorMethods {
+    @ObjCMethod("set") public func set()
+    @ObjCMethod("setFill") public func setFill()
+    @ObjCMethod("setStroke") public func setStroke()
+    @ObjCMethod("getWhite:alpha:") public func getWhite(_ a0: ObjCValue, alpha a1: ObjCValue) -> Bool
+    @ObjCMethod("getHue:saturation:brightness:alpha:") public func getHue(_ a0: ObjCValue, saturation a1: ObjCValue, brightness a2: ObjCValue, alpha a3: ObjCValue) -> Bool
+    @ObjCMethod("getRed:green:blue:alpha:") public func getRed(_ a0: ObjCValue, green a1: ObjCValue, blue a2: ObjCValue, alpha a3: ObjCValue) -> Bool
+    @ObjCMethod("colorWithAlphaComponent:") public func colorWithAlphaComponent(_ a0: Float) -> UIColor
+    @ObjCProperty(readonly: true) public var CGColor: ObjCValue
+    @ObjCProperty(readonly: true) public var CIColor: ObjCValue
+}
+extension UIColorMethods where Self: ObjCWrapper {
     @ObjCMethod("colorWithWhite:alpha:") public static func colorWithWhite(_ a0: Float, alpha a1: Float) -> UIColor
     @ObjCMethod("colorWithHue:saturation:brightness:alpha:") public static func colorWithHue(_ a0: Float, saturation a1: Float, brightness a2: Float, alpha a3: Float) -> UIColor
     @ObjCMethod("colorWithRed:green:blue:alpha:") public static func colorWithRed(_ a0: Float, green a1: Float, blue a2: Float, alpha a3: Float) -> UIColor
@@ -410,15 +447,6 @@ extension UIColorMethods {
     @ObjCMethod("purpleColor") public static func purpleColor() -> UIColor
     @ObjCMethod("brownColor") public static func brownColor() -> UIColor
     @ObjCMethod("clearColor") public static func clearColor() -> UIColor
-    @ObjCMethod("set") public func set()
-    @ObjCMethod("setFill") public func setFill()
-    @ObjCMethod("setStroke") public func setStroke()
-    @ObjCMethod("getWhite:alpha:") public func getWhite(_ a0: ObjCValue, alpha a1: ObjCValue) -> Bool
-    @ObjCMethod("getHue:saturation:brightness:alpha:") public func getHue(_ a0: ObjCValue, saturation a1: ObjCValue, brightness a2: ObjCValue, alpha a3: ObjCValue) -> Bool
-    @ObjCMethod("getRed:green:blue:alpha:") public func getRed(_ a0: ObjCValue, green a1: ObjCValue, blue a2: ObjCValue, alpha a3: ObjCValue) -> Bool
-    @ObjCMethod("colorWithAlphaComponent:") public func colorWithAlphaComponent(_ a0: Float) -> UIColor
-    @ObjCProperty(readonly: true) public var CGColor: ObjCValue
-    @ObjCProperty(readonly: true) public var CIColor: ObjCValue
     @ObjCMethod("lightTextColor") public static func lightTextColor() -> UIColor
     @ObjCMethod("darkTextColor") public static func darkTextColor() -> UIColor
     @ObjCMethod("groupTableViewBackgroundColor") public static func groupTableViewBackgroundColor() -> UIColor
@@ -431,7 +459,6 @@ extension UIColorMethods {
 public protocol UIDeviceMethods: NSObjectMethods {}
 @ObjC public struct UIDevice: UIDeviceMethods {}
 extension UIDeviceMethods {
-    @ObjCMethod("currentDevice") public static func currentDevice() -> UIDevice
     @ObjCProperty(readonly: true) public var name: String
     @ObjCProperty(readonly: true) public var model: String
     @ObjCProperty(readonly: true) public var localizedModel: String
@@ -451,6 +478,9 @@ extension UIDeviceMethods {
     @ObjCProperty(readonly: true) public var userInterfaceIdiom: Int
     @ObjCMethod("playInputClick") public func playInputClick()
 }
+extension UIDeviceMethods where Self: ObjCWrapper {
+    @ObjCMethod("currentDevice") public static func currentDevice() -> UIDevice
+}
 
 /// The Objective-C class UIDictationPhrase, a subclass of NSObject.
 public protocol UIDictationPhraseMethods: NSObjectMethods {}
@@ -464,7 +494,6 @@ extension UIDictationPhraseMethods {
 public protocol UIDocumentMethods: NSObjectMethods {}
 @ObjC public struct UIDocument: UIDocumentMethods {}
 extension UIDocumentMethods {
-    @ObjCMethod("initWithFileURL:") public init(fileURL a0: some NSURLMethods)
     @ObjCProperty(readonly: true) public var fileURL: NSURL?
     @ObjCProperty(readonly: true) public var localizedName: String?
     @ObjCProperty(readonly: true) public var fileType: String?
@@ -495,12 +524,14 @@ extension UIDocumentMethods {
     @ObjCMethod("userInteractionNoLongerPermittedForError:") public func userInteractionNoLongerPermittedForError(_ a0: some NSErrorMethods)
     public func revertToContentsOfURL(_ a0: some NSURLMethods, completionHandler a1: ((Bool) -> Void)?) { _ = self.object.send("revertToContentsOfURL:completionHandler:", a0, a1.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
 }
+extension UIDocumentMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithFileURL:") public init(fileURL a0: some NSURLMethods)
+}
 
 /// The Objective-C class UIDocumentInteractionController, a subclass of NSObject.
 public protocol UIDocumentInteractionControllerMethods: NSObjectMethods {}
 @ObjC public struct UIDocumentInteractionController: UIDocumentInteractionControllerMethods {}
 extension UIDocumentInteractionControllerMethods {
-    @ObjCMethod("interactionControllerWithURL:") public static func interactionControllerWithURL(_ a0: some NSURLMethods) -> UIDocumentInteractionController
     @ObjCProperty public var delegate: ObjCValue
     @ObjCProperty public var URL: NSURL?
     @ObjCProperty public var UTI: String?
@@ -515,6 +546,9 @@ extension UIDocumentInteractionControllerMethods {
     @ObjCMethod("dismissPreviewAnimated:") public func dismissPreviewAnimated(_ a0: Bool)
     @ObjCMethod("dismissMenuAnimated:") public func dismissMenuAnimated(_ a0: Bool)
     @ObjCProperty(readonly: true) public var gestureRecognizers: NSArray
+}
+extension UIDocumentInteractionControllerMethods where Self: ObjCWrapper {
+    @ObjCMethod("interactionControllerWithURL:") public static func interactionControllerWithURL(_ a0: some NSURLMethods) -> UIDocumentInteractionController
 }
 
 /// The Objective-C class UIEvent, a subclass of NSObject.
@@ -534,12 +568,6 @@ extension UIEventMethods {
 public protocol UIFontMethods: NSObjectMethods {}
 @ObjC public struct UIFont: UIFontMethods {}
 extension UIFontMethods {
-    @ObjCMethod("fontWithName:size:") public static func fontWithName(_ a0: String, size a1: Float) -> UIFont?
-    @ObjCMethod("familyNames") public static func familyNames() -> NSArray
-    @ObjCMethod("fontNamesForFamilyName:") public static func fontNamesForFamilyName(_ a0: String) -> NSArray
-    @ObjCMethod("systemFontOfSize:") public static func systemFontOfSize(_ a0: Float) -> UIFont
-    @ObjCMethod("boldSystemFontOfSize:") public static func boldSystemFontOfSize(_ a0: Float) -> UIFont
-    @ObjCMethod("italicSystemFontOfSize:") public static func italicSystemFontOfSize(_ a0: Float) -> UIFont
     @ObjCProperty(readonly: true) public var familyName: String
     @ObjCProperty(readonly: true) public var fontName: String
     @ObjCProperty(readonly: true) public var pointSize: Float
@@ -550,6 +578,14 @@ extension UIFontMethods {
     @ObjCProperty(readonly: true) public var lineHeight: Float
     @ObjCProperty(readonly: true) public var leading: Float
     @ObjCMethod("fontWithSize:") public func fontWithSize(_ a0: Float) -> UIFont
+}
+extension UIFontMethods where Self: ObjCWrapper {
+    @ObjCMethod("fontWithName:size:") public static func fontWithName(_ a0: String, size a1: Float) -> UIFont?
+    @ObjCMethod("familyNames") public static func familyNames() -> NSArray
+    @ObjCMethod("fontNamesForFamilyName:") public static func fontNamesForFamilyName(_ a0: String) -> NSArray
+    @ObjCMethod("systemFontOfSize:") public static func systemFontOfSize(_ a0: Float) -> UIFont
+    @ObjCMethod("boldSystemFontOfSize:") public static func boldSystemFontOfSize(_ a0: Float) -> UIFont
+    @ObjCMethod("italicSystemFontOfSize:") public static func italicSystemFontOfSize(_ a0: Float) -> UIFont
     @ObjCMethod("labelFontSize") public static func labelFontSize() -> Float
     @ObjCMethod("buttonFontSize") public static func buttonFontSize() -> Float
     @ObjCMethod("smallSystemFontSize") public static func smallSystemFontSize() -> Float
@@ -560,7 +596,6 @@ extension UIFontMethods {
 public protocol UIGestureRecognizerMethods: NSObjectMethods {}
 @ObjC public struct UIGestureRecognizer: UIGestureRecognizerMethods {}
 extension UIGestureRecognizerMethods {
-    @ObjCMethod("initWithTarget:action:") public init(target a0: ObjCValue, action a1: ObjCValue)
     @ObjCMethod("addTarget:action:") public func addTarget(_ a0: ObjCValue, action a1: ObjCValue)
     @ObjCMethod("removeTarget:action:") public func removeTarget(_ a0: ObjCValue, action a1: ObjCValue)
     @ObjCProperty(readonly: true) public var state: Int
@@ -575,35 +610,19 @@ extension UIGestureRecognizerMethods {
     @ObjCMethod("numberOfTouches") public func numberOfTouches() -> Int
     @ObjCMethod("locationOfTouch:inView:") public func locationOfTouch(_ a0: Int, inView a1: UIView?) -> CGPoint
 }
+extension UIGestureRecognizerMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithTarget:action:") public init(target a0: ObjCValue, action a1: ObjCValue)
+}
 
 /// The Objective-C class UIImage, a subclass of NSObject.
 public protocol UIImageMethods: NSObjectMethods {}
 @ObjC public struct UIImage: UIImageMethods {}
 extension UIImageMethods {
-    @ObjCMethod("imageNamed:") public static func imageNamed(_ a0: String) -> UIImage?
-    @ObjCMethod("imageWithContentsOfFile:") public static func imageWithContentsOfFile(_ a0: String) -> UIImage?
-    @ObjCMethod("imageWithData:") public static func imageWithData(_ a0: some NSDataMethods) -> UIImage?
-    @ObjCMethod("imageWithData:scale:") public static func imageWithData(_ a0: some NSDataMethods, scale a1: Float) -> UIImage?
-    @ObjCMethod("imageWithCGImage:") public static func imageWithCGImage(_ a0: ObjCValue) -> UIImage
-    @ObjCMethod("imageWithCGImage:scale:orientation:") public static func imageWithCGImage(_ a0: ObjCValue, scale a1: Float, orientation a2: Int) -> UIImage
-    @ObjCMethod("imageWithCIImage:") public static func imageWithCIImage(_ a0: ObjCValue) -> UIImage
-    @ObjCMethod("imageWithCIImage:scale:orientation:") public static func imageWithCIImage(_ a0: ObjCValue, scale a1: Float, orientation a2: Int) -> UIImage
-    @ObjCMethod("initWithContentsOfFile:") public init(contentsOfFile a0: String)
-    @ObjCMethod("initWithData:") public init(data a0: some NSDataMethods)
-    @ObjCMethod("initWithData:scale:") public init(data a0: some NSDataMethods, scale a1: Float)
-    @ObjCMethod("initWithCGImage:") public init(cgImage a0: ObjCValue)
-    @ObjCMethod("initWithCGImage:scale:orientation:") public init(cgImage a0: ObjCValue, scale a1: Float, orientation a2: Int)
-    @ObjCMethod("initWithCIImage:") public init(ciImage a0: ObjCValue)
-    @ObjCMethod("initWithCIImage:scale:orientation:") public init(ciImage a0: ObjCValue, scale a1: Float, orientation a2: Int)
     @ObjCProperty(readonly: true) public var size: CGSize
     @ObjCProperty(readonly: true) public var CGImage: ObjCValue
     @ObjCProperty(readonly: true) public var CIImage: ObjCValue
     @ObjCProperty(readonly: true) public var imageOrientation: Int
     @ObjCProperty(readonly: true) public var scale: Float
-    @ObjCMethod("animatedImageNamed:duration:") public static func animatedImageNamed(_ a0: String, duration a1: Double) -> UIImage?
-    @ObjCMethod("animatedResizableImageNamed:capInsets:duration:") public static func animatedResizableImageNamed(_ a0: String, capInsets a1: UIEdgeInsets, duration a2: Double) -> UIImage?
-    @ObjCMethod("animatedResizableImageNamed:capInsets:resizingMode:duration:") public static func animatedResizableImageNamed(_ a0: String, capInsets a1: UIEdgeInsets, resizingMode a2: Int, duration a3: Double) -> UIImage?
-    @ObjCMethod("animatedImageWithImages:duration:") public static func animatedImageWithImages(_ a0: some NSArrayMethods, duration a1: Double) -> UIImage?
     @ObjCProperty(readonly: true) public var images: NSArray?
     @ObjCProperty(readonly: true) public var duration: Double
     @ObjCMethod("drawAtPoint:") public func drawAtPoint(_ a0: CGPoint)
@@ -621,12 +640,32 @@ extension UIImageMethods {
     @ObjCProperty(readonly: true) public var leftCapWidth: Int
     @ObjCProperty(readonly: true) public var topCapHeight: Int
 }
+extension UIImageMethods where Self: ObjCWrapper {
+    @ObjCMethod("imageNamed:") public static func imageNamed(_ a0: String) -> UIImage?
+    @ObjCMethod("imageWithContentsOfFile:") public static func imageWithContentsOfFile(_ a0: String) -> UIImage?
+    @ObjCMethod("imageWithData:") public static func imageWithData(_ a0: some NSDataMethods) -> UIImage?
+    @ObjCMethod("imageWithData:scale:") public static func imageWithData(_ a0: some NSDataMethods, scale a1: Float) -> UIImage?
+    @ObjCMethod("imageWithCGImage:") public static func imageWithCGImage(_ a0: ObjCValue) -> UIImage
+    @ObjCMethod("imageWithCGImage:scale:orientation:") public static func imageWithCGImage(_ a0: ObjCValue, scale a1: Float, orientation a2: Int) -> UIImage
+    @ObjCMethod("imageWithCIImage:") public static func imageWithCIImage(_ a0: ObjCValue) -> UIImage
+    @ObjCMethod("imageWithCIImage:scale:orientation:") public static func imageWithCIImage(_ a0: ObjCValue, scale a1: Float, orientation a2: Int) -> UIImage
+    @ObjCMethod("initWithContentsOfFile:") public init(contentsOfFile a0: String)
+    @ObjCMethod("initWithData:") public init(data a0: some NSDataMethods)
+    @ObjCMethod("initWithData:scale:") public init(data a0: some NSDataMethods, scale a1: Float)
+    @ObjCMethod("initWithCGImage:") public init(cgImage a0: ObjCValue)
+    @ObjCMethod("initWithCGImage:scale:orientation:") public init(cgImage a0: ObjCValue, scale a1: Float, orientation a2: Int)
+    @ObjCMethod("initWithCIImage:") public init(ciImage a0: ObjCValue)
+    @ObjCMethod("initWithCIImage:scale:orientation:") public init(ciImage a0: ObjCValue, scale a1: Float, orientation a2: Int)
+    @ObjCMethod("animatedImageNamed:duration:") public static func animatedImageNamed(_ a0: String, duration a1: Double) -> UIImage?
+    @ObjCMethod("animatedResizableImageNamed:capInsets:duration:") public static func animatedResizableImageNamed(_ a0: String, capInsets a1: UIEdgeInsets, duration a2: Double) -> UIImage?
+    @ObjCMethod("animatedResizableImageNamed:capInsets:resizingMode:duration:") public static func animatedResizableImageNamed(_ a0: String, capInsets a1: UIEdgeInsets, resizingMode a2: Int, duration a3: Double) -> UIImage?
+    @ObjCMethod("animatedImageWithImages:duration:") public static func animatedImageWithImages(_ a0: some NSArrayMethods, duration a1: Double) -> UIImage?
+}
 
 /// The Objective-C class UILocalNotification, a subclass of NSObject.
 public protocol UILocalNotificationMethods: NSObjectMethods {}
 @ObjC public struct UILocalNotification: UILocalNotificationMethods {}
 extension UILocalNotificationMethods {
-    @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
     @ObjCProperty public var fireDate: NSDate?
     @ObjCProperty public var timeZone: NSTimeZone?
     @ObjCProperty public var repeatInterval: Int
@@ -639,24 +678,28 @@ extension UILocalNotificationMethods {
     @ObjCProperty public var applicationIconBadgeNumber: Int
     @ObjCProperty public var userInfo: NSDictionary?
 }
+extension UILocalNotificationMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
+}
 
 /// The Objective-C class UILocalizedIndexedCollation, a subclass of NSObject.
 public protocol UILocalizedIndexedCollationMethods: NSObjectMethods {}
 @ObjC public struct UILocalizedIndexedCollation: UILocalizedIndexedCollationMethods {}
 extension UILocalizedIndexedCollationMethods {
-    @ObjCMethod("currentCollation") public static func currentCollation() -> Self
     @ObjCProperty(readonly: true) public var sectionTitles: NSArray
     @ObjCProperty(readonly: true) public var sectionIndexTitles: NSArray
     @ObjCMethod("sectionForSectionIndexTitleAtIndex:") public func sectionForSectionIndexTitleAtIndex(_ a0: Int) -> Int
     @ObjCMethod("sectionForObject:collationStringSelector:") public func sectionForObject(_ a0: ObjCValue, collationStringSelector a1: ObjCValue) -> Int
     @ObjCMethod("sortedArrayFromArray:collationStringSelector:") public func sortedArrayFromArray(_ a0: some NSArrayMethods, collationStringSelector a1: ObjCValue) -> NSArray
 }
+extension UILocalizedIndexedCollationMethods where Self: ObjCWrapper {
+    @ObjCMethod("currentCollation") public static func currentCollation() -> Self
+}
 
 /// The Objective-C class UIMenuController, a subclass of NSObject.
 public protocol UIMenuControllerMethods: NSObjectMethods {}
 @ObjC public struct UIMenuController: UIMenuControllerMethods {}
 extension UIMenuControllerMethods {
-    @ObjCMethod("sharedMenuController") public static func sharedMenuController() -> UIMenuController
     @ObjCProperty(getter: "isMenuVisible") public var menuVisible: Bool
     @ObjCMethod("setMenuVisible:animated:") public func setMenuVisible(_ a0: Bool, animated a1: Bool)
     @ObjCMethod("setTargetRect:inView:") public func setTargetRect(_ a0: CGRect, inView a1: some UIViewMethods)
@@ -665,22 +708,25 @@ extension UIMenuControllerMethods {
     @ObjCMethod("update") public func update()
     @ObjCProperty(readonly: true) public var menuFrame: CGRect
 }
+extension UIMenuControllerMethods where Self: ObjCWrapper {
+    @ObjCMethod("sharedMenuController") public static func sharedMenuController() -> UIMenuController
+}
 
 /// The Objective-C class UIMenuItem, a subclass of NSObject.
 public protocol UIMenuItemMethods: NSObjectMethods {}
 @ObjC public struct UIMenuItem: UIMenuItemMethods {}
 extension UIMenuItemMethods {
-    @ObjCMethod("initWithTitle:action:") public init(title a0: String, action a1: ObjCValue)
     @ObjCProperty public var title: String
     @ObjCProperty public var action: ObjCValue
+}
+extension UIMenuItemMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithTitle:action:") public init(title a0: String, action a1: ObjCValue)
 }
 
 /// The Objective-C class UINavigationItem, a subclass of NSObject.
 public protocol UINavigationItemMethods: NSObjectMethods {}
 @ObjC public struct UINavigationItem: UINavigationItemMethods {}
 extension UINavigationItemMethods {
-    @ObjCMethod("initWithTitle:") public init(title a0: String)
-    @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
     @ObjCProperty public var title: String?
     @ObjCProperty public var titleView: UIView?
     @ObjCProperty public var prompt: String?
@@ -697,25 +743,27 @@ extension UINavigationItemMethods {
     @ObjCMethod("setLeftBarButtonItem:animated:") public func setLeftBarButtonItem(_ a0: UIBarButtonItem?, animated a1: Bool)
     @ObjCMethod("setRightBarButtonItem:animated:") public func setRightBarButtonItem(_ a0: UIBarButtonItem?, animated a1: Bool)
 }
+extension UINavigationItemMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithTitle:") public init(title a0: String)
+    @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
+}
 
 /// The Objective-C class UINib, a subclass of NSObject.
 public protocol UINibMethods: NSObjectMethods {}
 @ObjC public struct UINib: UINibMethods {}
 extension UINibMethods {
+    @ObjCMethod("instantiateWithOwner:options:") public func instantiateWithOwner(_ a0: ObjCValue, options a1: NSDictionary?) -> NSArray
+}
+extension UINibMethods where Self: ObjCWrapper {
     @ObjCMethod("nibWithNibName:bundle:") public static func nibWithNibName(_ a0: String, bundle a1: NSBundle?) -> UINib
     @ObjCMethod("nibWithData:bundle:") public static func nibWithData(_ a0: some NSDataMethods, bundle a1: NSBundle?) -> UINib
-    @ObjCMethod("instantiateWithOwner:options:") public func instantiateWithOwner(_ a0: ObjCValue, options a1: NSDictionary?) -> NSArray
 }
 
 /// The Objective-C class UIPasteboard, a subclass of NSObject.
 public protocol UIPasteboardMethods: NSObjectMethods {}
 @ObjC public struct UIPasteboard: UIPasteboardMethods {}
 extension UIPasteboardMethods {
-    @ObjCMethod("generalPasteboard") public static func generalPasteboard() -> UIPasteboard
-    @ObjCMethod("pasteboardWithName:create:") public static func pasteboardWithName(_ a0: String, create a1: Bool) -> UIPasteboard?
-    @ObjCMethod("pasteboardWithUniqueName") public static func pasteboardWithUniqueName() -> UIPasteboard
     @ObjCProperty(readonly: true) public var name: String
-    @ObjCMethod("removePasteboardWithName:") public static func removePasteboardWithName(_ a0: String)
     @ObjCProperty(getter: "isPersistent") public var persistent: Bool
     @ObjCProperty(readonly: true) public var changeCount: Int
     @ObjCMethod("pasteboardTypes") public func pasteboardTypes() -> NSArray
@@ -741,12 +789,17 @@ extension UIPasteboardMethods {
     @ObjCProperty public var color: UIColor?
     @ObjCProperty public var colors: NSArray?
 }
+extension UIPasteboardMethods where Self: ObjCWrapper {
+    @ObjCMethod("generalPasteboard") public static func generalPasteboard() -> UIPasteboard
+    @ObjCMethod("pasteboardWithName:create:") public static func pasteboardWithName(_ a0: String, create a1: Bool) -> UIPasteboard?
+    @ObjCMethod("pasteboardWithUniqueName") public static func pasteboardWithUniqueName() -> UIPasteboard
+    @ObjCMethod("removePasteboardWithName:") public static func removePasteboardWithName(_ a0: String)
+}
 
 /// The Objective-C class UIPopoverController, a subclass of NSObject.
 public protocol UIPopoverControllerMethods: NSObjectMethods {}
 @ObjC public struct UIPopoverController: UIPopoverControllerMethods {}
 extension UIPopoverControllerMethods {
-    @ObjCMethod("initWithContentViewController:") public init(contentViewController a0: some UIViewControllerMethods)
     @ObjCProperty public var delegate: ObjCValue
     @ObjCProperty public var contentViewController: UIViewController
     @ObjCMethod("setContentViewController:animated:") public func setContentViewController(_ a0: some UIViewControllerMethods, animated a1: Bool)
@@ -760,6 +813,9 @@ extension UIPopoverControllerMethods {
     @ObjCMethod("dismissPopoverAnimated:") public func dismissPopoverAnimated(_ a0: Bool)
     @ObjCProperty public var popoverLayoutMargins: UIEdgeInsets
     @ObjCProperty public var popoverBackgroundViewClass: ObjCValue
+}
+extension UIPopoverControllerMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithContentViewController:") public init(contentViewController a0: some UIViewControllerMethods)
 }
 
 /// The Objective-C class UIPrintFormatter, a subclass of NSObject.
@@ -782,9 +838,6 @@ extension UIPrintFormatterMethods {
 public protocol UIPrintInfoMethods: NSObjectMethods {}
 @ObjC public struct UIPrintInfo: UIPrintInfoMethods {}
 extension UIPrintInfoMethods {
-    @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
-    @ObjCMethod("printInfo") public static func printInfo() -> UIPrintInfo
-    @ObjCMethod("printInfoWithDictionary:") public static func printInfoWithDictionary(_ a0: NSDictionary?) -> UIPrintInfo
     @ObjCMethod("dictionaryRepresentation") public func dictionaryRepresentation() -> NSDictionary
     @ObjCProperty public var printerID: String?
     @ObjCProperty public var jobName: String
@@ -792,16 +845,16 @@ extension UIPrintInfoMethods {
     @ObjCProperty public var orientation: Int
     @ObjCProperty public var duplex: Int
 }
+extension UIPrintInfoMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
+    @ObjCMethod("printInfo") public static func printInfo() -> UIPrintInfo
+    @ObjCMethod("printInfoWithDictionary:") public static func printInfoWithDictionary(_ a0: NSDictionary?) -> UIPrintInfo
+}
 
 /// The Objective-C class UIPrintInteractionController, a subclass of NSObject.
 public protocol UIPrintInteractionControllerMethods: NSObjectMethods {}
 @ObjC public struct UIPrintInteractionController: UIPrintInteractionControllerMethods {}
 extension UIPrintInteractionControllerMethods {
-    @ObjCMethod("isPrintingAvailable") public static func isPrintingAvailable() -> Bool
-    @ObjCMethod("printableUTIs") public static func printableUTIs() -> NSSet
-    @ObjCMethod("canPrintURL:") public static func canPrintURL(_ a0: some NSURLMethods) -> Bool
-    @ObjCMethod("canPrintData:") public static func canPrintData(_ a0: some NSDataMethods) -> Bool
-    @ObjCMethod("sharedPrintController") public static func sharedPrintController() -> UIPrintInteractionController
     @ObjCProperty public var printInfo: UIPrintInfo?
     @ObjCProperty public var delegate: ObjCValue
     @ObjCProperty public var showsPageRange: Bool
@@ -814,6 +867,13 @@ extension UIPrintInteractionControllerMethods {
     public func presentFromRect(_ a0: CGRect, inView a1: some UIViewMethods, animated a2: Bool, completionHandler a3: ((UIPrintInteractionController, Bool, NSError?) -> Void)?) -> Bool { return objcResult(self.object.send("presentFromRect:inView:animated:completionHandler:", a0, a1, a2, a3.map { body in ObjCBlock(types: "v@c@") { call in body(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])); return nil } })) }
     public func presentFromBarButtonItem(_ a0: some UIBarButtonItemMethods, animated a1: Bool, completionHandler a2: ((UIPrintInteractionController, Bool, NSError?) -> Void)?) -> Bool { return objcResult(self.object.send("presentFromBarButtonItem:animated:completionHandler:", a0, a1, a2.map { body in ObjCBlock(types: "v@c@") { call in body(objcResult(call[0]), objcResult(call[1]), objcResult(call[2])); return nil } })) }
     @ObjCMethod("dismissAnimated:") public func dismissAnimated(_ a0: Bool)
+}
+extension UIPrintInteractionControllerMethods where Self: ObjCWrapper {
+    @ObjCMethod("isPrintingAvailable") public static func isPrintingAvailable() -> Bool
+    @ObjCMethod("printableUTIs") public static func printableUTIs() -> NSSet
+    @ObjCMethod("canPrintURL:") public static func canPrintURL(_ a0: some NSURLMethods) -> Bool
+    @ObjCMethod("canPrintData:") public static func canPrintData(_ a0: some NSDataMethods) -> Bool
+    @ObjCMethod("sharedPrintController") public static func sharedPrintController() -> UIPrintInteractionController
 }
 
 /// The Objective-C class UIPrintPageRenderer, a subclass of NSObject.
@@ -840,10 +900,12 @@ extension UIPrintPageRendererMethods {
 public protocol UIPrintPaperMethods: NSObjectMethods {}
 @ObjC public struct UIPrintPaper: UIPrintPaperMethods {}
 extension UIPrintPaperMethods {
-    @ObjCMethod("bestPaperForPageSize:withPapersFromArray:") public static func bestPaperForPageSize(_ a0: CGSize, withPapersFromArray a1: some NSArrayMethods) -> UIPrintPaper
     @ObjCProperty(readonly: true) public var paperSize: CGSize
     @ObjCProperty(readonly: true) public var printableRect: CGRect
     @ObjCMethod("printRect") public func printRect() -> CGRect
+}
+extension UIPrintPaperMethods where Self: ObjCWrapper {
+    @ObjCMethod("bestPaperForPageSize:withPapersFromArray:") public static func bestPaperForPageSize(_ a0: CGSize, withPapersFromArray a1: some NSArrayMethods) -> UIPrintPaper
 }
 
 /// The Objective-C class UIResponder, a subclass of NSObject.
@@ -875,8 +937,6 @@ extension UIResponderMethods {
 public protocol UIScreenMethods: NSObjectMethods {}
 @ObjC public struct UIScreen: UIScreenMethods {}
 extension UIScreenMethods {
-    @ObjCMethod("screens") public static func screens() -> NSArray
-    @ObjCMethod("mainScreen") public static func mainScreen() -> UIScreen
     @ObjCProperty(readonly: true) public var bounds: CGRect
     @ObjCProperty(readonly: true) public var scale: Float
     @ObjCProperty(readonly: true) public var availableModes: NSArray?
@@ -888,6 +948,10 @@ extension UIScreenMethods {
     @ObjCProperty public var wantsSoftwareDimming: Bool
     @ObjCMethod("displayLinkWithTarget:selector:") public func displayLinkWithTarget(_ a0: ObjCValue, selector a1: ObjCValue) -> ObjCValue
     @ObjCProperty(readonly: true) public var applicationFrame: CGRect
+}
+extension UIScreenMethods where Self: ObjCWrapper {
+    @ObjCMethod("screens") public static func screens() -> NSArray
+    @ObjCMethod("mainScreen") public static func mainScreen() -> UIScreen
 }
 
 /// The Objective-C class UIScreenMode, a subclass of NSObject.
@@ -902,7 +966,6 @@ extension UIScreenModeMethods {
 public protocol UISearchDisplayControllerMethods: NSObjectMethods {}
 @ObjC public struct UISearchDisplayController: UISearchDisplayControllerMethods {}
 extension UISearchDisplayControllerMethods {
-    @ObjCMethod("initWithSearchBar:contentsController:") public init(searchBar a0: some UISearchBarMethods, contentsController a1: some UIViewControllerMethods)
     @ObjCProperty public var delegate: ObjCValue
     @ObjCProperty(getter: "isActive") public var active: Bool
     @ObjCMethod("setActive:animated:") public func setActive(_ a0: Bool, animated a1: Bool)
@@ -913,26 +976,33 @@ extension UISearchDisplayControllerMethods {
     @ObjCProperty public var searchResultsDelegate: ObjCValue
     @ObjCProperty public var searchResultsTitle: String?
 }
+extension UISearchDisplayControllerMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithSearchBar:contentsController:") public init(searchBar a0: some UISearchBarMethods, contentsController a1: some UIViewControllerMethods)
+}
 
 /// The Objective-C class UIStoryboard, a subclass of NSObject.
 public protocol UIStoryboardMethods: NSObjectMethods {}
 @ObjC public struct UIStoryboard: UIStoryboardMethods {}
 extension UIStoryboardMethods {
-    @ObjCMethod("storyboardWithName:bundle:") public static func storyboardWithName(_ a0: String, bundle a1: NSBundle?) -> UIStoryboard
     @ObjCMethod("instantiateInitialViewController") public func instantiateInitialViewController() -> UIViewController?
     @ObjCMethod("instantiateViewControllerWithIdentifier:") public func instantiateViewControllerWithIdentifier(_ a0: String) -> UIViewController
+}
+extension UIStoryboardMethods where Self: ObjCWrapper {
+    @ObjCMethod("storyboardWithName:bundle:") public static func storyboardWithName(_ a0: String, bundle a1: NSBundle?) -> UIStoryboard
 }
 
 /// The Objective-C class UIStoryboardSegue, a subclass of NSObject.
 public protocol UIStoryboardSegueMethods: NSObjectMethods {}
 @ObjC public struct UIStoryboardSegue: UIStoryboardSegueMethods {}
 extension UIStoryboardSegueMethods {
-    public static func segueWithIdentifier(_ a0: String?, source a1: some UIViewControllerMethods, destination a2: some UIViewControllerMethods, performHandler a3: @escaping () -> Void) -> Self { return objcResult(Self.objcClass.send("segueWithIdentifier:source:destination:performHandler:", a0, a1, a2, ObjCBlock(types: "v") { call in a3(); return nil })) }
-    @ObjCMethod("initWithIdentifier:source:destination:") public init(identifier a0: String?, source a1: some UIViewControllerMethods, destination a2: some UIViewControllerMethods)
     @ObjCProperty(readonly: true) public var identifier: String?
     @ObjCProperty(readonly: true) public var sourceViewController: UIViewController
     @ObjCProperty(readonly: true) public var destinationViewController: UIViewController
     @ObjCMethod("perform") public func perform()
+}
+extension UIStoryboardSegueMethods where Self: ObjCWrapper {
+    public static func segueWithIdentifier(_ a0: String?, source a1: some UIViewControllerMethods, destination a2: some UIViewControllerMethods, performHandler a3: @escaping () -> Void) -> Self { return objcResult(Self.objcClass.send("segueWithIdentifier:source:destination:performHandler:", a0, a1, a2, ObjCBlock(types: "v") { call in a3(); return nil })) }
+    @ObjCMethod("initWithIdentifier:source:destination:") public init(identifier a0: String?, source a1: some UIViewControllerMethods, destination a2: some UIViewControllerMethods)
 }
 
 /// The Objective-C class UITextChecker, a subclass of NSObject.
@@ -945,6 +1015,8 @@ extension UITextCheckerMethods {
     @ObjCMethod("ignoreWord:") public func ignoreWord(_ a0: String)
     @ObjCMethod("ignoredWords") public func ignoredWords() -> NSArray?
     @ObjCMethod("setIgnoredWords:") public func setIgnoredWords(_ a0: NSArray?)
+}
+extension UITextCheckerMethods where Self: ObjCWrapper {
     @ObjCMethod("learnWord:") public static func learnWord(_ a0: String)
     @ObjCMethod("hasLearnedWord:") public static func hasLearnedWord(_ a0: String) -> Bool
     @ObjCMethod("unlearnWord:") public static func unlearnWord(_ a0: String)
@@ -956,6 +1028,8 @@ public protocol UITextInputModeMethods: NSObjectMethods {}
 @ObjC public struct UITextInputMode: UITextInputModeMethods {}
 extension UITextInputModeMethods {
     @ObjCProperty(readonly: true) public var primaryLanguage: String?
+}
+extension UITextInputModeMethods where Self: ObjCWrapper {
     @ObjCMethod("currentInputMode") public static func currentInputMode() -> UITextInputMode?
     @ObjCMethod("activeInputModes") public static func activeInputModes() -> NSArray
 }
@@ -963,7 +1037,7 @@ extension UITextInputModeMethods {
 /// The Objective-C class UITextInputStringTokenizer, a subclass of NSObject.
 public protocol UITextInputStringTokenizerMethods: NSObjectMethods {}
 @ObjC public struct UITextInputStringTokenizer: UITextInputStringTokenizerMethods {}
-extension UITextInputStringTokenizerMethods {
+extension UITextInputStringTokenizerMethods where Self: ObjCWrapper {
     @ObjCMethod("initWithTextInput:") public init(textInput a0: some UIResponderMethods)
 }
 
@@ -1013,17 +1087,18 @@ public protocol NSMutableParagraphStyleMethods: NSParagraphStyleMethods {}
 public protocol UIActivityItemProviderMethods: NSOperationMethods {}
 @ObjC public struct UIActivityItemProvider: UIActivityItemProviderMethods {}
 extension UIActivityItemProviderMethods {
-    @ObjCMethod("initWithPlaceholderItem:") public init(placeholderItem a0: ObjCValue)
     @ObjCProperty(readonly: true) public var placeholderItem: ObjCValue
     @ObjCProperty(readonly: true) public var activityType: String?
     @ObjCMethod("item") public func item() -> ObjCValue
+}
+extension UIActivityItemProviderMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithPlaceholderItem:") public init(placeholderItem a0: ObjCValue)
 }
 
 /// The Objective-C class UIApplication, a subclass of UIResponder.
 public protocol UIApplicationMethods: UIResponderMethods {}
 @ObjC public struct UIApplication: UIApplicationMethods {}
 extension UIApplicationMethods {
-    @ObjCMethod("sharedApplication") public static func sharedApplication() -> UIApplication
     @ObjCProperty public var delegate: ObjCValue
     @ObjCMethod("beginIgnoringInteractionEvents") public func beginIgnoringInteractionEvents()
     @ObjCMethod("endIgnoringInteractionEvents") public func endIgnoringInteractionEvents()
@@ -1070,16 +1145,14 @@ extension UIApplicationMethods {
     public func setKeepAliveTimeout(_ a0: Double, handler a1: (() -> Void)?) -> Bool { return objcResult(self.object.send("setKeepAliveTimeout:handler:", a0, a1.map { body in ObjCBlock(types: "v") { call in body(); return nil } })) }
     @ObjCMethod("clearKeepAliveTimeout") public func clearKeepAliveTimeout()
 }
+extension UIApplicationMethods where Self: ObjCWrapper {
+    @ObjCMethod("sharedApplication") public static func sharedApplication() -> UIApplication
+}
 
 /// The Objective-C class UIBarButtonItem, a subclass of UIBarItem.
 public protocol UIBarButtonItemMethods: UIBarItemMethods {}
 @ObjC public struct UIBarButtonItem: UIBarButtonItemMethods {}
 extension UIBarButtonItemMethods {
-    @ObjCMethod("initWithImage:style:target:action:") public init(image a0: UIImage?, style a1: Int, target a2: ObjCValue, action a3: ObjCValue)
-    @ObjCMethod("initWithImage:landscapeImagePhone:style:target:action:") public init(image a0: UIImage?, landscapeImagePhone a1: UIImage?, style a2: Int, target a3: ObjCValue, action a4: ObjCValue)
-    @ObjCMethod("initWithTitle:style:target:action:") public init(title a0: String?, style a1: Int, target a2: ObjCValue, action a3: ObjCValue)
-    @ObjCMethod("initWithBarButtonSystemItem:target:action:") public init(barButtonSystemItem a0: Int, target a1: ObjCValue, action a2: ObjCValue)
-    @ObjCMethod("initWithCustomView:") public init(customView a0: some UIViewMethods)
     @ObjCProperty public var style: Int
     @ObjCProperty public var width: Float
     @ObjCProperty public var possibleTitles: NSSet?
@@ -1101,6 +1174,13 @@ extension UIBarButtonItemMethods {
     @ObjCMethod("backButtonTitlePositionAdjustmentForBarMetrics:") public func backButtonTitlePositionAdjustmentForBarMetrics(_ a0: Int) -> UIOffset
     @ObjCMethod("setBackButtonBackgroundVerticalPositionAdjustment:forBarMetrics:") public func setBackButtonBackgroundVerticalPositionAdjustment(_ a0: Float, forBarMetrics a1: Int)
     @ObjCMethod("backButtonBackgroundVerticalPositionAdjustmentForBarMetrics:") public func backButtonBackgroundVerticalPositionAdjustmentForBarMetrics(_ a0: Int) -> Float
+}
+extension UIBarButtonItemMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithImage:style:target:action:") public init(image a0: UIImage?, style a1: Int, target a2: ObjCValue, action a3: ObjCValue)
+    @ObjCMethod("initWithImage:landscapeImagePhone:style:target:action:") public init(image a0: UIImage?, landscapeImagePhone a1: UIImage?, style a2: Int, target a3: ObjCValue, action a4: ObjCValue)
+    @ObjCMethod("initWithTitle:style:target:action:") public init(title a0: String?, style a1: Int, target a2: ObjCValue, action a3: ObjCValue)
+    @ObjCMethod("initWithBarButtonSystemItem:target:action:") public init(barButtonSystemItem a0: Int, target a1: ObjCValue, action a2: ObjCValue)
+    @ObjCMethod("initWithCustomView:") public init(customView a0: some UIViewMethods)
 }
 
 /// The Objective-C class UICollectionViewFlowLayout, a subclass of UICollectionViewLayout.
@@ -1130,7 +1210,6 @@ extension UILongPressGestureRecognizerMethods {
 public protocol UIManagedDocumentMethods: UIDocumentMethods {}
 @ObjC public struct UIManagedDocument: UIManagedDocumentMethods {}
 extension UIManagedDocumentMethods {
-    @ObjCMethod("persistentStoreName") public static func persistentStoreName() -> String
     @ObjCProperty(readonly: true) public var managedObjectContext: ObjCValue
     @ObjCProperty(readonly: true) public var managedObjectModel: ObjCValue
     @ObjCProperty public var persistentStoreOptions: NSDictionary?
@@ -1141,13 +1220,18 @@ extension UIManagedDocumentMethods {
     @ObjCMethod("additionalContentForURL:error:") public func additionalContentForURL(_ a0: some NSURLMethods, error a1: ObjCValue) -> ObjCValue
     @ObjCMethod("writeAdditionalContent:toURL:originalContentsURL:error:") public func writeAdditionalContent(_ a0: ObjCValue, toURL a1: some NSURLMethods, originalContentsURL a2: NSURL?, error a3: ObjCValue) -> Bool
 }
+extension UIManagedDocumentMethods where Self: ObjCWrapper {
+    @ObjCMethod("persistentStoreName") public static func persistentStoreName() -> String
+}
 
 /// The Objective-C class UIMarkupTextPrintFormatter, a subclass of UIPrintFormatter.
 public protocol UIMarkupTextPrintFormatterMethods: UIPrintFormatterMethods {}
 @ObjC public struct UIMarkupTextPrintFormatter: UIMarkupTextPrintFormatterMethods {}
 extension UIMarkupTextPrintFormatterMethods {
-    @ObjCMethod("initWithMarkupText:") public init(markupText a0: String)
     @ObjCProperty public var markupText: String?
+}
+extension UIMarkupTextPrintFormatterMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithMarkupText:") public init(markupText a0: String)
 }
 
 /// The Objective-C class UIPanGestureRecognizer, a subclass of UIGestureRecognizer.
@@ -1181,11 +1265,13 @@ extension UIRotationGestureRecognizerMethods {
 public protocol UISimpleTextPrintFormatterMethods: UIPrintFormatterMethods {}
 @ObjC public struct UISimpleTextPrintFormatter: UISimpleTextPrintFormatterMethods {}
 extension UISimpleTextPrintFormatterMethods {
-    @ObjCMethod("initWithText:") public init(text a0: String)
     @ObjCProperty public var text: String?
     @ObjCProperty public var font: UIFont?
     @ObjCProperty public var color: UIColor?
     @ObjCProperty public var textAlignment: Int
+}
+extension UISimpleTextPrintFormatterMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithText:") public init(text a0: String)
 }
 
 /// The Objective-C class UIStoryboardPopoverSegue, a subclass of UIStoryboardSegue.
@@ -1207,13 +1293,15 @@ extension UISwipeGestureRecognizerMethods {
 public protocol UITabBarItemMethods: UIBarItemMethods {}
 @ObjC public struct UITabBarItem: UITabBarItemMethods {}
 extension UITabBarItemMethods {
-    @ObjCMethod("initWithTitle:image:tag:") public init(title a0: String?, image a1: UIImage?, tag a2: Int)
-    @ObjCMethod("initWithTabBarSystemItem:tag:") public init(tabBarSystemItem a0: Int, tag a1: Int)
     @ObjCProperty public var badgeValue: String?
     @ObjCMethod("setFinishedSelectedImage:withFinishedUnselectedImage:") public func setFinishedSelectedImage(_ a0: UIImage?, withFinishedUnselectedImage a1: UIImage?)
     @ObjCMethod("finishedSelectedImage") public func finishedSelectedImage() -> UIImage?
     @ObjCMethod("finishedUnselectedImage") public func finishedUnselectedImage() -> UIImage?
     @ObjCProperty public var titlePositionAdjustment: UIOffset
+}
+extension UITabBarItemMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithTitle:image:tag:") public init(title a0: String?, image a1: UIImage?, tag a2: Int)
+    @ObjCMethod("initWithTabBarSystemItem:tag:") public init(tabBarSystemItem a0: Int, tag a1: Int)
 }
 
 /// The Objective-C class UITapGestureRecognizer, a subclass of UIGestureRecognizer.
@@ -1228,9 +1316,6 @@ extension UITapGestureRecognizerMethods {
 public protocol UIViewMethods: UIResponderMethods {}
 @ObjC public struct UIView: UIViewMethods {}
 extension UIViewMethods {
-    @ObjCMethod("layerClass") public static func layerClass() -> ObjCValue
-    @ObjCMethod("initWithFrame:") public init(frame a0: CGRect)
-    @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
     @ObjCProperty(getter: "isUserInteractionEnabled") public var userInteractionEnabled: Bool
     @ObjCProperty public var tag: Int
     @ObjCProperty(readonly: true) public var layer: ObjCValue
@@ -1284,26 +1369,6 @@ extension UIViewMethods {
     @ObjCProperty(getter: "isHidden") public var hidden: Bool
     @ObjCProperty public var contentMode: Int
     @ObjCProperty public var contentStretch: CGRect
-    @ObjCMethod("beginAnimations:context:") public static func beginAnimations(_ a0: String?, context a1: ObjCValue)
-    @ObjCMethod("commitAnimations") public static func commitAnimations()
-    @ObjCMethod("setAnimationDelegate:") public static func setAnimationDelegate(_ a0: ObjCValue)
-    @ObjCMethod("setAnimationWillStartSelector:") public static func setAnimationWillStartSelector(_ a0: ObjCValue)
-    @ObjCMethod("setAnimationDidStopSelector:") public static func setAnimationDidStopSelector(_ a0: ObjCValue)
-    @ObjCMethod("setAnimationDuration:") public static func setAnimationDuration(_ a0: Double)
-    @ObjCMethod("setAnimationDelay:") public static func setAnimationDelay(_ a0: Double)
-    @ObjCMethod("setAnimationStartDate:") public static func setAnimationStartDate(_ a0: some NSDateMethods)
-    @ObjCMethod("setAnimationCurve:") public static func setAnimationCurve(_ a0: Int)
-    @ObjCMethod("setAnimationRepeatCount:") public static func setAnimationRepeatCount(_ a0: Float)
-    @ObjCMethod("setAnimationRepeatAutoreverses:") public static func setAnimationRepeatAutoreverses(_ a0: Bool)
-    @ObjCMethod("setAnimationBeginsFromCurrentState:") public static func setAnimationBeginsFromCurrentState(_ a0: Bool)
-    @ObjCMethod("setAnimationTransition:forView:cache:") public static func setAnimationTransition(_ a0: Int, forView a1: some UIViewMethods, cache a2: Bool)
-    @ObjCMethod("setAnimationsEnabled:") public static func setAnimationsEnabled(_ a0: Bool)
-    @ObjCMethod("areAnimationsEnabled") public static func areAnimationsEnabled() -> Bool
-    public static func animateWithDuration(_ a0: Double, delay a1: Double, options a2: Int, animations a3: @escaping () -> Void, completion a4: ((Bool) -> Void)?) { _ = Self.objcClass.send("animateWithDuration:delay:options:animations:completion:", a0, a1, a2, ObjCBlock(types: "v") { call in a3(); return nil }, a4.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
-    public static func animateWithDuration(_ a0: Double, animations a1: @escaping () -> Void, completion a2: ((Bool) -> Void)?) { _ = Self.objcClass.send("animateWithDuration:animations:completion:", a0, ObjCBlock(types: "v") { call in a1(); return nil }, a2.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
-    public static func animateWithDuration(_ a0: Double, animations a1: @escaping () -> Void) { _ = Self.objcClass.send("animateWithDuration:animations:", a0, ObjCBlock(types: "v") { call in a1(); return nil }) }
-    public static func transitionWithView(_ a0: some UIViewMethods, duration a1: Double, options a2: Int, animations a3: (() -> Void)?, completion a4: ((Bool) -> Void)?) { _ = Self.objcClass.send("transitionWithView:duration:options:animations:completion:", a0, a1, a2, a3.map { body in ObjCBlock(types: "v") { call in body(); return nil } }, a4.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
-    public static func transitionFromView(_ a0: some UIViewMethods, toView a1: some UIViewMethods, duration a2: Double, options a3: Int, completion a4: ((Bool) -> Void)?) { _ = Self.objcClass.send("transitionFromView:toView:duration:options:completion:", a0, a1, a2, a3, a4.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
     @ObjCProperty public var gestureRecognizers: NSArray?
     @ObjCMethod("addGestureRecognizer:") public func addGestureRecognizer(_ a0: some UIGestureRecognizerMethods)
     @ObjCMethod("removeGestureRecognizer:") public func removeGestureRecognizer(_ a0: some UIGestureRecognizerMethods)
@@ -1318,7 +1383,6 @@ extension UIViewMethods {
     @ObjCMethod("needsUpdateConstraints") public func needsUpdateConstraints() -> Bool
     @ObjCMethod("setNeedsUpdateConstraints") public func setNeedsUpdateConstraints()
     @ObjCProperty public var translatesAutoresizingMaskIntoConstraints: Bool
-    @ObjCMethod("requiresConstraintBasedLayout") public static func requiresConstraintBasedLayout() -> Bool
     @ObjCMethod("alignmentRectForFrame:") public func alignmentRectForFrame(_ a0: CGRect) -> CGRect
     @ObjCMethod("frameForAlignmentRect:") public func frameForAlignmentRect(_ a0: CGRect) -> CGRect
     @ObjCMethod("alignmentRectInsets") public func alignmentRectInsets() -> UIEdgeInsets
@@ -1340,13 +1404,37 @@ extension UIViewMethods {
     @ObjCMethod("viewPrintFormatter") public func viewPrintFormatter() -> UIViewPrintFormatter
     @ObjCMethod("drawRect:forViewPrintFormatter:") public func drawRect(_ a0: CGRect, forViewPrintFormatter a1: some UIViewPrintFormatterMethods)
 }
+extension UIViewMethods where Self: ObjCWrapper {
+    @ObjCMethod("layerClass") public static func layerClass() -> ObjCValue
+    @ObjCMethod("initWithFrame:") public init(frame a0: CGRect)
+    @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
+    @ObjCMethod("beginAnimations:context:") public static func beginAnimations(_ a0: String?, context a1: ObjCValue)
+    @ObjCMethod("commitAnimations") public static func commitAnimations()
+    @ObjCMethod("setAnimationDelegate:") public static func setAnimationDelegate(_ a0: ObjCValue)
+    @ObjCMethod("setAnimationWillStartSelector:") public static func setAnimationWillStartSelector(_ a0: ObjCValue)
+    @ObjCMethod("setAnimationDidStopSelector:") public static func setAnimationDidStopSelector(_ a0: ObjCValue)
+    @ObjCMethod("setAnimationDuration:") public static func setAnimationDuration(_ a0: Double)
+    @ObjCMethod("setAnimationDelay:") public static func setAnimationDelay(_ a0: Double)
+    @ObjCMethod("setAnimationStartDate:") public static func setAnimationStartDate(_ a0: some NSDateMethods)
+    @ObjCMethod("setAnimationCurve:") public static func setAnimationCurve(_ a0: Int)
+    @ObjCMethod("setAnimationRepeatCount:") public static func setAnimationRepeatCount(_ a0: Float)
+    @ObjCMethod("setAnimationRepeatAutoreverses:") public static func setAnimationRepeatAutoreverses(_ a0: Bool)
+    @ObjCMethod("setAnimationBeginsFromCurrentState:") public static func setAnimationBeginsFromCurrentState(_ a0: Bool)
+    @ObjCMethod("setAnimationTransition:forView:cache:") public static func setAnimationTransition(_ a0: Int, forView a1: some UIViewMethods, cache a2: Bool)
+    @ObjCMethod("setAnimationsEnabled:") public static func setAnimationsEnabled(_ a0: Bool)
+    @ObjCMethod("areAnimationsEnabled") public static func areAnimationsEnabled() -> Bool
+    public static func animateWithDuration(_ a0: Double, delay a1: Double, options a2: Int, animations a3: @escaping () -> Void, completion a4: ((Bool) -> Void)?) { _ = Self.objcClass.send("animateWithDuration:delay:options:animations:completion:", a0, a1, a2, ObjCBlock(types: "v") { call in a3(); return nil }, a4.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
+    public static func animateWithDuration(_ a0: Double, animations a1: @escaping () -> Void, completion a2: ((Bool) -> Void)?) { _ = Self.objcClass.send("animateWithDuration:animations:completion:", a0, ObjCBlock(types: "v") { call in a1(); return nil }, a2.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
+    public static func animateWithDuration(_ a0: Double, animations a1: @escaping () -> Void) { _ = Self.objcClass.send("animateWithDuration:animations:", a0, ObjCBlock(types: "v") { call in a1(); return nil }) }
+    public static func transitionWithView(_ a0: some UIViewMethods, duration a1: Double, options a2: Int, animations a3: (() -> Void)?, completion a4: ((Bool) -> Void)?) { _ = Self.objcClass.send("transitionWithView:duration:options:animations:completion:", a0, a1, a2, a3.map { body in ObjCBlock(types: "v") { call in body(); return nil } }, a4.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
+    public static func transitionFromView(_ a0: some UIViewMethods, toView a1: some UIViewMethods, duration a2: Double, options a3: Int, completion a4: ((Bool) -> Void)?) { _ = Self.objcClass.send("transitionFromView:toView:duration:options:completion:", a0, a1, a2, a3, a4.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
+    @ObjCMethod("requiresConstraintBasedLayout") public static func requiresConstraintBasedLayout() -> Bool
+}
 
 /// The Objective-C class UIViewController, a subclass of UIResponder.
 public protocol UIViewControllerMethods: UIResponderMethods {}
 @ObjC public struct UIViewController: UIViewControllerMethods {}
 extension UIViewControllerMethods {
-    @ObjCMethod("initWithNibName:bundle:") public init(nibName a0: String?, bundle a1: NSBundle?)
-    @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
     @ObjCProperty public var view: UIView?
     @ObjCMethod("loadView") public func loadView()
     @ObjCMethod("viewWillUnload") public func viewWillUnload()
@@ -1388,7 +1476,6 @@ extension UIViewControllerMethods {
     @ObjCProperty public var modalPresentationStyle: Int
     @ObjCMethod("disablesAutomaticKeyboardDismissal") public func disablesAutomaticKeyboardDismissal() -> Bool
     @ObjCProperty public var wantsFullScreenLayout: Bool
-    @ObjCMethod("attemptRotationToDeviceOrientation") public static func attemptRotationToDeviceOrientation()
     @ObjCMethod("shouldAutorotateToInterfaceOrientation:") public func shouldAutorotateToInterfaceOrientation(_ a0: Int) -> Bool
     @ObjCMethod("shouldAutorotate") public func shouldAutorotate() -> Bool
     @ObjCMethod("supportedInterfaceOrientations") public func supportedInterfaceOrientations() -> Int
@@ -1433,6 +1520,11 @@ extension UIViewControllerMethods {
     @ObjCProperty public var tabBarItem: UITabBarItem?
     @ObjCProperty(readonly: true) public var tabBarController: UITabBarController?
 }
+extension UIViewControllerMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithNibName:bundle:") public init(nibName a0: String?, bundle a1: NSBundle?)
+    @ObjCMethod("initWithCoder:") public init(coder a0: some NSCoderMethods)
+    @ObjCMethod("attemptRotationToDeviceOrientation") public static func attemptRotationToDeviceOrientation()
+}
 
 /// The Objective-C class UIViewPrintFormatter, a subclass of UIPrintFormatter.
 public protocol UIViewPrintFormatterMethods: UIPrintFormatterMethods {}
@@ -1467,7 +1559,6 @@ extension UIActionSheetMethods {
 public protocol UIActivityIndicatorViewMethods: UIViewMethods {}
 @ObjC public struct UIActivityIndicatorView: UIActivityIndicatorViewMethods {}
 extension UIActivityIndicatorViewMethods {
-    @ObjCMethod("initWithActivityIndicatorStyle:") public init(activityIndicatorStyle a0: Int)
     @ObjCProperty public var activityIndicatorViewStyle: Int
     @ObjCProperty public var hidesWhenStopped: Bool
     @ObjCProperty public var color: UIColor?
@@ -1475,13 +1566,18 @@ extension UIActivityIndicatorViewMethods {
     @ObjCMethod("stopAnimating") public func stopAnimating()
     @ObjCMethod("isAnimating") public func isAnimating() -> Bool
 }
+extension UIActivityIndicatorViewMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithActivityIndicatorStyle:") public init(activityIndicatorStyle a0: Int)
+}
 
 /// The Objective-C class UIActivityViewController, a subclass of UIViewController.
 public protocol UIActivityViewControllerMethods: UIViewControllerMethods {}
 @ObjC public struct UIActivityViewController: UIActivityViewControllerMethods {}
 extension UIActivityViewControllerMethods {
-    @ObjCMethod("initWithActivityItems:applicationActivities:") public init(activityItems a0: some NSArrayMethods, applicationActivities a1: NSArray?)
     @ObjCProperty public var excludedActivityTypes: NSArray?
+}
+extension UIActivityViewControllerMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithActivityItems:applicationActivities:") public init(activityItems a0: some NSArrayMethods, applicationActivities a1: NSArray?)
 }
 
 /// The Objective-C class UIAlertView, a subclass of UIView.
@@ -1518,9 +1614,11 @@ extension UICollectionReusableViewMethods {
 public protocol UICollectionViewControllerMethods: UIViewControllerMethods {}
 @ObjC public struct UICollectionViewController: UICollectionViewControllerMethods {}
 extension UICollectionViewControllerMethods {
-    @ObjCMethod("initWithCollectionViewLayout:") public init(collectionViewLayout a0: some UICollectionViewLayoutMethods)
     @ObjCProperty public var collectionView: UICollectionView?
     @ObjCProperty public var clearsSelectionOnViewWillAppear: Bool
+}
+extension UICollectionViewControllerMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithCollectionViewLayout:") public init(collectionViewLayout a0: some UICollectionViewLayoutMethods)
 }
 
 /// The Objective-C class UIControl, a subclass of UIView.
@@ -1552,8 +1650,6 @@ extension UIControlMethods {
 public protocol UIImageViewMethods: UIViewMethods {}
 @ObjC public struct UIImageView: UIImageViewMethods {}
 extension UIImageViewMethods {
-    @ObjCMethod("initWithImage:") public init(image a0: UIImage?)
-    @ObjCMethod("initWithImage:highlightedImage:") public init(image a0: UIImage?, highlightedImage a1: UIImage?)
     @ObjCProperty public var image: UIImage?
     @ObjCProperty public var highlightedImage: UIImage?
     @ObjCProperty(getter: "isHighlighted") public var highlighted: Bool
@@ -1564,6 +1660,10 @@ extension UIImageViewMethods {
     @ObjCMethod("startAnimating") public func startAnimating()
     @ObjCMethod("stopAnimating") public func stopAnimating()
     @ObjCMethod("isAnimating") public func isAnimating() -> Bool
+}
+extension UIImageViewMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithImage:") public init(image a0: UIImage?)
+    @ObjCMethod("initWithImage:highlightedImage:") public init(image a0: UIImage?, highlightedImage a1: UIImage?)
 }
 
 /// The Objective-C class UILabel, a subclass of UIView.
@@ -1618,8 +1718,6 @@ extension UINavigationBarMethods {
 public protocol UINavigationControllerMethods: UIViewControllerMethods {}
 @ObjC public struct UINavigationController: UINavigationControllerMethods {}
 extension UINavigationControllerMethods {
-    @ObjCMethod("initWithNavigationBarClass:toolbarClass:") public init(navigationBarClass a0: ObjCValue, toolbarClass a1: ObjCValue)
-    @ObjCMethod("initWithRootViewController:") public init(rootViewController a0: some UIViewControllerMethods)
     @ObjCMethod("pushViewController:animated:") public func pushViewController(_ a0: some UIViewControllerMethods, animated a1: Bool)
     @ObjCMethod("popViewControllerAnimated:") public func popViewControllerAnimated(_ a0: Bool) -> UIViewController?
     @ObjCMethod("popToViewController:animated:") public func popToViewController(_ a0: some UIViewControllerMethods, animated a1: Bool) -> NSArray?
@@ -1636,12 +1734,15 @@ extension UINavigationControllerMethods {
     @ObjCProperty(readonly: true) public var toolbar: UIToolbar?
     @ObjCProperty public var delegate: ObjCValue
 }
+extension UINavigationControllerMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithNavigationBarClass:toolbarClass:") public init(navigationBarClass a0: ObjCValue, toolbarClass a1: ObjCValue)
+    @ObjCMethod("initWithRootViewController:") public init(rootViewController a0: some UIViewControllerMethods)
+}
 
 /// The Objective-C class UIPageViewController, a subclass of UIViewController.
 public protocol UIPageViewControllerMethods: UIViewControllerMethods {}
 @ObjC public struct UIPageViewController: UIPageViewControllerMethods {}
 extension UIPageViewControllerMethods {
-    @ObjCMethod("initWithTransitionStyle:navigationOrientation:options:") public init(transitionStyle a0: Int, navigationOrientation a1: Int, options a2: NSDictionary?)
     @ObjCProperty public var delegate: ObjCValue
     @ObjCProperty public var dataSource: ObjCValue
     @ObjCProperty(readonly: true) public var transitionStyle: Int
@@ -1651,6 +1752,9 @@ extension UIPageViewControllerMethods {
     @ObjCProperty(readonly: true) public var gestureRecognizers: NSArray
     @ObjCProperty(readonly: true) public var viewControllers: NSArray?
     public func setViewControllers(_ a0: NSArray?, direction a1: Int, animated a2: Bool, completion a3: ((Bool) -> Void)?) { _ = self.object.send("setViewControllers:direction:animated:completion:", a0, a1, a2, a3.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
+}
+extension UIPageViewControllerMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithTransitionStyle:navigationOrientation:options:") public init(transitionStyle a0: Int, navigationOrientation a1: Int, options a2: NSDictionary?)
 }
 
 /// The Objective-C class UIPickerView, a subclass of UIView.
@@ -1676,6 +1780,8 @@ public protocol UIPopoverBackgroundViewMethods: UIViewMethods {}
 extension UIPopoverBackgroundViewMethods {
     @ObjCProperty public var arrowOffset: Float
     @ObjCProperty public var arrowDirection: Int
+}
+extension UIPopoverBackgroundViewMethods where Self: ObjCWrapper {
     @ObjCMethod("wantsDefaultContentAppearance") public static func wantsDefaultContentAppearance() -> Bool
 }
 
@@ -1683,7 +1789,6 @@ extension UIPopoverBackgroundViewMethods {
 public protocol UIProgressViewMethods: UIViewMethods {}
 @ObjC public struct UIProgressView: UIProgressViewMethods {}
 extension UIProgressViewMethods {
-    @ObjCMethod("initWithProgressViewStyle:") public init(progressViewStyle a0: Int)
     @ObjCProperty public var progressViewStyle: Int
     @ObjCProperty public var progress: Float
     @ObjCProperty public var progressTintColor: UIColor?
@@ -1692,11 +1797,14 @@ extension UIProgressViewMethods {
     @ObjCProperty public var trackImage: UIImage?
     @ObjCMethod("setProgress:animated:") public func setProgress(_ a0: Float, animated a1: Bool)
 }
+extension UIProgressViewMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithProgressViewStyle:") public init(progressViewStyle a0: Int)
+}
 
 /// The Objective-C class UIReferenceLibraryViewController, a subclass of UIViewController.
 public protocol UIReferenceLibraryViewControllerMethods: UIViewControllerMethods {}
 @ObjC public struct UIReferenceLibraryViewController: UIReferenceLibraryViewControllerMethods {}
-extension UIReferenceLibraryViewControllerMethods {
+extension UIReferenceLibraryViewControllerMethods where Self: ObjCWrapper {
     @ObjCMethod("dictionaryHasDefinitionForTerm:") public static func dictionaryHasDefinitionForTerm(_ a0: String) -> Bool
     @ObjCMethod("initWithTerm:") public init(term a0: String)
 }
@@ -1825,7 +1933,6 @@ extension UITabBarControllerMethods {
 public protocol UITableViewCellMethods: UIViewMethods {}
 @ObjC public struct UITableViewCell: UITableViewCellMethods {}
 extension UITableViewCellMethods {
-    @ObjCMethod("initWithStyle:reuseIdentifier:") public init(style a0: Int, reuseIdentifier a1: String?)
     @ObjCProperty(readonly: true) public var imageView: UIImageView?
     @ObjCProperty(readonly: true) public var textLabel: UILabel?
     @ObjCProperty(readonly: true) public var detailTextLabel: UILabel?
@@ -1854,7 +1961,6 @@ extension UITableViewCellMethods {
     @ObjCProperty(readonly: true) public var showingDeleteConfirmation: Bool
     @ObjCMethod("willTransitionToState:") public func willTransitionToState(_ a0: Int)
     @ObjCMethod("didTransitionToState:") public func didTransitionToState(_ a0: Int)
-    @ObjCMethod("initWithFrame:reuseIdentifier:") public init(frame a0: CGRect, reuseIdentifier a1: String?)
     @ObjCProperty public var text: String?
     @ObjCProperty public var font: UIFont?
     @ObjCProperty public var textAlignment: Int
@@ -1868,22 +1974,27 @@ extension UITableViewCellMethods {
     @ObjCProperty public var editAction: ObjCValue
     @ObjCProperty public var accessoryAction: ObjCValue
 }
+extension UITableViewCellMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithStyle:reuseIdentifier:") public init(style a0: Int, reuseIdentifier a1: String?)
+    @ObjCMethod("initWithFrame:reuseIdentifier:") public init(frame a0: CGRect, reuseIdentifier a1: String?)
+}
 
 /// The Objective-C class UITableViewController, a subclass of UIViewController.
 public protocol UITableViewControllerMethods: UIViewControllerMethods {}
 @ObjC public struct UITableViewController: UITableViewControllerMethods {}
 extension UITableViewControllerMethods {
-    @ObjCMethod("initWithStyle:") public init(style a0: Int)
     @ObjCProperty public var tableView: UITableView?
     @ObjCProperty public var clearsSelectionOnViewWillAppear: Bool
     @ObjCProperty public var refreshControl: UIRefreshControl?
+}
+extension UITableViewControllerMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithStyle:") public init(style a0: Int)
 }
 
 /// The Objective-C class UITableViewHeaderFooterView, a subclass of UIView.
 public protocol UITableViewHeaderFooterViewMethods: UIViewMethods {}
 @ObjC public struct UITableViewHeaderFooterView: UITableViewHeaderFooterViewMethods {}
 extension UITableViewHeaderFooterViewMethods {
-    @ObjCMethod("initWithReuseIdentifier:") public init(reuseIdentifier a0: String?)
     @ObjCProperty public var tintColor: UIColor?
     @ObjCProperty(readonly: true) public var textLabel: UILabel?
     @ObjCProperty(readonly: true) public var detailTextLabel: UILabel?
@@ -1891,6 +2002,9 @@ extension UITableViewHeaderFooterViewMethods {
     @ObjCProperty public var backgroundView: UIView?
     @ObjCProperty(readonly: true) public var reuseIdentifier: String?
     @ObjCMethod("prepareForReuse") public func prepareForReuse()
+}
+extension UITableViewHeaderFooterViewMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithReuseIdentifier:") public init(reuseIdentifier a0: String?)
 }
 
 /// The Objective-C class UIToolbar, a subclass of UIView.
@@ -1955,7 +2069,6 @@ extension UIWindowMethods {
 public protocol UIButtonMethods: UIControlMethods {}
 @ObjC public struct UIButton: UIButtonMethods {}
 extension UIButtonMethods {
-    @ObjCMethod("buttonWithType:") public static func buttonWithType(_ a0: Int) -> Self
     @ObjCProperty public var contentEdgeInsets: UIEdgeInsets
     @ObjCProperty public var titleEdgeInsets: UIEdgeInsets
     @ObjCProperty public var reversesTitleShadowWhenHighlighted: Bool
@@ -1993,12 +2106,14 @@ extension UIButtonMethods {
     @ObjCProperty public var lineBreakMode: Int
     @ObjCProperty public var titleShadowOffset: CGSize
 }
+extension UIButtonMethods where Self: ObjCWrapper {
+    @ObjCMethod("buttonWithType:") public static func buttonWithType(_ a0: Int) -> Self
+}
 
 /// The Objective-C class UICollectionView, a subclass of UIScrollView.
 public protocol UICollectionViewMethods: UIScrollViewMethods {}
 @ObjC public struct UICollectionView: UICollectionViewMethods {}
 extension UICollectionViewMethods {
-    @ObjCMethod("initWithFrame:collectionViewLayout:") public init(frame a0: CGRect, collectionViewLayout a1: some UICollectionViewLayoutMethods)
     @ObjCProperty public var collectionViewLayout: UICollectionViewLayout
     @ObjCProperty public var dataSource: ObjCValue
     @ObjCProperty public var backgroundView: UIView?
@@ -2035,6 +2150,9 @@ extension UICollectionViewMethods {
     @ObjCMethod("moveItemAtIndexPath:toIndexPath:") public func moveItemAtIndexPath(_ a0: some NSIndexPathMethods, toIndexPath a1: some NSIndexPathMethods)
     public func performBatchUpdates(_ a0: (() -> Void)?, completion a1: ((Bool) -> Void)?) { _ = self.object.send("performBatchUpdates:completion:", a0.map { body in ObjCBlock(types: "v") { call in body(); return nil } }, a1.map { body in ObjCBlock(types: "vc") { call in body(objcResult(call[0])); return nil } }) }
 }
+extension UICollectionViewMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithFrame:collectionViewLayout:") public init(frame a0: CGRect, collectionViewLayout a1: some UICollectionViewLayoutMethods)
+}
 
 /// The Objective-C class UICollectionViewCell, a subclass of UICollectionReusableView.
 public protocol UICollectionViewCellMethods: UICollectionReusableViewMethods {}
@@ -2067,11 +2185,6 @@ extension UIDatePickerMethods {
 public protocol UIImagePickerControllerMethods: UINavigationControllerMethods {}
 @ObjC public struct UIImagePickerController: UIImagePickerControllerMethods {}
 extension UIImagePickerControllerMethods {
-    @ObjCMethod("isSourceTypeAvailable:") public static func isSourceTypeAvailable(_ a0: Int) -> Bool
-    @ObjCMethod("availableMediaTypesForSourceType:") public static func availableMediaTypesForSourceType(_ a0: Int) -> NSArray?
-    @ObjCMethod("isCameraDeviceAvailable:") public static func isCameraDeviceAvailable(_ a0: Int) -> Bool
-    @ObjCMethod("isFlashAvailableForCameraDevice:") public static func isFlashAvailableForCameraDevice(_ a0: Int) -> Bool
-    @ObjCMethod("availableCaptureModesForCameraDevice:") public static func availableCaptureModesForCameraDevice(_ a0: Int) -> NSArray?
     @ObjCProperty public var sourceType: Int
     @ObjCProperty public var mediaTypes: NSArray
     @ObjCProperty public var allowsEditing: Bool
@@ -2087,6 +2200,13 @@ extension UIImagePickerControllerMethods {
     @ObjCProperty public var cameraCaptureMode: Int
     @ObjCProperty public var cameraDevice: Int
     @ObjCProperty public var cameraFlashMode: Int
+}
+extension UIImagePickerControllerMethods where Self: ObjCWrapper {
+    @ObjCMethod("isSourceTypeAvailable:") public static func isSourceTypeAvailable(_ a0: Int) -> Bool
+    @ObjCMethod("availableMediaTypesForSourceType:") public static func availableMediaTypesForSourceType(_ a0: Int) -> NSArray?
+    @ObjCMethod("isCameraDeviceAvailable:") public static func isCameraDeviceAvailable(_ a0: Int) -> Bool
+    @ObjCMethod("isFlashAvailableForCameraDevice:") public static func isFlashAvailableForCameraDevice(_ a0: Int) -> Bool
+    @ObjCMethod("availableCaptureModesForCameraDevice:") public static func availableCaptureModesForCameraDevice(_ a0: Int) -> NSArray?
 }
 
 /// The Objective-C class UIPageControl, a subclass of UIControl.
@@ -2118,7 +2238,6 @@ extension UIRefreshControlMethods {
 public protocol UISegmentedControlMethods: UIControlMethods {}
 @ObjC public struct UISegmentedControl: UISegmentedControlMethods {}
 extension UISegmentedControlMethods {
-    @ObjCMethod("initWithItems:") public init(items a0: NSArray?)
     @ObjCProperty public var segmentedControlStyle: Int
     @ObjCProperty(getter: "isMomentary") public var momentary: Bool
     @ObjCProperty(readonly: true) public var numberOfSegments: Int
@@ -2147,6 +2266,9 @@ extension UISegmentedControlMethods {
     @ObjCMethod("titleTextAttributesForState:") public func titleTextAttributesForState(_ a0: Int) -> NSDictionary?
     @ObjCMethod("setContentPositionAdjustment:forSegmentType:barMetrics:") public func setContentPositionAdjustment(_ a0: UIOffset, forSegmentType a1: Int, barMetrics a2: Int)
     @ObjCMethod("contentPositionAdjustmentForSegmentType:barMetrics:") public func contentPositionAdjustmentForSegmentType(_ a0: Int, barMetrics a1: Int) -> UIOffset
+}
+extension UISegmentedControlMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithItems:") public init(items a0: NSArray?)
 }
 
 /// The Objective-C class UISlider, a subclass of UIControl.
@@ -2217,7 +2339,6 @@ extension UISwitchMethods {
 public protocol UITableViewMethods: UIScrollViewMethods {}
 @ObjC public struct UITableView: UITableViewMethods {}
 extension UITableViewMethods {
-    @ObjCMethod("initWithFrame:style:") public init(frame a0: CGRect, style a1: Int)
     @ObjCProperty(readonly: true) public var style: Int
     @ObjCProperty public var dataSource: ObjCValue
     @ObjCProperty public var rowHeight: Float
@@ -2276,6 +2397,9 @@ extension UITableViewMethods {
     @ObjCMethod("registerClass:forCellReuseIdentifier:") public func registerClass(_ a0: ObjCValue, forCellReuseIdentifier a1: String)
     @ObjCMethod("registerNib:forHeaderFooterViewReuseIdentifier:") public func registerNib(_ a0: UINib?, forHeaderFooterViewReuseIdentifier a1: String)
     @ObjCMethod("registerClass:forHeaderFooterViewReuseIdentifier:") public func registerClass(_ a0: ObjCValue, forHeaderFooterViewReuseIdentifier a1: String)
+}
+extension UITableViewMethods where Self: ObjCWrapper {
+    @ObjCMethod("initWithFrame:style:") public init(frame a0: CGRect, style a1: Int)
 }
 
 /// The Objective-C class UITextField, a subclass of UIControl.
@@ -2338,8 +2462,10 @@ extension UITextViewMethods {
 public protocol UIVideoEditorControllerMethods: UINavigationControllerMethods {}
 @ObjC public struct UIVideoEditorController: UIVideoEditorControllerMethods {}
 extension UIVideoEditorControllerMethods {
-    @ObjCMethod("canEditVideoAtPath:") public static func canEditVideoAtPath(_ a0: String) -> Bool
     @ObjCProperty public var videoPath: String
     @ObjCProperty public var videoMaximumDuration: Double
     @ObjCProperty public var videoQuality: Int
+}
+extension UIVideoEditorControllerMethods where Self: ObjCWrapper {
+    @ObjCMethod("canEditVideoAtPath:") public static func canEditVideoAtPath(_ a0: String) -> Bool
 }
