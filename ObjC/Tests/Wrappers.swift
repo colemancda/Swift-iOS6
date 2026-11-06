@@ -73,3 +73,55 @@ final class Counter {
         Counter.deallocs += 1
     }
 }
+
+/// A hierarchy of Swift classes, each implementing an Objective-C class:
+/// SISquare is a subclass of SIShape, and SIUnitSquare of SISquare.
+@ObjCImplementation("SIShape", superclass: "NSObject")
+class Shape {
+    static var shapeDeallocs = 0
+    var sides = 0
+
+    init() {}
+
+    @ObjCMethod func area() -> Double { 0 }
+
+    @ObjCMethod func name() -> String { "shape" }
+
+    /// Reaches NSObject's description, from any subclass.
+    @ObjCMethod("description") func describe() -> String {
+        name() + " " + (callSuper("description").asString ?? "?")
+    }
+
+    @ObjCMethod func dealloc() {
+        Shape.shapeDeallocs += 1
+    }
+}
+
+@ObjCImplementation("SISquare")
+class Square: Shape {
+    static var squareDeallocs = 0
+    var side = 2.0
+
+    override init() {
+        super.init()
+        sides = 4
+    }
+
+    @ObjCMethod override func area() -> Double { side * side }
+
+    @ObjCMethod override func name() -> String { "square" }
+
+    /// A method only the subclass has.
+    @ObjCMethod func grow(_ amount: Double) { side += amount }
+
+    @ObjCMethod override func dealloc() {
+        Square.squareDeallocs += 1
+        super.dealloc()
+    }
+}
+
+/// No methods or initializers of its own.
+@ObjCImplementation("SIUnitSquare")
+final class UnitSquare: Square {
+    var unit = true
+}
